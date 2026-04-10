@@ -11,3 +11,5 @@ contracts/cache
 smoke-report.json
 .DS_Store
 infra/prod/.env.production
+gh_deploy
+gh_deploy.pub
