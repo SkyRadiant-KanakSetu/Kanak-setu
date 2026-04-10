@@ -8,4 +8,6 @@ uploads
 contracts/artifacts
 contracts/cache
 *.log
+smoke-report.json
 .DS_Store
+infra/prod/.env.production
