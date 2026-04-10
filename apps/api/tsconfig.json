@@ -3,12 +3,13 @@
   "compilerOptions": {
     "outDir": "./dist",
     "rootDir": "./src",
-    "baseUrl": ".",
-    "paths": {
-      "@kanak-setu/config": ["../../packages/config/dist/index.d.ts"],
-      "@kanak-setu/blockchain": ["../../packages/blockchain/dist/index.d.ts"]
-    }
+    "composite": true,
+    "baseUrl": "."
   },
-  "include": ["src"],
+  "references": [
+    { "path": "../../packages/config" },
+    { "path": "../../packages/blockchain" }
+  ],
+  "include": ["src/**/*"],
   "exclude": ["node_modules", "dist"]
 }
