@@ -2,14 +2,8 @@
   "extends": "../../tsconfig.base.json",
   "compilerOptions": {
     "outDir": "./dist",
-    "rootDir": "./src",
-    "composite": true,
-    "baseUrl": "."
+    "rootDir": "./src"
   },
-  "references": [
-    { "path": "../../packages/config" },
-    { "path": "../../packages/blockchain" }
-  ],
   "include": ["src/**/*"],
   "exclude": ["node_modules", "dist"]
 }
