@@ -1,0 +1,49 @@
+# Deploy to your Hostinger VPS over SSH (GitHub cannot reach your server without this).
+#
+# Setup (one time):
+# 1. On your Mac: ssh-keygen -t ed25519 -f ./gh_deploy -N "" -C "github-actions"
+# 2. Copy the PUBLIC key to the VPS:
+#    ssh-copy-id -i ./gh_deploy.pub root@YOUR_VPS_IP
+#    (or append gh_deploy.pub to /root/.ssh/authorized_keys on the server)
+# 3. GitHub repo → Settings → Secrets and variables → Actions → New repository secret:
+#    - VPS_HOST = 91.108.110.104 (or your IP)
+#    - VPS_USER = root
+#    - VPS_SSH_KEY = entire contents of ./gh_deploy (PRIVATE key file)
+# 4. First-time app bootstrap on the server still needs infra/prod/.env.production
+#    (run scripts/prod/vps-one-shot.sh once over SSH), then use this workflow for updates.
+#
+# Run: Actions → "Deploy VPS" → Run workflow
+
+name: Deploy VPS
+
+on:
+  workflow_dispatch:
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Deploy over SSH
+        uses: appleboy/ssh-action@v1.2.5
+        with:
+          host: ${{ secrets.VPS_HOST }}
+          username: ${{ secrets.VPS_USER }}
+          key: ${{ secrets.VPS_SSH_KEY }}
+          script_stop: true
+          script: |
+            set -euo pipefail
+            REPO="https://github.com/SkyRadiant-KanakSetu/Kanak-setu.git"
+            BRANCH="main"
+            if [ ! -d /opt/kanak-setu/.git ]; then
+              mkdir -p /opt
+              git clone --branch "${BRANCH}" "${REPO}" /opt/kanak-setu || {
+                git clone "${REPO}" /opt/kanak-setu
+                cd /opt/kanak-setu && git checkout "${BRANCH}"
+              }
+            fi
+            cd /opt/kanak-setu
+            git fetch origin
+            git checkout "${BRANCH}"
+            git pull origin "${BRANCH}"
+            chmod +x scripts/prod/deploy-vps.sh
+            APP_DIR=/opt/kanak-setu BRANCH="${BRANCH}" bash scripts/prod/deploy-vps.sh
