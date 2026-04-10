@@ -16,6 +16,7 @@
 - `docs/deployment/18-kanaksetu-domain-go-live.md`
 
 ## Operations and SOPs
+- `docs/operations/19-cto-runbook.md`
 - `docs/operations/09-operator-runbook.md`
 - `docs/sops/10-admin-sop.md`
 - `docs/sops/11-institution-onboarding-sop.md`

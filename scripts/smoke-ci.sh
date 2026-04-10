@@ -11,10 +11,10 @@ echo "[smoke-ci] starting CI smoke pipeline"
 export DATABASE_URL
 
 npm run db:generate
-if [[ -d "prisma/migrations" ]] && [[ -n "$(ls -A prisma/migrations 2>/dev/null)" ]]; then
+if [[ -d "prisma/migrations" ]] && compgen -G "prisma/migrations/*/migration.sql" >/dev/null; then
   npx prisma migrate deploy --schema=prisma/schema.prisma
 else
-  echo "[smoke-ci] no migrations found, using prisma db push"
+  echo "[smoke-ci] no migration SQL found, using prisma db push"
   npx prisma db push --schema=prisma/schema.prisma --accept-data-loss
 fi
 npm run db:seed

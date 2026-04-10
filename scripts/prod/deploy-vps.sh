@@ -31,9 +31,15 @@ set -a
 source infra/prod/.env.production
 set +a
 
-echo "[deploy] prisma generate + schema sync"
+echo "[deploy] prisma generate + database schema"
 npm run db:generate
-npx prisma db push --schema=prisma/schema.prisma --accept-data-loss
+if [[ -d "prisma/migrations" ]] && compgen -G "prisma/migrations/*/migration.sql" >/dev/null; then
+  echo "[deploy] applying prisma migrations (migrate deploy)"
+  npx prisma migrate deploy --schema=prisma/schema.prisma
+else
+  echo "[deploy] no migration folders found, using prisma db push (bootstrap only)"
+  npx prisma db push --schema=prisma/schema.prisma --accept-data-loss
+fi
 
 echo "[deploy] building apps"
 npm run build

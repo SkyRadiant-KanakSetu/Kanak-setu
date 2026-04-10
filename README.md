@@ -172,6 +172,7 @@ npx hardhat run scripts/deploy.ts --network amoy
 - Environment setup: `docs/deployment/15-environment-setup-guide.md`
 - Go-live checklist: `docs/deployment/16-production-go-live-checklist.md`
 - Domain go-live: `docs/deployment/18-kanaksetu-domain-go-live.md`
+- CTO / backup / rollback: `docs/operations/19-cto-runbook.md`
 - Smoke tests: `docs/testing/17-smoke-tests.md`
 
 ## Smoke Commands
