@@ -25,7 +25,7 @@ app.use(requestIdMiddleware);
 app.use(helmet());
 const corsOrigins = (getEnv().CORS_ORIGINS || '')
   .split(',')
-  .map((o) => o.trim())
+  .map((o: string) => o.trim())
   .filter(Boolean);
 app.use(
   cors({
