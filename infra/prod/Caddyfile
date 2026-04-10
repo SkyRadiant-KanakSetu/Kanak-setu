@@ -1,0 +1,23 @@
+kanaksetu.com {
+  encode gzip
+  reverse_proxy 127.0.0.1:3000
+}
+
+www.kanaksetu.com {
+  redir https://kanaksetu.com{uri}
+}
+
+institution.kanaksetu.com {
+  encode gzip
+  reverse_proxy 127.0.0.1:3001
+}
+
+admin.kanaksetu.com {
+  encode gzip
+  reverse_proxy 127.0.0.1:3002
+}
+
+api.kanaksetu.com {
+  encode gzip
+  reverse_proxy 127.0.0.1:4000
+}

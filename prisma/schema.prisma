@@ -1,0 +1,653 @@
+// ============================================================
+// KANAK SETU — COMPLETE DATABASE SCHEMA
+// ============================================================
+// Precision: money in paise (Int), gold in milligrams (Decimal(18,4))
+// All financial/gold records are immutable (append-only via audit log)
+// Soft delete via deletedAt where needed
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+// ===================== USER & AUTH =====================
+
+model User {
+  id            String    @id @default(cuid())
+  email         String    @unique
+  phone         String?   @unique
+  passwordHash  String
+  role          UserRole  @default(DONOR)
+  isActive      Boolean   @default(true)
+  emailVerified Boolean   @default(false)
+  lastLoginAt   DateTime?
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+  deletedAt     DateTime?
+
+  donorProfile       DonorProfile?
+  institutionProfile InstitutionProfile?
+  auditLogs          AuditLog[]
+  sessions           Session[]
+
+  @@index([role])
+}
+
+model Session {
+  id           String   @id @default(cuid())
+  userId       String
+  refreshToken String   @unique
+  expiresAt    DateTime
+  ipAddress    String?
+  userAgent    String?
+  createdAt    DateTime @default(now())
+
+  user User @relation(fields: [userId], references: [id])
+
+  @@index([userId])
+}
+
+enum UserRole {
+  SUPER_ADMIN
+  ADMIN_OPS
+  COMPLIANCE_ADMIN
+  FINANCE_ADMIN
+  INSTITUTION_ADMIN
+  INSTITUTION_STAFF
+  DONOR
+  AUDITOR
+}
+
+// ===================== DONOR =====================
+
+model DonorProfile {
+  id          String         @id @default(cuid())
+  userId      String         @unique
+  firstName   String
+  lastName    String
+  pan         String?
+  kycStatus   DonorKycStatus @default(UNVERIFIED)
+  address     String?
+  city        String?
+  state       String?
+  pincode     String?
+  createdAt   DateTime       @default(now())
+  updatedAt   DateTime       @updatedAt
+
+  user      User       @relation(fields: [userId], references: [id])
+  donations Donation[]
+  kycDocs   DonorKycDoc[]
+
+  @@index([kycStatus])
+}
+
+enum DonorKycStatus {
+  UNVERIFIED
+  BASIC
+  PENDING_KYC
+  VERIFIED
+  FLAGGED
+  BLOCKED
+}
+
+model DonorKycDoc {
+  id           String   @id @default(cuid())
+  donorId      String
+  docType      String   // PAN_CARD, AADHAAR, etc
+  fileUrl      String
+  verifiedAt   DateTime?
+  verifiedBy   String?
+  createdAt    DateTime @default(now())
+
+  donor DonorProfile @relation(fields: [donorId], references: [id])
+}
+
+// ===================== INSTITUTION =====================
+
+model InstitutionProfile {
+  id                String            @id @default(cuid())
+  userId            String            @unique
+  legalName         String
+  publicName        String
+  type              InstitutionType
+  status            InstitutionStatus @default(DRAFT)
+  registrationNo    String?
+  pan               String?
+  gst               String?
+  has80G            Boolean           @default(false)
+  cert80GNumber     String?
+  cert80GExpiry     DateTime?
+  description       String?
+  logoUrl           String?
+  websiteUrl        String?
+  addressLine1      String?
+  addressLine2      String?
+  city              String?
+  state             String?
+  pincode           String?
+  authorizedSignatory String?
+  signatoryDesignation String?
+  signatoryPhone    String?
+  signatoryEmail    String?
+  publicPageSlug    String?           @unique
+  createdAt         DateTime          @default(now())
+  updatedAt         DateTime          @updatedAt
+
+  user              User                @relation(fields: [userId], references: [id])
+  documents         InstitutionDoc[]
+  bankDetails       InstitutionBank[]
+  campaigns         Campaign[]
+  donations         Donation[]
+  ledgerEntries     GoldLedgerEntry[]
+  redemptions       RedemptionRequest[]
+  adminReviews      AdminReview[]
+
+  @@index([status])
+  @@index([type])
+}
+
+enum InstitutionType {
+  TRUST
+  NGO
+  RELIGIOUS
+  FOUNDATION
+  CORPORATE_CSR
+}
+
+enum InstitutionStatus {
+  DRAFT
+  SUBMITTED
+  UNDER_REVIEW
+  ACTIVE
+  SUSPENDED
+  REJECTED
+}
+
+model InstitutionDoc {
+  id            String   @id @default(cuid())
+  institutionId String
+  docType       String   // TRUST_DEED, PAN_CARD, 80G_CERT, REGISTRATION, etc
+  fileName      String
+  fileUrl       String
+  uploadedAt    DateTime @default(now())
+
+  institution InstitutionProfile @relation(fields: [institutionId], references: [id])
+}
+
+model InstitutionBank {
+  id             String   @id @default(cuid())
+  institutionId  String
+  accountName    String
+  accountNumber  String
+  ifsc           String
+  bankName       String
+  isPrimary      Boolean  @default(false)
+  verifiedAt     DateTime?
+  createdAt      DateTime @default(now())
+
+  institution InstitutionProfile @relation(fields: [institutionId], references: [id])
+}
+
+model AdminReview {
+  id            String   @id @default(cuid())
+  institutionId String
+  reviewerId    String
+  action        String   // APPROVE, REJECT, SUSPEND, REQUEST_INFO
+  notes         String?
+  fromStatus    InstitutionStatus
+  toStatus      InstitutionStatus
+  createdAt     DateTime @default(now())
+
+  institution InstitutionProfile @relation(fields: [institutionId], references: [id])
+}
+
+// ===================== CAMPAIGN =====================
+
+model Campaign {
+  id            String   @id @default(cuid())
+  institutionId String
+  name          String
+  description   String?
+  isActive      Boolean  @default(true)
+  targetAmountPaise Int?
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  institution InstitutionProfile @relation(fields: [institutionId], references: [id])
+  donations   Donation[]
+}
+
+// ===================== DONATION =====================
+
+model Donation {
+  id              String         @id @default(cuid())
+  donationRef     String         @unique @default(cuid()) // public reference
+  donorId         String
+  institutionId   String
+  campaignId      String?
+  amountPaise     Int            // amount in paise
+  goldQuantityMg  Decimal?       @db.Decimal(18, 4) // milligrams allocated
+  goldPricePerGramPaise Int?     // price snapshot at time of order
+  status          DonationStatus @default(INITIATED)
+  idempotencyKey  String?        @unique
+  notes           String?
+  createdAt       DateTime       @default(now())
+  updatedAt       DateTime       @updatedAt
+
+  donor        DonorProfile       @relation(fields: [donorId], references: [id])
+  institution  InstitutionProfile @relation(fields: [institutionId], references: [id])
+  campaign     Campaign?          @relation(fields: [campaignId], references: [id])
+  payment      PaymentTransaction?
+  vendorOrder  VendorOrder?
+  certificates Certificate[]
+  merkleLeaf   MerkleLeaf?
+
+  @@index([status])
+  @@index([donorId])
+  @@index([institutionId])
+  @@index([createdAt])
+}
+
+enum DonationStatus {
+  INITIATED
+  PAYMENT_PENDING
+  PAYMENT_CONFIRMED
+  UNDER_REVIEW
+  VENDOR_ORDER_PLACED
+  GOLD_ALLOCATED
+  COMPLETED
+  BATCHED
+  ANCHORED
+  PAYMENT_FAILED
+  VENDOR_FAILED
+  DISPUTED
+  REFUNDED
+  CANCELLED
+}
+
+// ===================== PAYMENT =====================
+
+model PaymentTransaction {
+  id                String        @id @default(cuid())
+  donationId        String        @unique
+  provider          PaymentProvider
+  providerOrderId   String?
+  providerPaymentId String?
+  amountPaise       Int
+  status            PaymentStatus @default(CREATED)
+  providerData      Json?
+  createdAt         DateTime      @default(now())
+  updatedAt         DateTime      @updatedAt
+
+  donation Donation       @relation(fields: [donationId], references: [id])
+  events   PaymentEvent[]
+
+  @@index([providerOrderId])
+  @@index([status])
+}
+
+enum PaymentProvider {
+  RAZORPAY
+  PAYU
+  MOCK
+}
+
+enum PaymentStatus {
+  CREATED
+  AUTHORIZED
+  CAPTURED
+  SETTLED
+  FAILED
+  DISPUTED
+  REFUND_INITIATED
+  REFUNDED
+}
+
+model PaymentEvent {
+  id              String   @id @default(cuid())
+  transactionId   String
+  eventType       String // webhook event type
+  externalEventId String? // provider event id when present (dedupe in application layer)
+  payload         Json
+  signature       String?
+  processedAt     DateTime?
+  createdAt       DateTime @default(now())
+
+  transaction PaymentTransaction @relation(fields: [transactionId], references: [id])
+
+  @@index([transactionId])
+  @@index([transactionId, externalEventId])
+}
+
+// ===================== VENDOR ORDER =====================
+
+model VendorOrder {
+  id              String           @id @default(cuid())
+  donationId      String           @unique
+  vendor          GoldVendor
+  vendorOrderRef  String?
+  goldQuantityMg  Decimal?         @db.Decimal(18, 4)
+  pricePerGramPaise Int?
+  status          VendorOrderStatus @default(CREATED)
+  vendorData      Json?
+  createdAt       DateTime         @default(now())
+  updatedAt       DateTime         @updatedAt
+
+  donation Donation @relation(fields: [donationId], references: [id])
+  events   VendorEvent[]
+
+  @@index([status])
+  @@index([vendorOrderRef])
+}
+
+model VendorEvent {
+  id            String   @id @default(cuid())
+  vendorOrderId String
+  eventType     String
+  payload       Json
+  createdAt     DateTime @default(now())
+
+  vendorOrder VendorOrder @relation(fields: [vendorOrderId], references: [id])
+
+  @@index([vendorOrderId])
+}
+
+enum GoldVendor {
+  MMTC_PAMP
+  SAFEGOLD
+  AUGMONT
+  MOCK
+}
+
+enum VendorOrderStatus {
+  CREATED
+  SUBMITTED
+  CONFIRMED
+  ALLOCATED
+  FAILED
+  REVERSED
+}
+
+// ===================== GOLD LEDGER =====================
+
+model GoldLedgerEntry {
+  id             String          @id @default(cuid())
+  institutionId  String
+  donationId     String?
+  entryType      LedgerEntryType
+  goldQuantityMg Decimal         @db.Decimal(18, 4)
+  balanceAfterMg Decimal         @db.Decimal(18, 4)
+  description    String?
+  approvedBy     String?
+  createdAt      DateTime        @default(now())
+
+  institution InstitutionProfile @relation(fields: [institutionId], references: [id])
+
+  @@index([institutionId])
+  @@index([createdAt])
+}
+
+enum LedgerEntryType {
+  CREDIT
+  DEBIT
+  REVERSAL
+  ADJUSTMENT
+}
+
+// ===================== REDEMPTION =====================
+
+model RedemptionRequest {
+  id              String           @id @default(cuid())
+  institutionId   String
+  goldQuantityMg  Decimal          @db.Decimal(18, 4)
+  status          RedemptionStatus @default(REQUESTED)
+  notes           String?
+  reviewedBy      String?
+  reviewNotes     String?
+  createdAt       DateTime         @default(now())
+  updatedAt       DateTime         @updatedAt
+
+  institution InstitutionProfile @relation(fields: [institutionId], references: [id])
+
+  @@index([status])
+}
+
+enum RedemptionStatus {
+  REQUESTED
+  UNDER_REVIEW
+  APPROVED
+  PROCESSING
+  COMPLETED
+  REJECTED
+  CANCELLED
+}
+
+// ===================== CERTIFICATE =====================
+
+model Certificate {
+  id             String            @id @default(cuid())
+  serialNumber   String            @unique
+  donationId     String
+  type           CertificateType
+  status         CertificateStatus @default(PENDING)
+  fileUrl        String?
+  verificationRef String           @unique @default(cuid())
+  qrData         String?
+  issuedAt       DateTime?
+  revokedAt      DateTime?
+  revokedReason  String?
+  createdAt      DateTime          @default(now())
+  updatedAt      DateTime          @updatedAt
+
+  donation Donation @relation(fields: [donationId], references: [id])
+
+  @@index([donationId])
+  @@index([type])
+}
+
+enum CertificateType {
+  DONATION_RECEIPT
+  BLOCKCHAIN_PROOF
+  TAX_80G
+}
+
+enum CertificateStatus {
+  PENDING
+  GENERATED
+  ISSUED
+  REVOKED
+  GENERATION_FAILED
+}
+
+// ===================== MERKLE / BLOCKCHAIN =====================
+
+model MerkleBatch {
+  id            String           @id @default(cuid())
+  batchNumber   Int              @unique @default(autoincrement())
+  status        MerkleBatchStatus @default(COLLECTING)
+  merkleRoot    String?
+  leafCount     Int              @default(0)
+  sealedAt      DateTime?
+  anchoredAt    DateTime?
+  createdAt     DateTime         @default(now())
+  updatedAt     DateTime         @updatedAt
+
+  leaves  MerkleLeaf[]
+  anchor  BlockchainAnchor?
+
+  @@index([status])
+}
+
+enum MerkleBatchStatus {
+  COLLECTING
+  SEALED
+  ANCHORING
+  ANCHORED
+  ANCHOR_FAILED
+}
+
+model MerkleLeaf {
+  id           String   @id @default(cuid())
+  batchId      String
+  donationId   String   @unique
+  leafIndex    Int
+  leafHash     String
+  proofPath    Json?    // stored after tree is built
+  createdAt    DateTime @default(now())
+
+  batch    MerkleBatch @relation(fields: [batchId], references: [id])
+  donation Donation    @relation(fields: [donationId], references: [id])
+
+  @@index([batchId])
+}
+
+model BlockchainAnchor {
+  id           String   @id @default(cuid())
+  batchId      String   @unique
+  network      String   // polygon_amoy, polygon_mainnet
+  txHash       String?
+  contractAddr String?
+  merkleRoot   String
+  gasUsed      String?
+  blockNumber  Int?
+  status       String   @default("PENDING") // PENDING, CONFIRMED, FAILED
+  attempts     Int      @default(0)
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  batch MerkleBatch @relation(fields: [batchId], references: [id])
+}
+
+// ===================== AUDIT LOG =====================
+
+model AuditLog {
+  id         String   @id @default(cuid())
+  userId     String?
+  action     String
+  entity     String   // table/model name
+  entityId   String?
+  before     Json?
+  after      Json?
+  ipAddress  String?
+  userAgent  String?
+  metadata   Json?
+  createdAt  DateTime @default(now())
+
+  user User? @relation(fields: [userId], references: [id])
+
+  @@index([entity, entityId])
+  @@index([userId])
+  @@index([createdAt])
+}
+
+// ===================== NOTIFICATION =====================
+
+model NotificationLog {
+  id        String   @id @default(cuid())
+  userId    String?
+  channel   String   // EMAIL, SMS, WHATSAPP, IN_APP
+  type      String   // template name
+  recipient String
+  subject   String?
+  body      String?
+  status    String   @default("QUEUED") // QUEUED, SENT, FAILED
+  sentAt    DateTime?
+  error     String?
+  createdAt DateTime @default(now())
+
+  @@index([userId])
+  @@index([status])
+}
+
+// ===================== RECONCILIATION =====================
+
+model ReconciliationRecord {
+  id           String   @id @default(cuid())
+  donationId   String?
+  type         String   // PAYMENT_VENDOR, VENDOR_LEDGER, BATCH_ANCHOR
+  status       String   @default("PENDING") // PENDING, MATCHED, MISMATCH, RESOLVED
+  details      Json?
+  resolvedBy   String?
+  resolvedAt   DateTime?
+  resolvedNote String?
+  createdAt    DateTime @default(now())
+
+  @@index([status])
+  @@index([type])
+}
+
+// ===================== SYSTEM CONFIG =====================
+
+model SystemConfig {
+  id    String @id @default(cuid())
+  key   String @unique
+  value Json
+  updatedAt DateTime @updatedAt
+}
+
+// ===================== WEBHOOK INGEST (idempotency) =====================
+
+model WebhookDelivery {
+  id             String                @id @default(cuid())
+  provider       String
+  idempotencyKey String                @unique
+  payload        Json
+  status         WebhookDeliveryStatus @default(RECEIVED)
+  httpStatus     Int?
+  errorMessage   String?
+  processedAt    DateTime?
+  createdAt      DateTime              @default(now())
+
+  @@index([provider])
+  @@index([status])
+}
+
+enum WebhookDeliveryStatus {
+  RECEIVED
+  PROCESSED
+  DUPLICATE
+  FAILED
+}
+
+// ===================== ADMIN / SUPPORT =====================
+
+model AdminNote {
+  id        String   @id @default(cuid())
+  entity    String
+  entityId  String
+  authorId  String
+  body      String
+  createdAt DateTime @default(now())
+
+  @@index([entity, entityId])
+}
+
+model SupportFlag {
+  id         String    @id @default(cuid())
+  targetType String
+  targetId   String
+  reason     String
+  severity   String    @default("MEDIUM")
+  status     String    @default("OPEN")
+  createdBy  String?
+  createdAt  DateTime  @default(now())
+  resolvedAt DateTime?
+
+  @@index([targetType, targetId])
+  @@index([status])
+}
+
+model CertificateTemplate {
+  id        String   @id @default(cuid())
+  name      String   @unique
+  type      CertificateType
+  htmlBody  String   @db.Text
+  version   Int      @default(1)
+  isActive  Boolean  @default(true)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}

@@ -1,0 +1,66 @@
+name: Smoke CI
+
+on:
+  pull_request:
+  push:
+    branches:
+      - main
+      - master
+
+jobs:
+  smoke:
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:15
+        env:
+          POSTGRES_USER: kanak
+          POSTGRES_PASSWORD: kanak_dev_pwd
+          POSTGRES_DB: kanak_setu
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U kanak -d kanak_setu"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
+
+    env:
+      DATABASE_URL: postgresql://kanak:kanak_dev_pwd@localhost:5432/kanak_setu
+      NODE_ENV: development
+      JWT_SECRET: ci-secret
+      JWT_ACCESS_EXPIRY: 15m
+      JWT_REFRESH_EXPIRY: 7d
+      CORS_ORIGINS: http://localhost:3000,http://localhost:3001,http://localhost:3002
+      PAYMENT_PROVIDER: MOCK
+      GOLD_VENDOR: MOCK
+      API_BASE: http://localhost:4000/api/v1
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Build shared packages
+        run: npm run typecheck
+
+      - name: Ensure smoke scripts executable
+        run: chmod +x scripts/smoke-local.sh scripts/smoke-proof.sh scripts/smoke-all.sh scripts/smoke-ci.sh
+
+      - name: Run smoke CI
+        run: bash scripts/smoke-ci.sh
+
+      - name: Upload smoke report
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: smoke-report
+          path: smoke-report.json

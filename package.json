@@ -1,0 +1,42 @@
+{
+  "name": "kanak-setu",
+  "version": "0.1.0",
+  "private": true,
+  "workspaces": [
+    "apps/*",
+    "packages/*",
+    "contracts"
+  ],
+  "scripts": {
+    "dev:api": "npm run dev -w apps/api",
+    "dev:donor": "npm run dev -w apps/donor-web",
+    "dev:institution": "npm run dev -w apps/institution-web",
+    "dev:admin": "npm run dev -w apps/admin-web",
+    "build": "npm run build --workspaces --if-present",
+    "lint": "eslint .",
+    "format": "prettier --write .",
+    "format:check": "prettier --check .",
+    "typecheck": "npm run build -w @kanak-setu/validators && npm run build -w @kanak-setu/config && npm run build -w @kanak-setu/sdk && npm run build -w @kanak-setu/blockchain && npm run build -w @kanak-setu/ui",
+    "db:generate": "npx prisma generate --schema=prisma/schema.prisma",
+    "db:migrate": "npx prisma migrate dev --schema=prisma/schema.prisma",
+    "db:push": "npx prisma db push --schema=prisma/schema.prisma",
+    "db:seed": "npx ts-node prisma/seed.ts",
+    "db:studio": "npx prisma studio --schema=prisma/schema.prisma",
+    "docker:up": "docker compose -f infra/docker-compose.yml up -d",
+    "docker:down": "docker compose -f infra/docker-compose.yml down",
+    "dev:check": "bash scripts/dev-check.sh",
+    "smoke:local": "bash scripts/smoke-local.sh",
+    "smoke:proof": "bash scripts/smoke-proof.sh",
+    "smoke:all": "bash scripts/smoke-all.sh",
+    "smoke:ci": "bash scripts/smoke-ci.sh",
+    "deploy:vps": "bash scripts/prod/deploy-vps.sh"
+  },
+  "devDependencies": {
+    "@eslint/js": "^9.15.0",
+    "@types/node": "^20.11.0",
+    "eslint": "^9.15.0",
+    "prettier": "^3.2.0",
+    "typescript": "^5.4.0",
+    "typescript-eslint": "^8.15.0"
+  }
+}

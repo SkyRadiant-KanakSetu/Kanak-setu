@@ -1,0 +1,331 @@
+import { Router, Request, Response, NextFunction } from 'express';
+import { authenticate, requireRole } from '../../middleware/auth';
+import { prisma } from '../../config/prisma';
+import { success, paginated } from '../../utils/response';
+import { AppError } from '../../middleware/errorHandler';
+import { auditLog } from '../../utils/auditLog';
+
+export const institutionRouter = Router();
+
+// ── PUBLIC: List active institutions ──
+institutionRouter.get('/', async (req: Request, res: Response, next: NextFunction) => {
+  try {
+    const page = parseInt(req.query.page as string) || 1;
+    const limit = parseInt(req.query.limit as string) || 20;
+    const where = { status: 'ACTIVE' as const };
+    const [items, total] = await Promise.all([
+      prisma.institutionProfile.findMany({
+        where,
+        skip: (page - 1) * limit,
+        take: limit,
+        select: {
+          id: true,
+          publicName: true,
+          type: true,
+          description: true,
+          logoUrl: true,
+          city: true,
+          state: true,
+          publicPageSlug: true,
+          has80G: true,
+        },
+        orderBy: { publicName: 'asc' },
+      }),
+      prisma.institutionProfile.count({ where }),
+    ]);
+    paginated(res, items, total, page, limit);
+  } catch (e) {
+    next(e);
+  }
+});
+
+// ── PUBLIC: Get institution by slug ──
+institutionRouter.get('/slug/:slug', async (req: Request, res: Response, next: NextFunction) => {
+  try {
+    const inst = await prisma.institutionProfile.findUnique({
+      where: { publicPageSlug: req.params.slug, status: 'ACTIVE' },
+      select: {
+        id: true,
+        publicName: true,
+        type: true,
+        description: true,
+        logoUrl: true,
+        websiteUrl: true,
+        city: true,
+        state: true,
+        has80G: true,
+        campaigns: {
+          where: { isActive: true },
+          select: { id: true, name: true, description: true },
+        },
+      },
+    });
+    if (!inst) throw new AppError(404, 'NOT_FOUND', 'Institution not found');
+    success(res, inst);
+  } catch (e) {
+    next(e);
+  }
+});
+
+// ── PORTAL: Onboard institution ──
+institutionRouter.post(
+  '/portal/onboard',
+  authenticate,
+  requireRole('INSTITUTION_ADMIN'),
+  async (req: Request, res: Response, next: NextFunction) => {
+    try {
+      const existing = await prisma.institutionProfile.findUnique({
+        where: { userId: req.auth!.userId },
+      });
+      if (existing) throw new AppError(409, 'ALREADY_EXISTS', 'Institution profile already exists');
+
+      const {
+        legalName,
+        publicName,
+        type,
+        registrationNo,
+        pan,
+        gst,
+        has80G,
+        cert80GNumber,
+        cert80GExpiry,
+        description,
+        addressLine1,
+        addressLine2,
+        city,
+        state,
+        pincode,
+        authorizedSignatory,
+        signatoryDesignation,
+        signatoryPhone,
+        signatoryEmail,
+        publicPageSlug,
+      } = req.body;
+
+      const profile = await prisma.institutionProfile.create({
+        data: {
+          userId: req.auth!.userId,
+          legalName,
+          publicName,
+          type,
+          registrationNo,
+          pan,
+          gst,
+          has80G: has80G || false,
+          cert80GNumber,
+          cert80GExpiry: cert80GExpiry ? new Date(cert80GExpiry) : null,
+          description,
+          addressLine1,
+          addressLine2,
+          city,
+          state,
+          pincode,
+          authorizedSignatory,
+          signatoryDesignation,
+          signatoryPhone,
+          signatoryEmail,
+          publicPageSlug,
+          status: 'DRAFT',
+        },
+      });
+
+      await auditLog({
+        userId: req.auth!.userId,
+        action: 'CREATE',
+        entity: 'InstitutionProfile',
+        entityId: profile.id,
+        after: profile,
+        req,
+      });
+
+      success(res, profile, undefined, 201);
+    } catch (e) {
+      next(e);
+    }
+  }
+);
+
+// ── PORTAL: Submit for review ──
+institutionRouter.post(
+  '/portal/submit',
+  authenticate,
+  requireRole('INSTITUTION_ADMIN'),
+  async (req: Request, res: Response, next: NextFunction) => {
+    try {
+      const profile = await prisma.institutionProfile.findUnique({
+        where: { userId: req.auth!.userId },
+      });
+      if (!profile) throw new AppError(404, 'NOT_FOUND', 'No institution profile');
+      if (profile.status !== 'DRAFT' && profile.status !== 'REJECTED') {
+        throw new AppError(400, 'INVALID_STATE', `Cannot submit from status ${profile.status}`);
+      }
+
+      const updated = await prisma.institutionProfile.update({
+        where: { id: profile.id },
+        data: { status: 'SUBMITTED' },
+      });
+
+      await auditLog({
+        userId: req.auth!.userId,
+        action: 'STATUS_CHANGE',
+        entity: 'InstitutionProfile',
+        entityId: profile.id,
+        before: { status: profile.status },
+        after: { status: 'SUBMITTED' },
+        req,
+      });
+
+      success(res, updated);
+    } catch (e) {
+      next(e);
+    }
+  }
+);
+
+// ── PORTAL: Dashboard ──
+institutionRouter.get(
+  '/portal/dashboard',
+  authenticate,
+  requireRole('INSTITUTION_ADMIN', 'INSTITUTION_STAFF'),
+  async (req: Request, res: Response, next: NextFunction) => {
+    try {
+      const profile = await prisma.institutionProfile.findUnique({
+        where: { userId: req.auth!.userId },
+      });
+      if (!profile) throw new AppError(404, 'NOT_FOUND', 'No institution profile');
+
+      const [totalDonations, totalGoldMg, recentDonations] = await Promise.all([
+        prisma.donation.count({
+          where: {
+            institutionId: profile.id,
+            status: { in: ['COMPLETED', 'BATCHED', 'ANCHORED'] },
+          },
+        }),
+        prisma.goldLedgerEntry.aggregate({
+          where: { institutionId: profile.id, entryType: 'CREDIT' },
+          _sum: { goldQuantityMg: true },
+        }),
+        prisma.donation.findMany({
+          where: { institutionId: profile.id },
+          take: 10,
+          orderBy: { createdAt: 'desc' },
+          select: {
+            id: true,
+            donationRef: true,
+            amountPaise: true,
+            goldQuantityMg: true,
+            status: true,
+            createdAt: true,
+          },
+        }),
+      ]);
+
+      success(res, {
+        status: profile.status,
+        totalDonations,
+        totalGoldMg: totalGoldMg._sum.goldQuantityMg || 0,
+        recentDonations,
+      });
+    } catch (e) {
+      next(e);
+    }
+  }
+);
+
+// ── PORTAL: Ledger ──
+institutionRouter.get(
+  '/portal/ledger',
+  authenticate,
+  requireRole('INSTITUTION_ADMIN', 'INSTITUTION_STAFF'),
+  async (req: Request, res: Response, next: NextFunction) => {
+    try {
+      const profile = await prisma.institutionProfile.findUnique({
+        where: { userId: req.auth!.userId },
+      });
+      if (!profile) throw new AppError(404, 'NOT_FOUND', 'No institution profile');
+
+      const page = parseInt(req.query.page as string) || 1;
+      const limit = parseInt(req.query.limit as string) || 50;
+      const where = { institutionId: profile.id };
+      const [entries, total] = await Promise.all([
+        prisma.goldLedgerEntry.findMany({
+          where,
+          skip: (page - 1) * limit,
+          take: limit,
+          orderBy: { createdAt: 'desc' },
+        }),
+        prisma.goldLedgerEntry.count({ where }),
+      ]);
+      paginated(res, entries, total, page, limit);
+    } catch (e) {
+      next(e);
+    }
+  }
+);
+
+// ── PORTAL: Add bank details ──
+institutionRouter.post(
+  '/portal/bank',
+  authenticate,
+  requireRole('INSTITUTION_ADMIN'),
+  async (req: Request, res: Response, next: NextFunction) => {
+    try {
+      const profile = await prisma.institutionProfile.findUnique({
+        where: { userId: req.auth!.userId },
+      });
+      if (!profile) throw new AppError(404, 'NOT_FOUND', 'No institution profile');
+
+      const bank = await prisma.institutionBank.create({
+        data: {
+          institutionId: profile.id,
+          accountName: req.body.accountName,
+          accountNumber: req.body.accountNumber,
+          ifsc: req.body.ifsc,
+          bankName: req.body.bankName,
+          isPrimary: req.body.isPrimary || false,
+        },
+      });
+
+      success(res, bank, undefined, 201);
+    } catch (e) {
+      next(e);
+    }
+  }
+);
+
+// ── PORTAL: Request redemption ──
+institutionRouter.post(
+  '/portal/redemptions',
+  authenticate,
+  requireRole('INSTITUTION_ADMIN'),
+  async (req: Request, res: Response, next: NextFunction) => {
+    try {
+      const profile = await prisma.institutionProfile.findUnique({
+        where: { userId: req.auth!.userId },
+      });
+      if (!profile || profile.status !== 'ACTIVE')
+        throw new AppError(400, 'INVALID_STATE', 'Institution not active');
+
+      const redemption = await prisma.redemptionRequest.create({
+        data: {
+          institutionId: profile.id,
+          goldQuantityMg: req.body.goldQuantityMg,
+          notes: req.body.notes,
+        },
+      });
+
+      await auditLog({
+        userId: req.auth!.userId,
+        action: 'CREATE',
+        entity: 'RedemptionRequest',
+        entityId: redemption.id,
+        after: redemption,
+        req,
+      });
+
+      success(res, redemption, undefined, 201);
+    } catch (e) {
+      next(e);
+    }
+  }
+);

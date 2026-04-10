@@ -1,0 +1,11 @@
+node_modules
+dist
+.next
+coverage
+.env
+.env.local
+uploads
+contracts/artifacts
+contracts/cache
+*.log
+.DS_Store
