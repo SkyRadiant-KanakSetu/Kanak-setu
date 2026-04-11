@@ -9,6 +9,7 @@ function repoRoot(): string {
 
 const root = repoRoot();
 const candidates = [
+  path.join(root, 'infra', 'prod', '.env.production'),
   path.join(root, 'infra', '.env'),
   path.join(root, 'infra', '.env.local'),
   path.join(root, 'infra', '.env.example'),

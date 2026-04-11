@@ -45,8 +45,20 @@ echo "[deploy] building apps"
 npm run build
 
 echo "[deploy] restarting pm2 apps"
-pm2 startOrReload ecosystem.config.cjs --env production
+pm2 startOrReload ecosystem.config.cjs
 pm2 save
+
+echo "[deploy] waiting for API to bind..."
+for i in $(seq 1 30); do
+  if curl -fsS "http://localhost:4000/api/v1/health" >/dev/null 2>&1; then
+    echo "[deploy] API is up"
+    break
+  fi
+  if [[ "${i}" -eq 30 ]]; then
+    echo "[deploy] WARN: API did not respond; check: pm2 logs kanak-api --lines 80"
+  fi
+  sleep 1
+done
 
 echo "[deploy] smoke check"
 API_BASE="http://localhost:4000/api/v1" npm run smoke:local
