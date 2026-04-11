@@ -41,6 +41,9 @@ else
   npx prisma db push --schema=prisma/schema.prisma --accept-data-loss
 fi
 
+echo "[deploy] idempotent database seed (admin + demo users; safe to re-run)"
+npm run db:seed
+
 echo "[deploy] building apps"
 npm run build
 

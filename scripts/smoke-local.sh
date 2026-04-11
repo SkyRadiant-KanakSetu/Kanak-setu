@@ -17,6 +17,7 @@ access_token=$(echo "${login_response}" | node -e "let d='';process.stdin.on('da
 if [[ -z "${access_token}" ]]; then
   echo "[smoke] FAIL: login did not return access token"
   echo "[smoke] Response: ${login_response}"
+  echo "[smoke] Hint: ensure DB has users (e.g. npm run db:seed) or set ADMIN_EMAIL / ADMIN_PASSWORD to match production."
   exit 1
 fi
 echo "[smoke] PASS: login"
