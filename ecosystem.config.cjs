@@ -1,8 +1,10 @@
+const APP_DIR = process.env.APP_DIR || '/opt/kanak-setu';
+
 module.exports = {
   apps: [
     {
       name: 'kanak-api',
-      cwd: '/opt/kanak-setu',
+      cwd: APP_DIR,
       script: 'npm',
       args: 'run start -w @kanak-setu/api',
       env: {
@@ -12,7 +14,7 @@ module.exports = {
     },
     {
       name: 'kanak-donor-web',
-      cwd: '/opt/kanak-setu',
+      cwd: APP_DIR,
       script: 'npm',
       args: 'run start -w @kanak-setu/donor-web',
       env: {
@@ -22,7 +24,7 @@ module.exports = {
     },
     {
       name: 'kanak-institution-web',
-      cwd: '/opt/kanak-setu',
+      cwd: APP_DIR,
       script: 'npm',
       args: 'run start -w @kanak-setu/institution-web',
       env: {
@@ -32,7 +34,7 @@ module.exports = {
     },
     {
       name: 'kanak-admin-web',
-      cwd: '/opt/kanak-setu',
+      cwd: APP_DIR,
       script: 'npm',
       args: 'run start -w @kanak-setu/admin-web',
       env: {

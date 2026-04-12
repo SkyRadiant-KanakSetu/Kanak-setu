@@ -1,11 +1,16 @@
 #!/usr/bin/env bash
-# First-time VPS bootstrap: clone, env, DB password sync, deploy, Caddy.
-# Usage on the server (after Node/Postgres/Redis/Caddy/ufw are installed):
+# First-time VPS bootstrap: optional OS packages, clone, env, DB, deploy, Caddy, PM2 startup.
+#
+# Prerequisites: git, Node 20, Postgres, Redis, Caddy, PM2 — or install via:
+#   sudo bash scripts/prod/vps-install-prereqs.sh
+#
+# Usage (on the server, typically as root):
 #   export REPO_URL='https://github.com/YOUR_USER/kanak-setu.git'
-#   export BRANCH='main'   # or master
+#   export BRANCH='main'
+#   export INSTALL_PREREQS=1    # optional: install apt packages + UFW first
 #   bash scripts/prod/vps-one-shot.sh
 #
-# Or from repo root after git clone:
+# Or after clone:
 #   REPO_URL=... BRANCH=main bash scripts/prod/vps-one-shot.sh
 
 set -euo pipefail
@@ -13,9 +18,22 @@ set -euo pipefail
 REPO_URL="${REPO_URL:-}"
 BRANCH="${BRANCH:-main}"
 APP_DIR="${APP_DIR:-/opt/kanak-setu}"
+export APP_DIR
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+
+if [[ "${EUID}" -eq 0 ]]; then
+  SUDO=()
+else
+  SUDO=(sudo)
+fi
 
 echo "[bootstrap] app dir: ${APP_DIR}"
 echo "[bootstrap] branch: ${BRANCH}"
+
+if [[ "${INSTALL_PREREQS:-0}" == "1" ]]; then
+  echo "[bootstrap] INSTALL_PREREQS=1 → running vps-install-prereqs.sh"
+  bash "${SCRIPT_DIR}/vps-install-prereqs.sh"
+fi
 
 if [[ ! -d "${APP_DIR}/.git" ]]; then
   if [[ -z "${REPO_URL}" ]]; then
@@ -23,7 +41,14 @@ if [[ ! -d "${APP_DIR}/.git" ]]; then
     echo "  export REPO_URL='https://github.com/your-org/kanak-setu.git'"
     exit 1
   fi
-  mkdir -p "$(dirname "${APP_DIR}")"
+  PARENT="$(dirname "${APP_DIR}")"
+  if [[ ! -d "${PARENT}" ]]; then
+    "${SUDO[@]}" mkdir -p "${PARENT}"
+  fi
+  if [[ ! -w "${PARENT}" ]]; then
+    echo "ERROR: cannot write ${PARENT} (create it or run as root / use a path you own, e.g. APP_DIR=\$HOME/kanak-setu)"
+    exit 1
+  fi
   git clone --branch "${BRANCH}" "${REPO_URL}" "${APP_DIR}" || {
     git clone "${REPO_URL}" "${APP_DIR}"
     cd "${APP_DIR}"
@@ -70,7 +95,7 @@ POLYGON_RPC_URL=https://rpc-amoy.polygon.technology
 ANCHOR_PRIVATE_KEY=
 ANCHOR_CONTRACT_ADDRESS=
 CHAIN_ID=80002
-CORS_ORIGINS=https://kanaksetu.com,https://institution.kanaksetu.com,https://admin.kanaksetu.com
+CORS_ORIGINS=https://kanaksetu.com,https://www.kanaksetu.com,https://institution.kanaksetu.com,https://admin.kanaksetu.com
 RATE_LIMIT_WINDOW_MS=60000
 RATE_LIMIT_MAX=100
 EOF
@@ -79,12 +104,16 @@ EOF
   echo "[bootstrap] wrote ${ENV_FILE} (save a backup; JWT and DB password are new unless you set DB_PASSWORD / JWT_SECRET)"
 fi
 
-chmod +x scripts/prod/deploy-vps.sh
+chmod +x scripts/prod/deploy-vps.sh scripts/prod/pm2-enable-startup.sh
 APP_DIR="${APP_DIR}" BRANCH="${BRANCH}" bash scripts/prod/deploy-vps.sh
 
-cp infra/prod/Caddyfile /etc/caddy/Caddyfile
-systemctl restart caddy
-systemctl enable caddy
+echo "[bootstrap] Caddy TLS + reverse proxy"
+"${SUDO[@]}" cp infra/prod/Caddyfile /etc/caddy/Caddyfile
+"${SUDO[@]}" systemctl restart caddy
+"${SUDO[@]}" systemctl enable caddy
+
+echo "[bootstrap] PM2 resurrect on reboot"
+bash scripts/prod/pm2-enable-startup.sh
 
 echo "[bootstrap] done. Verify:"
 echo "  curl -sS https://api.kanaksetu.com/api/v1/health"

@@ -4,6 +4,7 @@ set -euo pipefail
 
 APP_DIR="${APP_DIR:-/opt/kanak-setu}"
 BRANCH="${BRANCH:-main}"
+export APP_DIR
 
 echo "[deploy] app dir: ${APP_DIR}"
 
@@ -19,8 +20,9 @@ git fetch --all --prune
 git checkout "${BRANCH}"
 git pull origin "${BRANCH}"
 
-echo "[deploy] installing deps"
-npm ci
+echo "[deploy] installing deps (devDependencies required for TypeScript / Next builds)"
+# Root shell or systemd often sets NODE_ENV=production; that makes npm skip devDeps → missing @types/react, etc.
+NODE_ENV=development npm ci
 
 echo "[deploy] loading production env"
 if [[ ! -f "infra/prod/.env.production" ]]; then
@@ -30,6 +32,7 @@ fi
 set -a
 source infra/prod/.env.production
 set +a
+export DATABASE_URL
 
 echo "[deploy] prisma generate + database schema"
 npm run db:generate
@@ -50,6 +53,7 @@ npm run build
 echo "[deploy] restarting pm2 apps"
 pm2 startOrReload ecosystem.config.cjs
 pm2 save
+sleep 2
 
 echo "[deploy] waiting for API to bind..."
 for i in $(seq 1 30); do
@@ -63,7 +67,11 @@ for i in $(seq 1 30); do
   sleep 1
 done
 
-echo "[deploy] smoke check"
-API_BASE="http://localhost:4000/api/v1" npm run smoke:local
+if [[ "${SKIP_DEPLOY_SMOKE:-0}" == "1" ]]; then
+  echo "[deploy] SKIP_DEPLOY_SMOKE=1 — skipping smoke (run: API_BASE=http://localhost:4000/api/v1 npm run smoke:local)"
+else
+  echo "[deploy] smoke check"
+  API_BASE="http://localhost:4000/api/v1" npm run smoke:local
+fi
 
 echo "[deploy] DONE"

@@ -1,5 +1,43 @@
+import * as fs from 'fs';
+import * as path from 'path';
 import { PrismaClient } from '@prisma/client';
 import bcrypt from 'bcryptjs';
+
+/**
+ * VPS has no repo-root `.env`; only `infra/prod/.env.production`.
+ * Without this, `npm run db:seed` can run with DATABASE_URL unset or wrong → smoke login fails.
+ */
+function loadEnvFiles() {
+  const root = path.resolve(__dirname, '..');
+  const files = [path.join(root, 'infra/prod/.env.production'), path.join(root, 'infra/.env')];
+  for (const file of files) {
+    if (!fs.existsSync(file)) continue;
+    const text = fs.readFileSync(file, 'utf8');
+    for (const line of text.split(/\r?\n/)) {
+      const t = line.trim();
+      if (!t || t.startsWith('#')) continue;
+      const i = t.indexOf('=');
+      if (i < 1) continue;
+      const key = t.slice(0, i).trim();
+      let val = t.slice(i + 1).trim();
+      if (
+        (val.startsWith('"') && val.endsWith('"')) ||
+        (val.startsWith("'") && val.endsWith("'"))
+      ) {
+        val = val.slice(1, -1);
+      }
+      if (process.env[key] === undefined) process.env[key] = val;
+    }
+    break;
+  }
+}
+
+loadEnvFiles();
+
+if (!process.env.DATABASE_URL) {
+  console.error('❌ DATABASE_URL missing. Create infra/prod/.env.production or infra/.env');
+  process.exit(1);
+}
 
 const prisma = new PrismaClient();
 
@@ -7,11 +45,13 @@ async function main() {
   console.log('🌱 Seeding database...');
 
   const pwdHash = await bcrypt.hash('password123', 12);
+  /** Re-sync known demo passwords on every seed (upsert update was empty before, so old hashes never changed). */
+  const pwd = { passwordHash: pwdHash, emailVerified: true };
 
   // Super Admin
   const admin = await prisma.user.upsert({
     where: { email: 'admin@kanaksetu.in' },
-    update: {},
+    update: pwd,
     create: {
       email: 'admin@kanaksetu.in',
       passwordHash: pwdHash,
@@ -24,7 +64,7 @@ async function main() {
   // Donor
   const donorUser = await prisma.user.upsert({
     where: { email: 'donor@example.com' },
-    update: {},
+    update: pwd,
     create: {
       email: 'donor@example.com',
       passwordHash: pwdHash,
@@ -38,7 +78,7 @@ async function main() {
   // Institution user
   const instUser = await prisma.user.upsert({
     where: { email: 'temple@example.com' },
-    update: {},
+    update: pwd,
     create: {
       email: 'temple@example.com',
       passwordHash: pwdHash,
@@ -79,7 +119,7 @@ async function main() {
   // Second institution
   const instUser2 = await prisma.user.upsert({
     where: { email: 'ngo@example.com' },
-    update: {},
+    update: pwd,
     create: {
       email: 'ngo@example.com',
       passwordHash: pwdHash,
@@ -115,7 +155,7 @@ async function main() {
   // Auditor
   const auditor = await prisma.user.upsert({
     where: { email: 'auditor@kanaksetu.in' },
-    update: {},
+    update: pwd,
     create: {
       email: 'auditor@kanaksetu.in',
       passwordHash: pwdHash,

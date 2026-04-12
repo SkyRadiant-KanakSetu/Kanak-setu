@@ -20,6 +20,9 @@ import { getEnv } from './config/env';
 
 const app = express();
 
+// Caddy (or any reverse proxy): use X-Forwarded-* for req.ip, rate limiting, and secure cookies.
+app.set('trust proxy', 1);
+
 // --- GLOBAL MIDDLEWARE ---
 app.use(requestIdMiddleware);
 app.use(helmet());
@@ -34,6 +37,13 @@ app.use(
   })
 );
 app.use(morgan('short'));
+
+app.get('/', (_req, res) => {
+  res.json({
+    success: true,
+    data: { service: 'kanak-setu-api', health: '/api/v1/health' },
+  });
+});
 
 // --- HEALTH ---
 app.get('/api/v1/health', (_req, res) => {
