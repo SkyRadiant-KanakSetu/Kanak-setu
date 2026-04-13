@@ -32,7 +32,9 @@ paymentRouter.post('/webhook', async (req: Request, res: Response, next: NextFun
 // ── Mock payment simulation (dev only) ──
 paymentRouter.post('/mock/simulate', async (req: Request, res: Response, next: NextFunction) => {
   try {
-    if (process.env.NODE_ENV === 'production') {
+    const provider = (process.env.PAYMENT_PROVIDER || 'MOCK').toUpperCase();
+    // Production can still use mock mode in MVP deployments.
+    if (process.env.NODE_ENV === 'production' && provider !== 'MOCK') {
       return res.status(404).json({ success: false });
     }
     const { donationId, status } = req.body;
