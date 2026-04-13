@@ -63,7 +63,7 @@ npx prisma migrate dev --schema=prisma/schema.prisma --name init
 ### 5. Seed Database
 
 ```bash
-npx ts-node prisma/seed.ts
+npm run db:seed
 ```
 
 ### 6. Start API Server

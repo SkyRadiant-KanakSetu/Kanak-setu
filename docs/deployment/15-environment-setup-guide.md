@@ -15,7 +15,7 @@
 4. Apply migrations:
    - `npx prisma migrate dev --schema=prisma/schema.prisma`
 5. Seed data:
-   - `npx ts-node prisma/seed.ts`
+   - `npm run db:seed`
 
 ## Core Env Variables
 - `DATABASE_URL`
