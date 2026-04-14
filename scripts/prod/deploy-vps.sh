@@ -44,8 +44,17 @@ else
   npx prisma db push --schema=prisma/schema.prisma --accept-data-loss
 fi
 
-echo "[deploy] idempotent database seed (admin + demo users; safe to re-run)"
-npm run db:seed
+if [[ "${RUN_DB_SEED:-0}" == "1" ]]; then
+  echo "[deploy] RUN_DB_SEED=1 → running db seed"
+  npm run db:seed
+else
+  echo "[deploy] RUN_DB_SEED!=1 → skipping db seed for production safety"
+  if [[ -z "${SKIP_DEPLOY_SMOKE+x}" ]]; then
+    SKIP_DEPLOY_SMOKE=1
+    export SKIP_DEPLOY_SMOKE
+    echo "[deploy] auto-set SKIP_DEPLOY_SMOKE=1 (seed skipped)"
+  fi
+fi
 
 echo "[deploy] building apps"
 npm run build

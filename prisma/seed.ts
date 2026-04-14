@@ -44,7 +44,26 @@ const prisma = new PrismaClient();
 async function main() {
   console.log('🌱 Seeding database...');
 
-  const pwdHash = await bcrypt.hash('password123', 12);
+  const isProd = process.env.NODE_ENV === 'production';
+  const allowDemoSeed = process.env.ALLOW_DEMO_SEED === '1';
+  const seedPassword = process.env.SEED_PASSWORD || (isProd ? '' : 'password123');
+
+  if (isProd && !allowDemoSeed) {
+    console.log(
+      '⚠️ Production seed safety: demo users skipped. Set ALLOW_DEMO_SEED=1 with SEED_PASSWORD=<strong> only if you explicitly need demo accounts.'
+    );
+    return;
+  }
+  if (!seedPassword) {
+    throw new Error(
+      'SEED_PASSWORD is required for production seeding. Refusing to create known default credentials.'
+    );
+  }
+  if (isProd && seedPassword === 'password123') {
+    throw new Error('Refusing weak SEED_PASSWORD in production.');
+  }
+
+  const pwdHash = await bcrypt.hash(seedPassword, 12);
   /** Re-sync known demo passwords on every seed (upsert update was empty before, so old hashes never changed). */
   const pwd = { passwordHash: pwdHash, emailVerified: true };
 

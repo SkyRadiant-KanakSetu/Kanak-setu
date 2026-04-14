@@ -3,6 +3,7 @@ import { useState, useEffect } from 'react';
 import { auth, portal, setTokens, clearTokens } from '@/lib/api';
 
 export default function InstitutionHome() {
+  const showDevHints = process.env.NODE_ENV !== 'production';
   const [loggedIn, setLoggedIn] = useState(false);
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
@@ -69,7 +70,9 @@ export default function InstitutionHome() {
               Sign In
             </button>
           </form>
-          <p className="mt-4 text-xs text-gray-400">Dev: temple@example.com / password123</p>
+          {showDevHints && (
+            <p className="mt-4 text-xs text-gray-400">Dev: temple@example.com / password123</p>
+          )}
         </div>
       </div>
     );

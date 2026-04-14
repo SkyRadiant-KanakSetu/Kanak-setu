@@ -5,6 +5,7 @@ import { authApi, admin, merkleApi, setTokens, clearTokens } from '@/lib/api';
 type Tab = 'dashboard' | 'institutions' | 'donations' | 'merkle' | 'webhooks' | 'audit';
 
 export default function AdminPage() {
+  const showDevHints = process.env.NODE_ENV !== 'production';
   const [loggedIn, setLoggedIn] = useState(false);
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
@@ -52,7 +53,9 @@ export default function AdminPage() {
               Login
             </button>
           </form>
-          <p className="mt-3 text-xs text-gray-400">admin@kanaksetu.in / password123</p>
+          {showDevHints && (
+            <p className="mt-3 text-xs text-gray-400">admin@kanaksetu.in / password123</p>
+          )}
         </div>
       </div>
     );

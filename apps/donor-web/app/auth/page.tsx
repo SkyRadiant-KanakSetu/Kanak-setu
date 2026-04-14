@@ -4,6 +4,7 @@ import { useRouter } from 'next/navigation';
 import { useAuth } from '@/lib/auth';
 
 export default function AuthPage() {
+  const showDevHints = process.env.NODE_ENV !== 'production';
   const [isLogin, setIsLogin] = useState(true);
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
@@ -104,9 +105,11 @@ export default function AuthPage() {
           </button>
         </p>
 
-        <div className="mt-4 rounded-lg bg-gray-50 p-3 text-xs text-gray-400">
-          <strong>Dev credentials:</strong> donor@example.com / password123
-        </div>
+        {showDevHints && (
+          <div className="mt-4 rounded-lg bg-gray-50 p-3 text-xs text-gray-400">
+            <strong>Dev credentials:</strong> donor@example.com / password123
+          </div>
+        )}
       </div>
     </div>
   );
