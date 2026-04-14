@@ -32,6 +32,22 @@ export const admin = {
   dashboard: () => api('/admin/dashboard'),
   institutions: (page = 1, status?: string) =>
     api(`/admin/institutions?page=${page}${status ? `&status=${status}` : ''}`),
+  onboardInstitution: (data: {
+    email: string;
+    password: string;
+    legalName: string;
+    publicName: string;
+    type: string;
+    city?: string;
+    state?: string;
+    pincode?: string;
+    has80G?: boolean;
+    pan?: string;
+    registrationNo?: string;
+    publicPageSlug?: string;
+    status?: string;
+    notes?: string;
+  }) => api('/admin/institutions/onboard', { method: 'POST', body: JSON.stringify(data) }),
   changeInstitutionStatus: (id: string, status: string, notes?: string) =>
     api(`/admin/institutions/${id}/status`, {
       method: 'PATCH',

@@ -61,6 +61,107 @@ adminRouter.get('/institutions', requirePlatformStaff, async (req: Request, res:
   }
 });
 
+// ── Admin onboarding: create institution user + profile ──
+adminRouter.post(
+  '/institutions/onboard',
+  requireInstitutionReviewers,
+  async (req: Request, res: Response, next: NextFunction) => {
+    try {
+      const {
+        email,
+        password,
+        legalName,
+        publicName,
+        type,
+        city,
+        state,
+        pincode,
+        has80G,
+        pan,
+        registrationNo,
+        publicPageSlug,
+        notes,
+        status,
+      } = req.body;
+
+      if (!email || !password || !legalName || !publicName || !type) {
+        throw new AppError(
+          400,
+          'INVALID_INPUT',
+          'email, password, legalName, publicName, and type are required'
+        );
+      }
+      if (String(password).length < 8) {
+        throw new AppError(400, 'WEAK_PASSWORD', 'Password must be at least 8 characters');
+      }
+
+      const allowedTypes = ['TRUST', 'NGO', 'RELIGIOUS', 'FOUNDATION', 'CORPORATE_CSR'];
+      if (!allowedTypes.includes(String(type))) {
+        throw new AppError(400, 'INVALID_TYPE', 'Invalid institution type');
+      }
+
+      const allowedStatuses = ['DRAFT', 'SUBMITTED', 'UNDER_REVIEW', 'ACTIVE', 'SUSPENDED'];
+      const targetStatus = allowedStatuses.includes(String(status)) ? String(status) : 'ACTIVE';
+
+      if (publicPageSlug) {
+        const existingSlug = await prisma.institutionProfile.findUnique({
+          where: { publicPageSlug: String(publicPageSlug) },
+          select: { id: true },
+        });
+        if (existingSlug) throw new AppError(409, 'SLUG_EXISTS', 'Public page slug already exists');
+      }
+
+      const { register } = await import('../auth/auth.service');
+      const created = await register({
+        email: String(email),
+        password: String(password),
+        role: 'INSTITUTION_ADMIN',
+      });
+
+      const profile = await prisma.institutionProfile.create({
+        data: {
+          userId: created.user.id,
+          legalName: String(legalName),
+          publicName: String(publicName),
+          type: String(type) as any,
+          status: targetStatus as any,
+          city: city ? String(city) : null,
+          state: state ? String(state) : null,
+          pincode: pincode ? String(pincode) : null,
+          has80G: Boolean(has80G),
+          pan: pan ? String(pan) : null,
+          registrationNo: registrationNo ? String(registrationNo) : null,
+          publicPageSlug: publicPageSlug ? String(publicPageSlug) : null,
+        },
+      });
+
+      await auditLog({
+        userId: req.auth!.userId,
+        action: 'CREATE',
+        entity: 'InstitutionProfile',
+        entityId: profile.id,
+        after: { status: profile.status, userId: profile.userId },
+        metadata: { onboardedByAdmin: true, notes, email: created.user.email },
+        req,
+      });
+
+      success(
+        res,
+        {
+          institutionId: profile.id,
+          institutionUserId: profile.userId,
+          email: created.user.email,
+          status: profile.status,
+        },
+        undefined,
+        201
+      );
+    } catch (e) {
+      next(e);
+    }
+  }
+);
+
 // ── Change institution status ──
 adminRouter.patch(
   '/institutions/:id/status',

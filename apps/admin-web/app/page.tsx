@@ -143,11 +143,69 @@ function DashboardTab() {
 function InstitutionsTab() {
   const [list, setList] = useState<any[]>([]);
   const [filter, setFilter] = useState('');
+  const [creating, setCreating] = useState(false);
+  const [createError, setCreateError] = useState('');
+  const [createOk, setCreateOk] = useState('');
+  const [newInstitution, setNewInstitution] = useState({
+    legalName: '',
+    publicName: '',
+    type: 'TRUST',
+    email: '',
+    password: '',
+    city: '',
+    state: '',
+    pincode: '',
+    has80G: false,
+    pan: '',
+    registrationNo: '',
+    publicPageSlug: '',
+    status: 'ACTIVE',
+  });
   const load = () =>
     admin.institutions(1, filter || undefined).then((r) => r.success && setList(r.data || []));
   useEffect(() => {
     load();
   }, [filter]);
+
+  const createInstitution = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setCreateError('');
+    setCreateOk('');
+    setCreating(true);
+    const res = await admin.onboardInstitution({
+      ...newInstitution,
+      city: newInstitution.city || undefined,
+      state: newInstitution.state || undefined,
+      pincode: newInstitution.pincode || undefined,
+      pan: newInstitution.pan || undefined,
+      registrationNo: newInstitution.registrationNo || undefined,
+      publicPageSlug: newInstitution.publicPageSlug || undefined,
+    });
+    setCreating(false);
+
+    if (!res.success) {
+      setCreateError(res.error?.message || 'Failed to onboard institution');
+      return;
+    }
+
+    setCreateOk(`Institution onboarded: ${res.data?.email} (${res.data?.status})`);
+    setNewInstitution({
+      legalName: '',
+      publicName: '',
+      type: 'TRUST',
+      email: '',
+      password: '',
+      city: '',
+      state: '',
+      pincode: '',
+      has80G: false,
+      pan: '',
+      registrationNo: '',
+      publicPageSlug: '',
+      status: 'ACTIVE',
+    });
+    load();
+  };
 
   const changeStatus = async (id: string, status: string) => {
     const notes = prompt('Admin notes (optional):');
@@ -160,6 +218,118 @@ function InstitutionsTab() {
   return (
     <div>
       <h2 className="text-lg font-bold">Institutions</h2>
+      <form onSubmit={createInstitution} className="mt-4 rounded-xl border bg-white p-4">
+        <p className="text-sm font-semibold">Onboard institution</p>
+        {createError && <p className="mt-2 text-xs text-red-600">{createError}</p>}
+        {createOk && <p className="mt-2 text-xs text-green-700">{createOk}</p>}
+        <div className="mt-3 grid gap-2 md:grid-cols-3">
+          <input
+            value={newInstitution.legalName}
+            onChange={(e) => setNewInstitution((f) => ({ ...f, legalName: e.target.value }))}
+            placeholder="Legal name *"
+            className="rounded border px-2 py-1.5 text-sm"
+            required
+          />
+          <input
+            value={newInstitution.publicName}
+            onChange={(e) => setNewInstitution((f) => ({ ...f, publicName: e.target.value }))}
+            placeholder="Public name *"
+            className="rounded border px-2 py-1.5 text-sm"
+            required
+          />
+          <select
+            value={newInstitution.type}
+            onChange={(e) => setNewInstitution((f) => ({ ...f, type: e.target.value }))}
+            className="rounded border px-2 py-1.5 text-sm"
+          >
+            {['TRUST', 'NGO', 'RELIGIOUS', 'FOUNDATION', 'CORPORATE_CSR'].map((t) => (
+              <option key={t} value={t}>
+                {t}
+              </option>
+            ))}
+          </select>
+          <input
+            type="email"
+            value={newInstitution.email}
+            onChange={(e) => setNewInstitution((f) => ({ ...f, email: e.target.value }))}
+            placeholder="Institution admin email *"
+            className="rounded border px-2 py-1.5 text-sm"
+            required
+          />
+          <input
+            type="password"
+            value={newInstitution.password}
+            onChange={(e) => setNewInstitution((f) => ({ ...f, password: e.target.value }))}
+            placeholder="Temporary password *"
+            className="rounded border px-2 py-1.5 text-sm"
+            minLength={8}
+            required
+          />
+          <select
+            value={newInstitution.status}
+            onChange={(e) => setNewInstitution((f) => ({ ...f, status: e.target.value }))}
+            className="rounded border px-2 py-1.5 text-sm"
+          >
+            {['DRAFT', 'SUBMITTED', 'UNDER_REVIEW', 'ACTIVE', 'SUSPENDED'].map((s) => (
+              <option key={s} value={s}>
+                {s}
+              </option>
+            ))}
+          </select>
+          <input
+            value={newInstitution.city}
+            onChange={(e) => setNewInstitution((f) => ({ ...f, city: e.target.value }))}
+            placeholder="City"
+            className="rounded border px-2 py-1.5 text-sm"
+          />
+          <input
+            value={newInstitution.state}
+            onChange={(e) => setNewInstitution((f) => ({ ...f, state: e.target.value }))}
+            placeholder="State"
+            className="rounded border px-2 py-1.5 text-sm"
+          />
+          <input
+            value={newInstitution.pincode}
+            onChange={(e) => setNewInstitution((f) => ({ ...f, pincode: e.target.value }))}
+            placeholder="Pincode"
+            className="rounded border px-2 py-1.5 text-sm"
+          />
+          <input
+            value={newInstitution.pan}
+            onChange={(e) => setNewInstitution((f) => ({ ...f, pan: e.target.value }))}
+            placeholder="PAN"
+            className="rounded border px-2 py-1.5 text-sm"
+          />
+          <input
+            value={newInstitution.registrationNo}
+            onChange={(e) => setNewInstitution((f) => ({ ...f, registrationNo: e.target.value }))}
+            placeholder="Registration number"
+            className="rounded border px-2 py-1.5 text-sm"
+          />
+          <input
+            value={newInstitution.publicPageSlug}
+            onChange={(e) => setNewInstitution((f) => ({ ...f, publicPageSlug: e.target.value }))}
+            placeholder="Public slug (optional)"
+            className="rounded border px-2 py-1.5 text-sm"
+          />
+        </div>
+        <label className="mt-3 inline-flex items-center gap-2 text-xs text-gray-600">
+          <input
+            type="checkbox"
+            checked={newInstitution.has80G}
+            onChange={(e) => setNewInstitution((f) => ({ ...f, has80G: e.target.checked }))}
+          />
+          80G enabled
+        </label>
+        <div>
+          <button
+            disabled={creating}
+            className="mt-3 rounded bg-zinc-900 px-3 py-1.5 text-sm text-white hover:bg-zinc-800 disabled:opacity-50"
+          >
+            {creating ? 'Creating...' : 'Create institution'}
+          </button>
+        </div>
+      </form>
       <div className="mt-3 flex gap-2">
         {filters.map((f) => (
           <button
