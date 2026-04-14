@@ -33,9 +33,31 @@ donorRouter.put(
   async (req: Request, res: Response, next: NextFunction) => {
     try {
       const { firstName, lastName, pan, address, city, state, pincode } = req.body;
+      const existing = await prisma.donorProfile.findUnique({
+        where: { userId: req.auth!.userId },
+        select: { kycStatus: true },
+      });
+      if (!existing) throw new AppError(404, 'NOT_FOUND', 'Donor profile not found');
+
+      const hasKycFields =
+        Boolean(pan?.trim()) &&
+        Boolean(address?.trim()) &&
+        Boolean(city?.trim()) &&
+        Boolean(state?.trim()) &&
+        Boolean(pincode?.trim());
+
       const profile = await prisma.donorProfile.update({
         where: { userId: req.auth!.userId },
-        data: { firstName, lastName, pan, address, city, state, pincode },
+        data: {
+          firstName,
+          lastName,
+          pan,
+          address,
+          city,
+          state,
+          pincode,
+          ...(hasKycFields && existing.kycStatus === 'UNVERIFIED' ? { kycStatus: 'BASIC' } : {}),
+        },
       });
       success(res, profile);
     } catch (e) {
