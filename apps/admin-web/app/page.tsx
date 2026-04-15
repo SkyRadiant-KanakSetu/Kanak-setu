@@ -3,6 +3,8 @@ import { useState, useEffect } from 'react';
 import { authApi, admin, merkleApi, setTokens, clearTokens } from '@/lib/api';
 
 type Tab = 'dashboard' | 'institutions' | 'donations' | 'merkle' | 'webhooks' | 'audit';
+const EXPLORER_TX_BASE_URL =
+  process.env.NEXT_PUBLIC_BLOCK_EXPLORER_TX_BASE_URL || 'https://explorer.bharatchain.org/tx';
 
 export default function AdminPage() {
   const showDevHints = process.env.NODE_ENV !== 'production';
@@ -551,7 +553,7 @@ function MerkleTab() {
                 <td className="px-3 py-2 text-xs">
                   {b.anchor?.txHash ? (
                     <a
-                      href={`https://amoy.polygonscan.com/tx/${b.anchor.txHash}`}
+                      href={`${EXPLORER_TX_BASE_URL}/${b.anchor.txHash}`}
                       target="_blank"
                       className="text-blue-600 hover:underline"
                     >

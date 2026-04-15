@@ -6,7 +6,7 @@
     "compile": "hardhat compile",
     "test": "hardhat test",
     "deploy:local": "hardhat run scripts/deploy.ts --network hardhat",
-    "deploy:amoy": "hardhat run scripts/deploy.ts --network amoy"
+    "deploy:bharatchain": "hardhat run scripts/deploy.ts --network bharatchain"
   },
   "devDependencies": {
     "@nomicfoundation/hardhat-toolbox": "^4.0.0",

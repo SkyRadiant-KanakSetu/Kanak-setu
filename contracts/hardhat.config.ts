@@ -9,15 +9,14 @@ const config: HardhatUserConfig = {
   solidity: '0.8.20',
   networks: {
     hardhat: {},
-    amoy: {
-      url: process.env.POLYGON_RPC_URL || 'https://rpc-amoy.polygon.technology',
+    bharatchain: {
+      url:
+        process.env.BHARATCHAIN_RPC_URL ||
+        process.env.BLOCKCHAIN_RPC_URL ||
+        process.env.POLYGON_RPC_URL ||
+        'https://rpc.bharatchain.org',
       accounts: process.env.ANCHOR_PRIVATE_KEY ? [process.env.ANCHOR_PRIVATE_KEY] : [],
-      chainId: 80002,
-    },
-    polygon: {
-      url: 'https://polygon-rpc.com',
-      accounts: process.env.ANCHOR_PRIVATE_KEY ? [process.env.ANCHOR_PRIVATE_KEY] : [],
-      chainId: 137,
+      chainId: Number(process.env.CHAIN_ID || 2410),
     },
   },
   paths: {

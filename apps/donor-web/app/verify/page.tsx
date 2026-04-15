@@ -3,6 +3,9 @@ import { useState, useEffect, Suspense } from 'react';
 import { useSearchParams } from 'next/navigation';
 import { merkle, verify } from '@/lib/api';
 
+const EXPLORER_TX_BASE_URL =
+  process.env.NEXT_PUBLIC_BLOCK_EXPLORER_TX_BASE_URL || 'https://explorer.bharatchain.org/tx';
+
 function VerifyContent() {
   const searchParams = useSearchParams();
   const donationId = searchParams.get('donation');
@@ -92,7 +95,7 @@ function VerifyContent() {
                 <div>
                   <span className="text-gray-400">Tx Hash:</span>
                   <a
-                    href={`https://amoy.polygonscan.com/tx/${proof.blockchain.txHash}`}
+                    href={`${EXPLORER_TX_BASE_URL}/${proof.blockchain.txHash}`}
                     target="_blank"
                     rel="noopener"
                     className="ml-1 text-blue-600 hover:underline text-xs break-all"
@@ -137,7 +140,7 @@ function VerifyContent() {
               <div>
                 <span className="text-gray-400">Blockchain Tx:</span>
                 <a
-                  href={`https://amoy.polygonscan.com/tx/${certData.donation.blockchain.txHash}`}
+                  href={`${EXPLORER_TX_BASE_URL}/${certData.donation.blockchain.txHash}`}
                   target="_blank"
                   rel="noopener"
                   className="ml-1 text-blue-600 hover:underline text-xs"

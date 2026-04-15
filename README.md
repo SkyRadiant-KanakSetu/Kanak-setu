@@ -134,20 +134,20 @@ kanak-setu/
 
 ## Smart Contract
 
-Deploy to Polygon Amoy:
+Deploy to BharatChain:
 
 ```bash
 cd contracts
 npm install
 npx hardhat compile
-npx hardhat run scripts/deploy.ts --network amoy
+npx hardhat run scripts/deploy.ts --network bharatchain
 ```
 
 ## Tech Stack
 
 - **Backend:** Node.js, Express, TypeScript, Prisma, PostgreSQL
 - **Frontend:** Next.js 14, React 18, Tailwind CSS
-- **Blockchain:** Solidity, Hardhat, Polygon (Merkle proof anchoring)
+- **Blockchain:** Solidity, Hardhat, BharatChain (Merkle proof anchoring)
 - **Auth:** JWT with refresh token rotation
 - **Architecture:** Modular monolith, provider adapter pattern
 

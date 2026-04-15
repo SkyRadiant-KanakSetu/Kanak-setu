@@ -13,7 +13,10 @@ const MAX_ANCHOR_ATTEMPTS = 10;
 
 function getProvider() {
   return new ethers.JsonRpcProvider(
-    process.env.POLYGON_RPC_URL || 'https://rpc-amoy.polygon.technology'
+    process.env.BHARATCHAIN_RPC_URL ||
+      process.env.BLOCKCHAIN_RPC_URL ||
+      process.env.POLYGON_RPC_URL ||
+      'https://rpc.bharatchain.org'
   );
 }
 
@@ -66,7 +69,7 @@ export async function anchorBatch(batchId: string) {
     anchor = await prisma.blockchainAnchor.create({
       data: {
         batchId,
-        network: process.env.CHAIN_ID === '137' ? 'polygon_mainnet' : 'polygon_amoy',
+        network: process.env.CHAIN_NETWORK || 'bharatchain_mainnet',
         merkleRoot: batch.merkleRoot,
         status: 'PENDING',
       },

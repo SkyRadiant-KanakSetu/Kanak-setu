@@ -508,7 +508,7 @@ model MerkleLeaf {
 model BlockchainAnchor {
   id           String   @id @default(cuid())
   batchId      String   @unique
-  network      String   // polygon_amoy, polygon_mainnet
+  network      String   // bharatchain_mainnet (or other configured chain)
   txHash       String?
   contractAddr String?
   merkleRoot   String
