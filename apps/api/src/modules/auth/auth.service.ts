@@ -9,6 +9,11 @@ import { sessionExpiresAt } from '../../utils/sessionExpiry';
 
 const BCRYPT_ROUNDS = parseInt(process.env.BCRYPT_ROUNDS || '12');
 
+/** Normalize email so admin-created and login attempts match (trim + lowercase). */
+function normalizeEmail(email: string) {
+  return email.trim().toLowerCase();
+}
+
 function signAccess(userId: string, role: UserRole) {
   const { JWT_SECRET, JWT_ACCESS_EXPIRY } = getEnv();
   return jwt.sign({ userId, role }, JWT_SECRET, {
@@ -28,17 +33,24 @@ export async function register(data: {
   firstName?: string;
   lastName?: string;
 }) {
+  const emailNorm = normalizeEmail(data.email);
+  const passwordPlain = typeof data.password === 'string' ? data.password.trim() : data.password;
   const existing = await prisma.user.findFirst({
-    where: { OR: [{ email: data.email }, ...(data.phone ? [{ phone: data.phone }] : [])] },
+    where: {
+      OR: [
+        { email: { equals: emailNorm, mode: 'insensitive' } },
+        ...(data.phone ? [{ phone: data.phone }] : []),
+      ],
+    },
   });
   if (existing) throw new AppError(409, 'USER_EXISTS', 'Email or phone already registered');
 
-  const passwordHash = await bcrypt.hash(data.password, BCRYPT_ROUNDS);
+  const passwordHash = await bcrypt.hash(passwordPlain, BCRYPT_ROUNDS);
   const role = data.role || 'DONOR';
 
   const user = await prisma.user.create({
     data: {
-      email: data.email,
+      email: emailNorm,
       phone: data.phone,
       passwordHash,
       role,
@@ -70,12 +82,16 @@ export async function register(data: {
 }
 
 export async function login(email: string, password: string, ip?: string, ua?: string) {
-  const user = await prisma.user.findUnique({ where: { email } });
+  const emailNorm = normalizeEmail(email);
+  const passwordPlain = typeof password === 'string' ? password.trim() : password;
+  const user = await prisma.user.findFirst({
+    where: { email: { equals: emailNorm, mode: 'insensitive' } },
+  });
   if (!user || user.deletedAt)
     throw new AppError(401, 'INVALID_CREDENTIALS', 'Invalid email or password');
   if (!user.isActive) throw new AppError(403, 'ACCOUNT_DISABLED', 'Account is disabled');
 
-  const valid = await bcrypt.compare(password, user.passwordHash);
+  const valid = await bcrypt.compare(passwordPlain, user.passwordHash);
   if (!valid) throw new AppError(401, 'INVALID_CREDENTIALS', 'Invalid email or password');
 
   await prisma.user.update({ where: { id: user.id }, data: { lastLoginAt: new Date() } });

@@ -27,7 +27,7 @@ export default function InstitutionHome() {
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
     setError('');
-    const res = await auth.login(email, password);
+    const res = await auth.login(email.trim(), password.trim());
     if (!res.success) {
       setError(res.error?.message || 'Login failed');
       return;
