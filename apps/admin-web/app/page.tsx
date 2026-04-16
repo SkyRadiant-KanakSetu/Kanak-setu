@@ -4,7 +4,7 @@ import { authApi, admin, merkleApi, setTokens, clearTokens } from '@/lib/api';
 
 type Tab = 'dashboard' | 'institutions' | 'donations' | 'merkle' | 'webhooks' | 'audit';
 const EXPLORER_TX_BASE_URL =
-  process.env.NEXT_PUBLIC_BLOCK_EXPLORER_TX_BASE_URL || 'https://explorer.bharatchain.org/tx';
+  process.env.NEXT_PUBLIC_BLOCK_EXPLORER_TX_BASE_URL || 'https://amoy.polygonscan.com/tx';
 
 export default function AdminPage() {
   const showDevHints = process.env.NODE_ENV !== 'production';

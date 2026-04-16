@@ -4,7 +4,7 @@ import { useSearchParams } from 'next/navigation';
 import { merkle, verify } from '@/lib/api';
 
 const EXPLORER_TX_BASE_URL =
-  process.env.NEXT_PUBLIC_BLOCK_EXPLORER_TX_BASE_URL || 'https://explorer.bharatchain.org/tx';
+  process.env.NEXT_PUBLIC_BLOCK_EXPLORER_TX_BASE_URL || 'https://amoy.polygonscan.com/tx';
 
 function VerifyContent() {
   const searchParams = useSearchParams();
