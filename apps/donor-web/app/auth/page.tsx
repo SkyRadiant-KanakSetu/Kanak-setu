@@ -14,6 +14,7 @@ export default function AuthPage() {
   const [otp, setOtp] = useState('');
   const [otpSent, setOtpSent] = useState(false);
   const [devOtp, setDevOtp] = useState('');
+  const [copiedOtp, setCopiedOtp] = useState(false);
   const [resendCooldown, setResendCooldown] = useState(0);
   const [otpExpiresIn, setOtpExpiresIn] = useState(0);
   const [firstName, setFirstName] = useState('');
@@ -58,6 +59,17 @@ export default function AuthPage() {
     const digits = value.replace(/\D/g, '');
     if (digits.length <= 4) return digits;
     return `${'*'.repeat(Math.max(0, digits.length - 4))}${digits.slice(-4)}`;
+  }
+
+  async function copyOtp() {
+    if (!devOtp) return;
+    try {
+      await navigator.clipboard.writeText(devOtp);
+      setCopiedOtp(true);
+      window.setTimeout(() => setCopiedOtp(false), 1500);
+    } catch {
+      // ignore clipboard failure
+    }
   }
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -237,10 +249,26 @@ export default function AuthPage() {
                   disabled={loading || !phone.trim()}
                   className="w-full rounded-lg border border-gold-500 py-2.5 font-semibold text-gold-700 hover:bg-gold-50 disabled:opacity-50 transition"
                 >
-                  {loading ? 'Sending OTP...' : 'Continue'}
+                  {loading ? 'Getting OTP...' : 'Get OTP'}
                 </button>
               ) : (
                 <>
+                  {devOtp && (
+                    <div className="rounded-lg border border-emerald-200 bg-emerald-50 px-3 py-2 text-sm text-emerald-800">
+                      <div className="flex items-center justify-between">
+                        <span>
+                          OTP: <strong>{devOtp}</strong>
+                        </span>
+                        <button
+                          type="button"
+                          onClick={copyOtp}
+                          className="text-xs font-medium text-emerald-700 hover:underline"
+                        >
+                          {copiedOtp ? 'Copied' : 'Copy'}
+                        </button>
+                      </div>
+                    </div>
+                  )}
                   {otpMode === 'signup' && (
                     <div className="grid grid-cols-2 gap-3">
                       <input
@@ -325,11 +353,6 @@ export default function AuthPage() {
         {showDevHints && (
           <div className="mt-4 rounded-lg bg-gray-50 p-3 text-xs text-gray-400">
             <strong>Dev credentials:</strong> donor@example.com / password123
-            {devOtp && (
-              <div className="mt-1">
-                <strong>Dev OTP:</strong> {devOtp}
-              </div>
-            )}
           </div>
         )}
       </div>

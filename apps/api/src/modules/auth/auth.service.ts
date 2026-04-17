@@ -113,10 +113,11 @@ async function createOtpChallenge(params: { phone: string; purpose: string; user
   });
 
   const isProd = process.env.NODE_ENV === 'production';
+  const exposeOtpOnWeb = process.env.EXPOSE_OTP_ON_WEB === '1';
   return {
     message: 'OTP sent to registered phone number',
     expiresInSeconds: OTP_TTL_MINUTES * 60,
-    ...(isProd ? {} : { devOtp: otp }),
+    ...(!isProd || exposeOtpOnWeb ? { devOtp: otp } : {}),
   };
 }
 
