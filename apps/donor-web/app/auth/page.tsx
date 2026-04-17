@@ -1,9 +1,9 @@
 'use client';
-import { useEffect, useState } from 'react';
-import { useRouter } from 'next/navigation';
+import { Suspense, useEffect, useState } from 'react';
+import { useRouter, useSearchParams } from 'next/navigation';
 import { useAuth } from '@/lib/auth';
 
-export default function AuthPage() {
+function AuthContent() {
   const showDevHints = process.env.NODE_ENV !== 'production';
   const [isLogin, setIsLogin] = useState(true);
   const [authMethod, setAuthMethod] = useState<'password' | 'phone'>('password');
@@ -25,6 +25,8 @@ export default function AuthPage() {
   const { login, requestPhoneOtp, verifyPhoneOtp, requestSignupPhoneOtp, verifySignupPhoneOtp, register } =
     useAuth();
   const router = useRouter();
+  const searchParams = useSearchParams();
+  const returnTo = searchParams.get('returnTo') || '/institutions';
 
   useEffect(() => {
     if (resendCooldown <= 0) return;
@@ -72,6 +74,13 @@ export default function AuthPage() {
     }
   }
 
+  function resolveReturnPath(path: string) {
+    // Prevent open redirects and allow only in-app routes.
+    if (!path.startsWith('/')) return '/institutions';
+    if (path.startsWith('//')) return '/institutions';
+    return path;
+  }
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setError('');
@@ -99,7 +108,7 @@ export default function AuthPage() {
           }
         }
       }
-      router.push('/institutions');
+      router.push(resolveReturnPath(returnTo));
     } catch (err: any) {
       setError(err.message || 'Something went wrong');
     } finally {
@@ -357,5 +366,13 @@ export default function AuthPage() {
         )}
       </div>
     </div>
+  );
+}
+
+export default function AuthPage() {
+  return (
+    <Suspense fallback={<div className="py-16 text-center text-gray-400">Loading...</div>}>
+      <AuthContent />
+    </Suspense>
   );
 }

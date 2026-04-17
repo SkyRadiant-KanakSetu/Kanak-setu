@@ -28,7 +28,8 @@ function DonateForm() {
 
   const handleDonate = async () => {
     if (!user) {
-      router.push('/auth');
+      const returnTo = `/donate${window.location.search}`;
+      router.push(`/auth?returnTo=${encodeURIComponent(returnTo)}`);
       return;
     }
     if (amountPaise < 100) {
