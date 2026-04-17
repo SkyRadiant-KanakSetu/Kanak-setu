@@ -18,6 +18,15 @@ interface AuthCtx {
   profile: DonorProfile | null;
   loading: boolean;
   login: (email: string, password: string) => Promise<void>;
+  requestPhoneOtp: (phone: string) => Promise<{ devOtp?: string; expiresInSeconds?: number }>;
+  verifyPhoneOtp: (phone: string, otp: string) => Promise<void>;
+  requestSignupPhoneOtp: (phone: string) => Promise<{ devOtp?: string; expiresInSeconds?: number }>;
+  verifySignupPhoneOtp: (
+    phone: string,
+    otp: string,
+    firstName: string,
+    lastName: string
+  ) => Promise<void>;
   register: (data: {
     email: string;
     password: string;
@@ -61,6 +70,47 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     if (p.success) setProfile(p.data as any);
   };
 
+  const requestPhoneOtp = async (phone: string) => {
+    const res = await authApi.requestPhoneOtp(phone);
+    if (!res.success) throw new Error(res.error?.message || 'Failed to send OTP');
+    return {
+      devOtp: (res.data as { devOtp?: string })?.devOtp,
+      expiresInSeconds: (res.data as { expiresInSeconds?: number })?.expiresInSeconds,
+    };
+  };
+
+  const verifyPhoneOtp = async (phone: string, otp: string) => {
+    const res = await authApi.verifyPhoneOtp(phone, otp);
+    if (!res.success) throw new Error(res.error?.message || 'OTP verification failed');
+    setTokens(res.data.accessToken, res.data.refreshToken);
+    setUser(res.data.user);
+    const p = await donors.me();
+    if (p.success) setProfile(p.data as any);
+  };
+
+  const requestSignupPhoneOtp = async (phone: string) => {
+    const res = await authApi.requestSignupPhoneOtp(phone);
+    if (!res.success) throw new Error(res.error?.message || 'Failed to send OTP');
+    return {
+      devOtp: (res.data as { devOtp?: string })?.devOtp,
+      expiresInSeconds: (res.data as { expiresInSeconds?: number })?.expiresInSeconds,
+    };
+  };
+
+  const verifySignupPhoneOtp = async (
+    phone: string,
+    otp: string,
+    firstName: string,
+    lastName: string
+  ) => {
+    const res = await authApi.verifySignupPhoneOtp(phone, otp, firstName, lastName);
+    if (!res.success) throw new Error(res.error?.message || 'OTP verification failed');
+    setTokens(res.data.accessToken, res.data.refreshToken);
+    setUser(res.data.user);
+    const p = await donors.me();
+    if (p.success) setProfile(p.data as any);
+  };
+
   const register = async (data: {
     email: string;
     password: string;
@@ -83,7 +133,20 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   };
 
   return (
-    <AuthContext.Provider value={{ user, profile, loading, login, register, logout }}>
+    <AuthContext.Provider
+      value={{
+        user,
+        profile,
+        loading,
+        login,
+        requestPhoneOtp,
+        verifyPhoneOtp,
+        requestSignupPhoneOtp,
+        verifySignupPhoneOtp,
+        register,
+        logout,
+      }}
+    >
       {children}
     </AuthContext.Provider>
   );

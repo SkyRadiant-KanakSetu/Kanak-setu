@@ -42,7 +42,7 @@ institutionRouter.get('/', async (req: Request, res: Response, next: NextFunctio
 // ── PUBLIC: Get institution by slug ──
 institutionRouter.get('/slug/:slug', async (req: Request, res: Response, next: NextFunction) => {
   try {
-    const inst = await prisma.institutionProfile.findUnique({
+    const inst = await prisma.institutionProfile.findFirst({
       where: { publicPageSlug: req.params.slug, status: 'ACTIVE' },
       select: {
         id: true,

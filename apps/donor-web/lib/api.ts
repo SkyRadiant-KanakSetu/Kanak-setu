@@ -85,6 +85,17 @@ export const auth = {
   }) => api('/auth/register', { method: 'POST', body: JSON.stringify({ ...data, role: 'DONOR' }) }),
   login: (email: string, password: string) =>
     api('/auth/login', { method: 'POST', body: JSON.stringify({ email, password }) }),
+  requestPhoneOtp: (phone: string) =>
+    api('/auth/login/phone/request-otp', { method: 'POST', body: JSON.stringify({ phone }) }),
+  verifyPhoneOtp: (phone: string, otp: string) =>
+    api('/auth/login/phone/verify-otp', { method: 'POST', body: JSON.stringify({ phone, otp }) }),
+  requestSignupPhoneOtp: (phone: string) =>
+    api('/auth/signup/phone/request-otp', { method: 'POST', body: JSON.stringify({ phone }) }),
+  verifySignupPhoneOtp: (phone: string, otp: string, firstName: string, lastName: string) =>
+    api('/auth/signup/phone/verify-otp', {
+      method: 'POST',
+      body: JSON.stringify({ phone, otp, firstName, lastName }),
+    }),
   logout: () =>
     api('/auth/logout', {
       method: 'POST',

@@ -75,10 +75,10 @@ donorRouter.get(
     try {
       const page = parseInt(req.query.page as string) || 1;
       const limit = parseInt(req.query.limit as string) || 20;
-      const where = {
-        donorId: (await prisma.donorProfile.findUnique({ where: { userId: req.auth!.userId } }))!
-          .id,
-      };
+      const profile = await prisma.donorProfile.findUnique({ where: { userId: req.auth!.userId } });
+      if (!profile) throw new AppError(404, 'NOT_FOUND', 'Donor profile not found');
+
+      const where = { donorId: profile.id };
       const [donations, total] = await Promise.all([
         prisma.donation.findMany({
           where,

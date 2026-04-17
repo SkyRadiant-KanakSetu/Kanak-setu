@@ -51,6 +51,21 @@ model Session {
   @@index([userId])
 }
 
+model PhoneOtpChallenge {
+  id          String   @id @default(cuid())
+  phone       String
+  purpose     String   // DONOR_LOGIN
+  otpHash     String
+  expiresAt   DateTime
+  usedAt      DateTime?
+  attempts    Int      @default(0)
+  maxAttempts Int      @default(5)
+  createdAt   DateTime @default(now())
+
+  @@index([phone, purpose, createdAt])
+  @@index([expiresAt])
+}
+
 enum UserRole {
   SUPER_ADMIN
   ADMIN_OPS
