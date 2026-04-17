@@ -6,10 +6,7 @@ import { useAuth } from '@/lib/auth';
 function AuthContent() {
   const showDevHints = process.env.NODE_ENV !== 'production';
   const [isLogin, setIsLogin] = useState(true);
-  const [authMethod, setAuthMethod] = useState<'password' | 'phone'>('password');
   const [otpMode, setOtpMode] = useState<'login' | 'signup'>('login');
-  const [email, setEmail] = useState('');
-  const [password, setPassword] = useState('');
   const [phone, setPhone] = useState('');
   const [otp, setOtp] = useState('');
   const [otpSent, setOtpSent] = useState(false);
@@ -22,8 +19,7 @@ function AuthContent() {
   const [error, setError] = useState('');
   const [hint, setHint] = useState('');
   const [loading, setLoading] = useState(false);
-  const { login, requestPhoneOtp, verifyPhoneOtp, requestSignupPhoneOtp, verifySignupPhoneOtp, register } =
-    useAuth();
+  const { requestPhoneOtp, verifyPhoneOtp, requestSignupPhoneOtp, verifySignupPhoneOtp } = useAuth();
   const router = useRouter();
   const searchParams = useSearchParams();
   const returnTo = searchParams.get('returnTo') || '/institutions';
@@ -87,26 +83,10 @@ function AuthContent() {
     setHint('');
     setLoading(true);
     try {
-      if (isLogin) {
-        if (authMethod === 'password') {
-          await login(email, password);
-        } else {
-          if (otpMode === 'login') {
-            await verifyPhoneOtp(phone, otp);
-          } else {
-            await verifySignupPhoneOtp(phone, otp, firstName, lastName);
-          }
-        }
+      if (otpMode === 'login') {
+        await verifyPhoneOtp(phone, otp);
       } else {
-        if (authMethod === 'password') {
-          await register({ email, password, firstName, lastName });
-        } else {
-          if (otpMode === 'login') {
-            await verifyPhoneOtp(phone, otp);
-          } else {
-            await verifySignupPhoneOtp(phone, otp, firstName, lastName);
-          }
-        }
+        await verifySignupPhoneOtp(phone, otp, firstName, lastName);
       }
       router.push(resolveReturnPath(returnTo));
     } catch (err: any) {
@@ -159,37 +139,8 @@ function AuthContent() {
           {isLogin ? 'Welcome Back' : 'Create Account'}
         </h1>
         <p className="mt-1 text-sm text-gray-500">
-          {isLogin ? 'Sign in to donate gold' : 'Join Kanak Setu today'}
+          {isLogin ? 'Sign in with phone OTP to donate gold' : 'Create account with phone OTP'}
         </p>
-
-        <div className="mt-4 grid grid-cols-2 rounded-lg border border-gray-200 p-1 text-sm">
-          <button
-            type="button"
-            onClick={() => {
-              setAuthMethod('password');
-              setOtpSent(false);
-              setOtp('');
-              setHint('');
-              setError('');
-            }}
-            className={`rounded-md px-3 py-2 ${authMethod === 'password' ? 'bg-gold-500 text-white' : 'text-gray-600'}`}
-          >
-            {isLogin ? 'Email Login' : 'Email Signup'}
-          </button>
-          <button
-            type="button"
-            onClick={() => {
-              setAuthMethod('phone');
-              setOtpSent(false);
-              setOtp('');
-              setHint('');
-              setError('');
-            }}
-            className={`rounded-md px-3 py-2 ${authMethod === 'phone' ? 'bg-gold-500 text-white' : 'text-gray-600'}`}
-          >
-            Continue with Phone
-          </button>
-        </div>
 
         {error && <div className="mt-4 rounded-lg bg-red-50 p-3 text-sm text-red-700">{error}</div>}
         {hint && <div className="mt-4 rounded-lg bg-blue-50 p-3 text-sm text-blue-700">{hint}</div>}
@@ -215,130 +166,97 @@ function AuthContent() {
               />
             </div>
           )}
-          {authMethod === 'password' && (
-            <>
-              <input
-                type="email"
-                placeholder="Email"
-                value={email}
-                onChange={(e) => setEmail(e.target.value)}
-                required
-                className="w-full rounded-lg border border-gray-200 px-3 py-2.5 text-sm focus:border-gold-400 focus:outline-none"
-              />
-              <input
-                type="password"
-                placeholder="Password"
-                value={password}
-                onChange={(e) => setPassword(e.target.value)}
-                required
-                minLength={8}
-                className="w-full rounded-lg border border-gray-200 px-3 py-2.5 text-sm focus:border-gold-400 focus:outline-none"
-              />
-            </>
+          <input
+            type="tel"
+            placeholder="Phone Number"
+            value={phone}
+            onChange={(e) => setPhone(e.target.value)}
+            required
+            className="w-full rounded-lg border border-gray-200 px-3 py-2.5 text-sm focus:border-gold-400 focus:outline-none"
+          />
+          {phone.trim() && (
+            <div className="text-xs text-gray-500">OTP will be sent to {maskPhone(phone)}</div>
           )}
 
-          {authMethod === 'phone' && (
+          {!otpSent ? (
+            <button
+              type="button"
+              onClick={handleContinueWithPhone}
+              disabled={loading || !phone.trim()}
+              className="w-full rounded-lg border border-gold-500 py-2.5 font-semibold text-gold-700 hover:bg-gold-50 disabled:opacity-50 transition"
+            >
+              {loading ? 'Getting OTP...' : 'Get OTP'}
+            </button>
+          ) : (
             <>
-              <input
-                type="tel"
-                placeholder="Phone Number"
-                value={phone}
-                onChange={(e) => setPhone(e.target.value)}
-                required
-                className="w-full rounded-lg border border-gray-200 px-3 py-2.5 text-sm focus:border-gold-400 focus:outline-none"
-              />
-              {phone.trim() && (
-                <div className="text-xs text-gray-500">OTP will be sent to {maskPhone(phone)}</div>
+              {devOtp && (
+                <div className="rounded-lg border border-emerald-200 bg-emerald-50 px-3 py-2 text-sm text-emerald-800">
+                  <div className="flex items-center justify-between">
+                    <span>
+                      OTP: <strong>{devOtp}</strong>
+                    </span>
+                    <button
+                      type="button"
+                      onClick={copyOtp}
+                      className="text-xs font-medium text-emerald-700 hover:underline"
+                    >
+                      {copiedOtp ? 'Copied' : 'Copy'}
+                    </button>
+                  </div>
+                </div>
               )}
-
-              {!otpSent ? (
-                <button
-                  type="button"
-                  onClick={handleContinueWithPhone}
-                  disabled={loading || !phone.trim()}
-                  className="w-full rounded-lg border border-gold-500 py-2.5 font-semibold text-gold-700 hover:bg-gold-50 disabled:opacity-50 transition"
-                >
-                  {loading ? 'Getting OTP...' : 'Get OTP'}
-                </button>
-              ) : (
-                <>
-                  {devOtp && (
-                    <div className="rounded-lg border border-emerald-200 bg-emerald-50 px-3 py-2 text-sm text-emerald-800">
-                      <div className="flex items-center justify-between">
-                        <span>
-                          OTP: <strong>{devOtp}</strong>
-                        </span>
-                        <button
-                          type="button"
-                          onClick={copyOtp}
-                          className="text-xs font-medium text-emerald-700 hover:underline"
-                        >
-                          {copiedOtp ? 'Copied' : 'Copy'}
-                        </button>
-                      </div>
-                    </div>
-                  )}
-                  {otpMode === 'signup' && (
-                    <div className="grid grid-cols-2 gap-3">
-                      <input
-                        type="text"
-                        placeholder="First Name"
-                        value={firstName}
-                        onChange={(e) => setFirstName(e.target.value)}
-                        required
-                        className="rounded-lg border border-gray-200 px-3 py-2.5 text-sm focus:border-gold-400 focus:outline-none"
-                      />
-                      <input
-                        type="text"
-                        placeholder="Last Name"
-                        value={lastName}
-                        onChange={(e) => setLastName(e.target.value)}
-                        required
-                        className="rounded-lg border border-gray-200 px-3 py-2.5 text-sm focus:border-gold-400 focus:outline-none"
-                      />
-                    </div>
-                  )}
+              {otpMode === 'signup' && (
+                <div className="grid grid-cols-2 gap-3">
                   <input
                     type="text"
-                    placeholder="Enter 6-digit OTP"
-                    value={otp}
-                    onChange={(e) => setOtp(e.target.value)}
+                    placeholder="First Name"
+                    value={firstName}
+                    onChange={(e) => setFirstName(e.target.value)}
                     required
-                    maxLength={6}
-                    className="w-full rounded-lg border border-gray-200 px-3 py-2.5 text-sm focus:border-gold-400 focus:outline-none"
+                    className="rounded-lg border border-gray-200 px-3 py-2.5 text-sm focus:border-gold-400 focus:outline-none"
                   />
-                  <button
-                    type="button"
-                    onClick={handleContinueWithPhone}
-                    disabled={loading || resendCooldown > 0}
-                    className="text-sm text-gold-700 hover:underline"
-                  >
-                    {resendCooldown > 0 ? `Resend OTP in ${resendCooldown}s` : 'Resend OTP'}
-                  </button>
-                </>
+                  <input
+                    type="text"
+                    placeholder="Last Name"
+                    value={lastName}
+                    onChange={(e) => setLastName(e.target.value)}
+                    required
+                    className="rounded-lg border border-gray-200 px-3 py-2.5 text-sm focus:border-gold-400 focus:outline-none"
+                  />
+                </div>
               )}
+              <input
+                type="text"
+                placeholder="Enter 6-digit OTP"
+                value={otp}
+                onChange={(e) => setOtp(e.target.value)}
+                required
+                maxLength={6}
+                className="w-full rounded-lg border border-gray-200 px-3 py-2.5 text-sm focus:border-gold-400 focus:outline-none"
+              />
+              <button
+                type="button"
+                onClick={handleContinueWithPhone}
+                disabled={loading || resendCooldown > 0}
+                className="text-sm text-gold-700 hover:underline"
+              >
+                {resendCooldown > 0 ? `Resend OTP in ${resendCooldown}s` : 'Resend OTP'}
+              </button>
             </>
           )}
-              {otpSent && otpExpiresIn > 0 && (
-                <div className="text-xs text-gray-500">OTP expires in {formatSeconds(otpExpiresIn)}</div>
-              )}
+          {otpSent && otpExpiresIn > 0 && (
+            <div className="text-xs text-gray-500">OTP expires in {formatSeconds(otpExpiresIn)}</div>
+          )}
           <button
             type="submit"
-            disabled={
-              loading ||
-              (authMethod === 'phone' && !otpSent)
-            }
+            disabled={loading || !otpSent}
             className="w-full rounded-lg bg-gold-500 py-2.5 font-semibold text-white hover:bg-gold-600 disabled:opacity-50 transition"
           >
             {loading
               ? 'Please wait...'
-              : authMethod === 'phone'
-                ? otpMode === 'login'
-                  ? 'Verify & Sign In'
-                  : 'Verify & Create Account'
-                : isLogin
-                  ? 'Sign In'
-                  : 'Create Account'}
+              : otpMode === 'login'
+                ? 'Verify & Sign In'
+                : 'Verify & Create Account'}
           </button>
         </form>
 
@@ -361,7 +279,7 @@ function AuthContent() {
 
         {showDevHints && (
           <div className="mt-4 rounded-lg bg-gray-50 p-3 text-xs text-gray-400">
-            <strong>Dev credentials:</strong> donor@example.com / password123
+            OTP-based donor login enabled.
           </div>
         )}
       </div>
