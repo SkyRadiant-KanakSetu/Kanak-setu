@@ -7,7 +7,7 @@ import { donations, mockPayment } from '@/lib/api';
 function DonateForm() {
   const searchParams = useSearchParams();
   const router = useRouter();
-  const { user } = useAuth();
+  const { user, loading } = useAuth();
   const institutionId = searchParams.get('institution') || '';
   const institutionName = searchParams.get('name') || 'Institution';
 
@@ -22,6 +22,12 @@ function DonateForm() {
       if (res.success) setGoldPrice(res.data.pricePerGramPaise);
     });
   }, []);
+
+  useEffect(() => {
+    if (loading || user) return;
+    const returnTo = `/donate${window.location.search}`;
+    router.replace(`/auth?returnTo=${encodeURIComponent(returnTo)}`);
+  }, [loading, user, router]);
 
   const amountPaise = Math.round(parseFloat(amount || '0') * 100);
   const goldEstimateMg = goldPrice > 0 ? ((amountPaise / goldPrice) * 1000).toFixed(2) : '0';
@@ -49,7 +55,14 @@ function DonateForm() {
 
       // Simulate payment (in production, open Razorpay checkout here)
       const simRes = await mockPayment.simulate(res.data.donationId, 'CAPTURED');
-      if (!simRes.success) throw new Error(simRes.error?.message || 'Payment simulation failed');
+      if (!simRes.success) {
+        if (simRes.error?.code === 'MOCK_PAYMENT_DISABLED') {
+          throw new Error(
+            'Payment is not configured for this environment yet. Please contact support to complete donation.'
+          );
+        }
+        throw new Error(simRes.error?.message || 'Payment simulation failed');
+      }
 
       setDonationResult(simRes.data);
       setStep('success');
@@ -97,6 +110,10 @@ function DonateForm() {
         </div>
       </div>
     );
+  }
+
+  if (loading || !user) {
+    return <div className="py-16 text-center text-gray-400">Redirecting to sign in...</div>;
   }
 
   return (

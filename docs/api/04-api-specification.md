@@ -12,16 +12,32 @@ Base URL: `/api/v1`
 - JSON content type for all non-webhook API requests
 
 ## Auth
-- `POST /auth/register`
-- `POST /auth/login`
+
+### Donors (phone OTP only)
+
+Email/password auth is **not** available for the `DONOR` role. The API returns `DONOR_EMAIL_AUTH_DISABLED` if `POST /auth/register` or `POST /auth/login` is used with a donor account.
+
+- `POST /auth/login/phone/request-otp` — body: `{ "phone": "<digits>" }` (existing donor)
+- `POST /auth/login/phone/verify-otp` — body: `{ "phone": "<digits>", "otp": "<6 digits>" }`
+- `POST /auth/signup/phone/request-otp` — body: `{ "phone": "<digits>" }` (new donor; phone must not already exist)
+- `POST /auth/signup/phone/verify-otp` — body: `{ "phone", "otp", "firstName", "lastName" }`
+
+Responses use the same token envelope as password login (`accessToken`, `refreshToken`, `user`).
+
+### Staff / admin (email + password)
+
+These routes remain for non-donor roles (e.g. admin, institution):
+
+- `POST /auth/register` — must not use role `DONOR` (donor registration is OTP-only)
+- `POST /auth/login` — rejects if the user’s role is `DONOR`
 - `POST /auth/refresh`
 - `POST /auth/logout`
 
-Example:
+Example (admin):
 ```bash
 curl -X POST http://localhost:4000/api/v1/auth/login \
   -H "Content-Type: application/json" \
-  -d '{"email":"admin@kanaksetu.in","password":"password123"}'
+  -d '{"email":"admin@kanaksetu.in","password":"<your-password>"}'
 ```
 
 ## Donor
@@ -32,6 +48,10 @@ curl -X POST http://localhost:4000/api/v1/auth/login \
 Expected `POST /donations` payload (minimum):
 - `institutionId` (string)
 - `amountPaise` (integer)
+
+### Payments (dev / demo)
+
+- `POST /payments/mock/simulate` — only when `ALLOW_MOCK_PAYMENT_SIMULATION=1`. Otherwise returns `MOCK_PAYMENT_DISABLED`. Production should use real gateway + webhooks instead of mock simulation.
 
 ## Institution
 - `POST /institutions/portal/submit`

@@ -82,12 +82,14 @@ npm run dev:admin        # http://localhost:3002
 
 ## Test Accounts
 
-| Role        | Email                | Password    |
-| ----------- | -------------------- | ----------- |
-| Super Admin | admin@kanaksetu.in   | password123 |
-| Donor       | donor@example.com    | password123 |
-| Institution | temple@example.com   | password123 |
-| Auditor     | auditor@kanaksetu.in | password123 |
+After `npm run db:seed` (non-production defaults), seeded users share `SEED_PASSWORD` (defaults to `password123` in dev).
+
+| Role        | Auth method        | Identifier / notes |
+| ----------- | ------------------ | -------------------- |
+| Super Admin | Email + password   | `admin@kanaksetu.in` |
+| Donor       | **Phone OTP only** | Donor app uses `/auth/login/phone/*` and `/auth/signup/phone/*`. Email login is disabled for donors. Seeded donor `donor@example.com` exists for API/testing only if you create a session via admin or OTP-linked phone. |
+| Institution | Email + password   | `temple@example.com` |
+| Auditor     | Email + password   | `auditor@kanaksetu.in` |
 
 ## Project Structure
 

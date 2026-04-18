@@ -160,6 +160,15 @@ export async function register(data: {
   firstName?: string;
   lastName?: string;
 }) {
+  const role = data.role || 'DONOR';
+  if (role === 'DONOR') {
+    throw new AppError(
+      400,
+      'DONOR_EMAIL_AUTH_DISABLED',
+      'Donor email/password signup is disabled. Use phone OTP signup'
+    );
+  }
+
   const emailNorm = normalizeEmail(data.email);
   const passwordPlain = typeof data.password === 'string' ? data.password.trim() : data.password;
   const existing = await prisma.user.findFirst({
@@ -173,24 +182,12 @@ export async function register(data: {
   if (existing) throw new AppError(409, 'USER_EXISTS', 'Email or phone already registered');
 
   const passwordHash = await bcrypt.hash(passwordPlain, BCRYPT_ROUNDS);
-  const role = data.role || 'DONOR';
-
   const user = await prisma.user.create({
     data: {
       email: emailNorm,
       phone: data.phone,
       passwordHash,
       role,
-      ...(role === 'DONOR' && data.firstName
-        ? {
-            donorProfile: {
-              create: {
-                firstName: data.firstName || '',
-                lastName: data.lastName || '',
-              },
-            },
-          }
-        : {}),
     },
     select: { id: true, email: true, role: true },
   });
@@ -216,6 +213,13 @@ export async function login(email: string, password: string, ip?: string, ua?: s
   });
   if (!user || user.deletedAt)
     throw new AppError(401, 'INVALID_CREDENTIALS', 'Invalid email or password');
+  if (user.role === 'DONOR') {
+    throw new AppError(
+      400,
+      'DONOR_EMAIL_AUTH_DISABLED',
+      'Donor email/password login is disabled. Use phone OTP login'
+    );
+  }
   if (!user.isActive) throw new AppError(403, 'ACCOUNT_DISABLED', 'Account is disabled');
 
   const valid = await bcrypt.compare(passwordPlain, user.passwordHash);

@@ -1,7 +1,7 @@
 # Donor Operations SOP
 
 ## Donation Journey Support
-1. Confirm donor authentication and profile access.
+1. Confirm donor authentication: donors sign in via **phone OTP** only (no email/password on donor app or donor API). Profile access requires a valid donor session.
 2. Verify donation reference and payment status.
 3. Track transitions from payment to allocation to proof/certificate.
 

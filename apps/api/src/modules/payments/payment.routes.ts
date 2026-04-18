@@ -34,7 +34,13 @@ paymentRouter.post('/mock/simulate', async (req: Request, res: Response, next: N
   try {
     const allowMockSimulation = process.env.ALLOW_MOCK_PAYMENT_SIMULATION === '1';
     if (!allowMockSimulation) {
-      return res.status(404).json({ success: false });
+      return res.status(400).json({
+        success: false,
+        error: {
+          code: 'MOCK_PAYMENT_DISABLED',
+          message: 'Mock payment simulation is disabled in this environment',
+        },
+      });
     }
     const { donationId, status } = req.body;
     if (status === 'CAPTURED') {
