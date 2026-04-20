@@ -10,6 +10,7 @@ export default function InstitutionHome() {
   const [error, setError] = useState('');
   const [dashboard, setDashboard] = useState<any>(null);
   const [ledger, setLedger] = useState<any[]>([]);
+  const [portalError, setPortalError] = useState('');
 
   useEffect(() => {
     if (typeof window !== 'undefined' && localStorage.getItem('accessToken')) {
@@ -19,8 +20,10 @@ export default function InstitutionHome() {
   }, []);
 
   const loadDashboard = async () => {
+    setPortalError('');
     const [d, l] = await Promise.all([portal.dashboard(), portal.ledger()]);
     if (d.success) setDashboard(d.data);
+    else setPortalError(d.error?.message || 'Could not load dashboard');
     if (l.success) setLedger(l.data || []);
   };
 
@@ -29,6 +32,13 @@ export default function InstitutionHome() {
     setError('');
     const res = await auth.login(email.trim(), password.trim());
     if (!res.success) {
+      const code = res.error?.code;
+      if (code === 'DONOR_EMAIL_AUTH_DISABLED') {
+        setError(
+          'That email is a donor account. Sign in on kanaksetu.com with phone OTP. Use your institution admin email and password here.'
+        );
+        return;
+      }
       setError(res.error?.message || 'Login failed');
       return;
     }
@@ -70,6 +80,10 @@ export default function InstitutionHome() {
               Sign In
             </button>
           </form>
+          <p className="mt-4 text-xs text-gray-500">
+            Use your institution admin email from onboarding. Donor accounts sign in on kanaksetu.com with
+            phone OTP.
+          </p>
           {showDevHints && (
             <p className="mt-4 text-xs text-gray-400">Dev: temple@example.com / password123</p>
           )}
@@ -89,6 +103,19 @@ export default function InstitutionHome() {
           Logout
         </button>
       </div>
+
+      {portalError && (
+        <div className="mt-4 rounded-xl border border-red-200 bg-red-50 p-4 text-sm text-red-800">
+          <p>{portalError}</p>
+          <button
+            type="button"
+            onClick={() => loadDashboard()}
+            className="mt-2 text-sm font-medium text-red-900 underline hover:no-underline"
+          >
+            Retry
+          </button>
+        </div>
+      )}
 
       {dashboard && (
         <>

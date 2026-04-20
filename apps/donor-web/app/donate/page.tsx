@@ -58,7 +58,7 @@ function DonateForm() {
       if (!simRes.success) {
         if (simRes.error?.code === 'MOCK_PAYMENT_DISABLED') {
           throw new Error(
-            'Payment is not configured for this environment yet. Please contact support to complete donation.'
+            'Mock payments are off on the server. For demos, set ALLOW_MOCK_PAYMENT_SIMULATION=1 on the API and redeploy; otherwise use a real payment integration.'
           );
         }
         throw new Error(simRes.error?.message || 'Payment simulation failed');

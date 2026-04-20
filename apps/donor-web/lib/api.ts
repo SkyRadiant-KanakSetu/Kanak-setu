@@ -1,6 +1,18 @@
 'use client';
 
-const API_BASE = '/api/v1';
+function resolveApiBase() {
+  const envBase =
+    typeof process !== 'undefined' ? process.env.NEXT_PUBLIC_API_BASE_URL?.trim() : '';
+  if (envBase) return envBase.replace(/\/$/, '');
+  if (typeof window === 'undefined') return '/api/v1';
+  const host = window.location.hostname;
+  if (host === 'admin.kanaksetu.com' || host === 'institution.kanaksetu.com' || host === 'kanaksetu.com') {
+    return 'https://api.kanaksetu.com/api/v1';
+  }
+  return '/api/v1';
+}
+
+const API_BASE = resolveApiBase();
 
 interface ApiResponse<T = any> {
   success: boolean;
@@ -60,18 +72,50 @@ export async function api<T = any>(
   const token = getToken();
   if (token) headers['Authorization'] = `Bearer ${token}`;
 
-  let res = await fetch(`${API_BASE}${path}`, { ...options, headers });
+  try {
+    let res = await fetch(`${API_BASE}${path}`, { ...options, headers });
 
-  // Auto-refresh on 401
-  if (res.status === 401 && token) {
-    const refreshed = await refreshAccessToken();
-    if (refreshed) {
-      headers['Authorization'] = `Bearer ${getToken()}`;
-      res = await fetch(`${API_BASE}${path}`, { ...options, headers });
+    // Auto-refresh on 401
+    if (res.status === 401 && token) {
+      const refreshed = await refreshAccessToken();
+      if (refreshed) {
+        headers['Authorization'] = `Bearer ${getToken()}`;
+        res = await fetch(`${API_BASE}${path}`, { ...options, headers });
+      }
     }
-  }
 
-  return res.json();
+    const text = await res.text();
+    if (!text) {
+      return {
+        success: false,
+        error: {
+          code: 'EMPTY_RESPONSE',
+          message: `Empty API response (HTTP ${res.status}). Check API and NEXT_PUBLIC_API_BASE_URL.`,
+        },
+      };
+    }
+    try {
+      return JSON.parse(text);
+    } catch {
+      return {
+        success: false,
+        error: {
+          code: 'NON_JSON',
+          message: `API returned non-JSON (HTTP ${res.status}). Is the API up?`,
+        },
+      };
+    }
+  } catch (e: any) {
+    return {
+      success: false,
+      error: {
+        code: 'NETWORK_ERROR',
+        message:
+          e?.message ||
+          'Could not reach the API. Set NEXT_PUBLIC_API_BASE_URL if the API is on another host.',
+      },
+    };
+  }
 }
 
 // ── Auth ──

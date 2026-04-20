@@ -110,10 +110,41 @@ export default function AdminPage() {
 // ── Dashboard ──
 function DashboardTab() {
   const [data, setData] = useState<any>(null);
+  const [loadError, setLoadError] = useState('');
+  const [loading, setLoading] = useState(true);
   useEffect(() => {
-    admin.dashboard().then((r) => r.success && setData(r.data));
+    setLoading(true);
+    setLoadError('');
+    admin.dashboard().then((r) => {
+      setLoading(false);
+      if (r.success) {
+        setData(r.data);
+        return;
+      }
+      setLoadError(r.error?.message || 'Failed to load dashboard');
+    });
   }, []);
-  if (!data) return <p className="text-gray-400">Loading...</p>;
+  if (loading) return <p className="text-gray-400">Loading...</p>;
+  if (loadError) {
+    return (
+      <div>
+        <h2 className="text-lg font-bold">Dashboard</h2>
+        <p className="mt-4 text-sm text-red-600">{loadError}</p>
+        <p className="mt-2 text-xs text-gray-500">
+          If you just logged in, confirm you are using a platform admin account (for example admin@kanaksetu.in),
+          not an institution or donor login.
+        </p>
+      </div>
+    );
+  }
+  if (!data) {
+    return (
+      <div>
+        <h2 className="text-lg font-bold">Dashboard</h2>
+        <p className="mt-4 text-sm text-gray-500">No dashboard data.</p>
+      </div>
+    );
+  }
 
   const cards = [
     { label: 'Total Donors', value: data.donors },

@@ -165,7 +165,7 @@ export async function register(data: {
     throw new AppError(
       400,
       'DONOR_EMAIL_AUTH_DISABLED',
-      'Donor email/password signup is disabled. Use phone OTP signup'
+      'Donor accounts cannot be created with email and password. Sign up on kanaksetu.com with phone OTP.'
     );
   }
 
@@ -217,7 +217,7 @@ export async function login(email: string, password: string, ip?: string, ua?: s
     throw new AppError(
       400,
       'DONOR_EMAIL_AUTH_DISABLED',
-      'Donor email/password login is disabled. Use phone OTP login'
+      'This email is a donor account: sign in on kanaksetu.com with phone OTP. Institution and admin users sign in here with email and password.'
     );
   }
   if (!user.isActive) throw new AppError(403, 'ACCOUNT_DISABLED', 'Account is disabled');

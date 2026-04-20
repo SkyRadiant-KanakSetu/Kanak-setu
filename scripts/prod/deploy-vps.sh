@@ -56,6 +56,11 @@ else
   fi
 fi
 
+if [[ -f "infra/prod/.env.production" ]] && ! grep -q '^NEXT_PUBLIC_API_BASE_URL=' infra/prod/.env.production 2>/dev/null; then
+  echo "[deploy] WARN: NEXT_PUBLIC_API_BASE_URL missing in infra/prod/.env.production"
+  echo "[deploy]        Add e.g. NEXT_PUBLIC_API_BASE_URL=https://api.kanaksetu.com/api/v1 so web apps call the API directly (CORS must allow your domains). Then rebuild."
+fi
+
 echo "[deploy] building apps"
 npm run build
 
