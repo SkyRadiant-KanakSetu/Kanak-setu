@@ -2,10 +2,14 @@
 // GOLD VENDOR ADAPTER — Provider-agnostic interface
 // ============================================================
 
+import { getCachedLiveInrPerGramPaise } from './goldSpotPrice';
+
 export interface GoldQuote {
   pricePerGramPaise: number;
   validUntil: Date;
   vendorRef?: string;
+  /** How the indicative ₹/g was obtained (UI may show a small label). */
+  source?: 'mock' | 'live_spot' | 'stale_cache' | 'fallback_static';
 }
 
 export interface GoldAllocation {
@@ -30,6 +34,7 @@ export class MockGoldVendor implements GoldVendorAdapter {
     return {
       pricePerGramPaise: this.mockPrice,
       validUntil: new Date(Date.now() + 5 * 60 * 1000),
+      source: 'mock',
     };
   }
 
@@ -48,6 +53,43 @@ export class MockGoldVendor implements GoldVendorAdapter {
       vendorOrderRef,
       goldQuantityMg: 0,
       pricePerGramPaise: this.mockPrice,
+      status: 'ALLOCATED',
+    };
+  }
+}
+
+// ── LIVE SPOT (CoinGecko PAXG/XAUT → INR/gram, cached) ──
+
+export class LiveSpotGoldVendor implements GoldVendorAdapter {
+  async getQuote(): Promise<GoldQuote> {
+    const { paise, source } = await getCachedLiveInrPerGramPaise();
+    const src: GoldQuote['source'] =
+      source === 'live' ? 'live_spot' : source === 'stale' ? 'stale_cache' : 'fallback_static';
+    return {
+      pricePerGramPaise: paise,
+      validUntil: new Date(Date.now() + 2 * 60 * 1000),
+      source: src,
+    };
+  }
+
+  async buyGold(amountPaise: number, referenceId: string): Promise<GoldAllocation> {
+    const { paise } = await getCachedLiveInrPerGramPaise();
+    const goldMg = Math.round((amountPaise / paise) * 1000 * 10000) / 10000;
+    return {
+      vendorOrderRef: `live_spot_${referenceId}_${Date.now()}`,
+      goldQuantityMg: goldMg,
+      pricePerGramPaise: paise,
+      status: 'ALLOCATED',
+      vendorData: { mode: 'live_spot_indicative' },
+    };
+  }
+
+  async getOrderStatus(vendorOrderRef: string): Promise<GoldAllocation> {
+    const { paise } = await getCachedLiveInrPerGramPaise();
+    return {
+      vendorOrderRef,
+      goldQuantityMg: 0,
+      pricePerGramPaise: paise,
       status: 'ALLOCATED',
     };
   }
@@ -72,6 +114,8 @@ export function getGoldVendorAdapter(): GoldVendorAdapter {
   switch (vendor) {
     case 'MMTC_PAMP':
       return new MmtcPampAdapter();
+    case 'LIVE_SPOT':
+      return new LiveSpotGoldVendor();
     case 'MOCK':
     default:
       return new MockGoldVendor();

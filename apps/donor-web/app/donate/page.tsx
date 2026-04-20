@@ -16,10 +16,14 @@ function DonateForm() {
   const [donationResult, setDonationResult] = useState<any>(null);
   const [error, setError] = useState('');
   const [goldPrice, setGoldPrice] = useState(0);
+  const [quoteSource, setQuoteSource] = useState<string | undefined>();
 
   useEffect(() => {
     donations.quote().then((res) => {
-      if (res.success) setGoldPrice(res.data.pricePerGramPaise);
+      if (res.success) {
+        setGoldPrice(res.data.pricePerGramPaise);
+        setQuoteSource((res.data as { source?: string }).source);
+      }
     });
   }, []);
 
@@ -159,6 +163,13 @@ function DonateForm() {
               <span className="ml-2 text-xs text-gold-500">
                 (@ ₹{(goldPrice / 100).toFixed(0)}/g, indicative)
               </span>
+            </p>
+            <p className="mt-1 text-xs text-gold-600/90">
+              {quoteSource === 'live_spot' && 'Rate: live spot (INR, refreshed about every minute).'}
+              {quoteSource === 'stale_cache' && 'Rate: last successful live quote (feed slow; retrying).'}
+              {quoteSource === 'fallback_static' && 'Rate: fallback — live feed unavailable; check API logs.'}
+              {quoteSource === 'mock' && 'Rate: demo fixed price (set GOLD_VENDOR=LIVE_SPOT on API for live).'}
+              {!quoteSource && 'Rate: indicative only.'}
             </p>
           </div>
         )}
