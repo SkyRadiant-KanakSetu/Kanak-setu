@@ -1,6 +1,7 @@
 'use client';
 import { useState, useEffect } from 'react';
 import { auth, portal, setTokens, clearTokens } from '@/lib/api';
+import { DonationQr } from '@/components/DonationQr';
 
 export default function InstitutionHome() {
   const showDevHints = process.env.NODE_ENV !== 'production';
@@ -185,6 +186,13 @@ export default function InstitutionHome() {
               </p>
             </div>
           </div>
+
+          <DonationQr
+            institutionId={dashboard.institutionId}
+            publicName={dashboard.publicName}
+            publicPageSlug={dashboard.publicPageSlug}
+            status={dashboard.status}
+          />
 
           {/* Recent donations */}
           <h2 className="mt-10 font-semibold text-lg">Recent Donations</h2>

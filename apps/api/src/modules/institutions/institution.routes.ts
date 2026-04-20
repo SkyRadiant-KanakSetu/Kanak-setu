@@ -221,6 +221,9 @@ institutionRouter.get(
       ]);
 
       success(res, {
+        institutionId: profile.id,
+        publicName: profile.publicName,
+        publicPageSlug: profile.publicPageSlug,
         status: profile.status,
         totalDonations,
         totalGoldMg: totalGoldMg._sum.goldQuantityMg || 0,

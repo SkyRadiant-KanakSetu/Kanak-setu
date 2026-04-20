@@ -10,7 +10,7 @@ interface Institution {
   description: string;
   city: string;
   state: string;
-  publicPageSlug: string;
+  publicPageSlug: string | null;
   has80G: boolean;
 }
 
@@ -41,7 +41,11 @@ export default function InstitutionsPage() {
           {list.map((inst) => (
             <Link
               key={inst.id}
-              href={`/donate?institution=${inst.id}&name=${encodeURIComponent(inst.publicName)}`}
+              href={
+                inst.publicPageSlug
+                  ? `/give/${encodeURIComponent(inst.publicPageSlug)}`
+                  : `/donate?institution=${inst.id}&name=${encodeURIComponent(inst.publicName)}`
+              }
               className="group rounded-2xl border border-gold-100 bg-white p-6 shadow-sm transition hover:shadow-md hover:border-gold-300"
             >
               <div className="flex items-start justify-between">
