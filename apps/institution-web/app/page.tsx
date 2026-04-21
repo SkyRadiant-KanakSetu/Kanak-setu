@@ -12,6 +12,7 @@ export default function InstitutionHome() {
   const [dashboard, setDashboard] = useState<any>(null);
   const [ledger, setLedger] = useState<any[]>([]);
   const [portalError, setPortalError] = useState('');
+  const [rangeDays, setRangeDays] = useState<7 | 30 | 90>(30);
 
   useEffect(() => {
     if (typeof window !== 'undefined' && localStorage.getItem('accessToken')) {
@@ -22,11 +23,17 @@ export default function InstitutionHome() {
 
   const loadDashboard = async () => {
     setPortalError('');
-    const [d, l] = await Promise.all([portal.dashboard(), portal.ledger()]);
+    const [d, l] = await Promise.all([portal.dashboard(rangeDays), portal.ledger()]);
     if (d.success) setDashboard(d.data);
     else setPortalError(d.error?.message || 'Could not load dashboard');
     if (l.success) setLedger(l.data || []);
   };
+
+  useEffect(() => {
+    if (!loggedIn) return;
+    loadDashboard();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [rangeDays]);
 
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -194,8 +201,32 @@ export default function InstitutionHome() {
               <p className="mt-1 text-2xl font-bold">{dashboard.repeatDonors ?? 0}</p>
             </div>
             <div className="rounded-xl border bg-white p-5">
-              <p className="text-sm text-gray-500">Active Donors (30d)</p>
-              <p className="mt-1 text-2xl font-bold">{dashboard.activeDonors30d ?? 0}</p>
+              <p className="text-sm text-gray-500">Active Donors ({dashboard.rangeDays ?? 30}d)</p>
+              <p className="mt-1 text-2xl font-bold">{dashboard.activeDonorsInRange ?? 0}</p>
+            </div>
+          </div>
+          <div className="mt-4 flex gap-2">
+            {[7, 30, 90].map((d) => (
+              <button
+                key={d}
+                onClick={() => setRangeDays(d as 7 | 30 | 90)}
+                className={`rounded px-3 py-1 text-xs ${rangeDays === d ? 'bg-amber-700 text-white' : 'bg-gray-100 hover:bg-gray-200'}`}
+              >
+                {d}d
+              </button>
+            ))}
+          </div>
+          <div className="mt-4 rounded-xl border bg-white p-4">
+            <p className="text-xs text-gray-500">Donor trend ({dashboard.rangeDays}d)</p>
+            <div className="mt-3 grid grid-cols-1 gap-4 md:grid-cols-2">
+              <MiniTrend
+                title="Donations / day"
+                values={(dashboard.donorTrend || []).map((d: any) => d.donations)}
+              />
+              <MiniTrend
+                title="Active donors / day"
+                values={(dashboard.donorTrend || []).map((d: any) => d.activeDonors)}
+              />
             </div>
           </div>
 
@@ -284,6 +315,26 @@ export default function InstitutionHome() {
           </div>
         </>
       )}
+    </div>
+  );
+}
+
+function MiniTrend({ title, values }: { title: string; values: number[] }) {
+  const max = Math.max(1, ...values);
+  const sample = values.slice(-20);
+  return (
+    <div>
+      <p className="text-xs text-gray-500">{title}</p>
+      <div className="mt-2 flex h-16 items-end gap-1">
+        {sample.map((v, i) => (
+          <div
+            key={`${title}-${i}`}
+            className="w-2 rounded-sm bg-amber-600/80"
+            style={{ height: `${Math.max(8, (v / max) * 100)}%` }}
+            title={String(v)}
+          />
+        ))}
+      </div>
     </div>
   );
 }

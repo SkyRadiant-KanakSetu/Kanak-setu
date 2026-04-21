@@ -112,10 +112,11 @@ function DashboardTab() {
   const [data, setData] = useState<any>(null);
   const [loadError, setLoadError] = useState('');
   const [loading, setLoading] = useState(true);
+  const [rangeDays, setRangeDays] = useState<7 | 30 | 90>(30);
   useEffect(() => {
     setLoading(true);
     setLoadError('');
-    admin.dashboard().then((r) => {
+    admin.dashboard(rangeDays).then((r) => {
       setLoading(false);
       if (r.success) {
         setData(r.data);
@@ -123,7 +124,7 @@ function DashboardTab() {
       }
       setLoadError(r.error?.message || 'Failed to load dashboard');
     });
-  }, []);
+  }, [rangeDays]);
   if (loading) return <p className="text-gray-400">Loading...</p>;
   if (loadError) {
     return (
@@ -154,18 +155,31 @@ function DashboardTab() {
     { label: 'Failed/Disputed', value: data.failedDonations, alert: true },
   ];
   const donorCards = [
-    { label: 'New Donors (30d)', value: data.newDonors30d ?? 0 },
-    { label: 'Active Donors (30d)', value: data.activeDonors30d ?? 0 },
-    { label: 'Repeat Donors (30d)', value: data.repeatDonors30d ?? 0 },
+    { label: `New Donors (${data.rangeDays}d)`, value: data.newDonorsInRange ?? 0 },
+    { label: `Active Donors (${data.rangeDays}d)`, value: data.activeDonorsInRange ?? 0 },
+    { label: `Repeat Donors (${data.rangeDays}d)`, value: data.repeatDonorsInRange ?? 0 },
     {
-      label: 'Avg Ticket (30d)',
-      value: `₹${(((data.avgDonationTicketPaise30d ?? 0) as number) / 100).toFixed(0)}`,
+      label: `Avg Ticket (${data.rangeDays}d)`,
+      value: `₹${(((data.avgDonationTicketPaiseInRange ?? 0) as number) / 100).toFixed(0)}`,
     },
   ];
 
   return (
     <div>
-      <h2 className="text-lg font-bold">Dashboard</h2>
+      <div className="flex items-center justify-between gap-3">
+        <h2 className="text-lg font-bold">Dashboard</h2>
+        <div className="flex gap-2">
+          {[7, 30, 90].map((d) => (
+            <button
+              key={d}
+              onClick={() => setRangeDays(d as 7 | 30 | 90)}
+              className={`rounded px-3 py-1 text-xs ${rangeDays === d ? 'bg-zinc-900 text-white' : 'bg-gray-100 hover:bg-gray-200'}`}
+            >
+              {d}d
+            </button>
+          ))}
+        </div>
+      </div>
       <div className="mt-4 grid gap-4 md:grid-cols-3 lg:grid-cols-5">
         {cards.map((c) => (
           <div
@@ -184,6 +198,36 @@ function DashboardTab() {
             <p className="text-xs text-gray-500">{c.label}</p>
             <p className="mt-1 text-2xl font-bold">{c.value}</p>
           </div>
+        ))}
+      </div>
+      <div className="mt-6 rounded-xl border bg-white p-4">
+        <p className="text-xs text-gray-500">Daily donor activity trend</p>
+        <div className="mt-3 grid grid-cols-2 gap-4 md:grid-cols-4">
+          <MiniTrend title="Donations / day" values={(data.donorTrend || []).map((d: any) => d.donations)} />
+          <MiniTrend
+            title="Active donors / day"
+            values={(data.donorTrend || []).map((d: any) => d.activeDonors)}
+          />
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function MiniTrend({ title, values }: { title: string; values: number[] }) {
+  const max = Math.max(1, ...values);
+  const sample = values.slice(-20);
+  return (
+    <div>
+      <p className="text-xs text-gray-500">{title}</p>
+      <div className="mt-2 flex h-16 items-end gap-1">
+        {sample.map((v, i) => (
+          <div
+            key={`${title}-${i}`}
+            className="w-2 rounded-sm bg-amber-600/80"
+            style={{ height: `${Math.max(8, (v / max) * 100)}%` }}
+            title={String(v)}
+          />
         ))}
       </div>
     </div>

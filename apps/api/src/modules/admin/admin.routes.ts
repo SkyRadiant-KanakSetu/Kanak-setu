@@ -20,11 +20,13 @@ adminRouter.use(authenticate);
 // ── Dashboard KPIs ──
 adminRouter.get('/dashboard', requirePlatformStaff, async (_req: Request, res: Response, next: NextFunction) => {
   try {
+    const rangeParam = parseInt(String(_req.query.rangeDays || '30'), 10);
+    const rangeDays = [7, 30, 90].includes(rangeParam) ? rangeParam : 30;
     const now = new Date();
-    const thirtyDaysAgo = new Date(now.getTime() - 30 * 24 * 60 * 60 * 1000);
+    const fromDate = new Date(now.getTime() - rangeDays * 24 * 60 * 60 * 1000);
     const successfulStatuses = ['COMPLETED', 'BATCHED', 'ANCHORED'] as const;
 
-    const [donors, institutions, donations, pendingInstitutions, failedDonations, newDonors30d, amountAgg30d] =
+    const [donors, institutions, donations, pendingInstitutions, failedDonations, newDonorsInRange, amountAggInRange] =
       await Promise.all([
         prisma.donorProfile.count(),
         prisma.institutionProfile.count({ where: { status: 'ACTIVE' } }),
@@ -35,22 +37,52 @@ adminRouter.get('/dashboard', requirePlatformStaff, async (_req: Request, res: R
         prisma.donation.count({
           where: { status: { in: ['PAYMENT_FAILED', 'VENDOR_FAILED', 'DISPUTED'] } },
         }),
-        prisma.donorProfile.count({ where: { createdAt: { gte: thirtyDaysAgo } } }),
+        prisma.donorProfile.count({ where: { createdAt: { gte: fromDate } } }),
         prisma.donation.aggregate({
-          where: { status: { in: successfulStatuses as any }, createdAt: { gte: thirtyDaysAgo } },
+          where: { status: { in: successfulStatuses as any }, createdAt: { gte: fromDate } },
           _avg: { amountPaise: true },
         }),
       ]);
 
-    const donorCounts30d = await prisma.donation.groupBy({
+    const donorCountsInRange = await prisma.donation.groupBy({
       by: ['donorId'],
-      where: { status: { in: successfulStatuses as any }, createdAt: { gte: thirtyDaysAgo } },
+      where: { status: { in: successfulStatuses as any }, createdAt: { gte: fromDate } },
       _count: { donorId: true },
     });
 
-    const activeDonors30d = donorCounts30d.length;
-    const repeatDonors30d = donorCounts30d.filter((row) => row._count.donorId >= 2).length;
-    const avgDonationTicketPaise30d = Math.round(Number(amountAgg30d._avg.amountPaise || 0));
+    const donationRows = await prisma.donation.findMany({
+      where: { status: { in: successfulStatuses as any }, createdAt: { gte: fromDate } },
+      select: { createdAt: true, donorId: true },
+      orderBy: { createdAt: 'asc' },
+    });
+
+    const days: string[] = [];
+    const dayCursor = new Date(fromDate);
+    for (let i = 0; i < rangeDays; i += 1) {
+      days.push(dayCursor.toISOString().slice(0, 10));
+      dayCursor.setDate(dayCursor.getDate() + 1);
+    }
+    const donationsByDay: Record<string, number> = {};
+    const uniqueDonorSetByDay: Record<string, Set<string>> = {};
+    days.forEach((d) => {
+      donationsByDay[d] = 0;
+      uniqueDonorSetByDay[d] = new Set<string>();
+    });
+    for (const row of donationRows) {
+      const key = row.createdAt.toISOString().slice(0, 10);
+      if (donationsByDay[key] === undefined) continue;
+      donationsByDay[key] += 1;
+      uniqueDonorSetByDay[key].add(row.donorId);
+    }
+    const donorTrend = days.map((d) => ({
+      day: d,
+      donations: donationsByDay[d],
+      activeDonors: uniqueDonorSetByDay[d].size,
+    }));
+
+    const activeDonorsInRange = donorCountsInRange.length;
+    const repeatDonorsInRange = donorCountsInRange.filter((row) => row._count.donorId >= 2).length;
+    const avgDonationTicketPaiseInRange = Math.round(Number(amountAggInRange._avg.amountPaise || 0));
 
     success(res, {
       donors,
@@ -58,10 +90,12 @@ adminRouter.get('/dashboard', requirePlatformStaff, async (_req: Request, res: R
       donations,
       pendingInstitutions,
       failedDonations,
-      newDonors30d,
-      activeDonors30d,
-      repeatDonors30d,
-      avgDonationTicketPaise30d,
+      rangeDays,
+      newDonorsInRange,
+      activeDonorsInRange,
+      repeatDonorsInRange,
+      avgDonationTicketPaiseInRange,
+      donorTrend,
     });
   } catch (e) {
     next(e);

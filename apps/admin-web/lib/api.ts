@@ -75,7 +75,7 @@ export const authApi = {
 };
 
 export const admin = {
-  dashboard: () => api('/admin/dashboard'),
+  dashboard: (rangeDays = 30) => api(`/admin/dashboard?rangeDays=${rangeDays}`),
   institutions: (page = 1, status?: string) =>
     api(`/admin/institutions?page=${page}${status ? `&status=${status}` : ''}`),
   onboardInstitution: (data: {

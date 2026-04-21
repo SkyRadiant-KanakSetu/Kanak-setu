@@ -84,7 +84,7 @@ export const portal = {
   onboard: (data: any) =>
     api('/institutions/portal/onboard', { method: 'POST', body: JSON.stringify(data) }),
   submit: () => api('/institutions/portal/submit', { method: 'POST' }),
-  dashboard: () => api('/institutions/portal/dashboard'),
+  dashboard: (rangeDays = 30) => api(`/institutions/portal/dashboard?rangeDays=${rangeDays}`),
   ledger: (page = 1) => api(`/institutions/portal/ledger?page=${page}`),
   addBank: (data: any) =>
     api('/institutions/portal/bank', { method: 'POST', body: JSON.stringify(data) }),

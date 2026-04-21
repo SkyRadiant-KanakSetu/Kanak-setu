@@ -189,6 +189,8 @@ institutionRouter.get(
   requireRole('INSTITUTION_ADMIN', 'INSTITUTION_STAFF'),
   async (req: Request, res: Response, next: NextFunction) => {
     try {
+      const rangeParam = parseInt(String(req.query.rangeDays || '30'), 10);
+      const rangeDays = [7, 30, 90].includes(rangeParam) ? rangeParam : 30;
       const profile = await prisma.institutionProfile.findUnique({
         where: { userId: req.auth!.userId },
       });
@@ -220,7 +222,7 @@ institutionRouter.get(
         }),
       ]);
 
-      const thirtyDaysAgo = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000);
+      const fromDate = new Date(Date.now() - rangeDays * 24 * 60 * 60 * 1000);
       const donorCounts = await prisma.donation.groupBy({
         by: ['donorId'],
         where: {
@@ -234,10 +236,43 @@ institutionRouter.get(
         where: {
           institutionId: profile.id,
           status: { in: ['COMPLETED', 'BATCHED', 'ANCHORED'] },
-          createdAt: { gte: thirtyDaysAgo },
+          createdAt: { gte: fromDate },
         },
         _count: { donorId: true },
       });
+
+      const donationRows = await prisma.donation.findMany({
+        where: {
+          institutionId: profile.id,
+          status: { in: ['COMPLETED', 'BATCHED', 'ANCHORED'] },
+          createdAt: { gte: fromDate },
+        },
+        select: { donorId: true, createdAt: true },
+        orderBy: { createdAt: 'asc' },
+      });
+      const days: string[] = [];
+      const dayCursor = new Date(fromDate);
+      for (let i = 0; i < rangeDays; i += 1) {
+        days.push(dayCursor.toISOString().slice(0, 10));
+        dayCursor.setDate(dayCursor.getDate() + 1);
+      }
+      const donationsByDay: Record<string, number> = {};
+      const donorsByDay: Record<string, Set<string>> = {};
+      days.forEach((d) => {
+        donationsByDay[d] = 0;
+        donorsByDay[d] = new Set<string>();
+      });
+      for (const row of donationRows) {
+        const key = row.createdAt.toISOString().slice(0, 10);
+        if (donationsByDay[key] === undefined) continue;
+        donationsByDay[key] += 1;
+        donorsByDay[key].add(row.donorId);
+      }
+      const donorTrend = days.map((d) => ({
+        day: d,
+        donations: donationsByDay[d],
+        activeDonors: donorsByDay[d].size,
+      }));
 
       success(res, {
         institutionId: profile.id,
@@ -248,7 +283,9 @@ institutionRouter.get(
         totalGoldMg: totalGoldMg._sum.goldQuantityMg || 0,
         uniqueDonors: donorCounts.length,
         repeatDonors: donorCounts.filter((row) => row._count.donorId >= 2).length,
-        activeDonors30d: donorCounts30d.length,
+        activeDonorsInRange: donorCounts30d.length,
+        rangeDays,
+        donorTrend,
         recentDonations,
       });
     } catch (e) {
