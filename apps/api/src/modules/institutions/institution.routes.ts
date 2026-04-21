@@ -220,6 +220,25 @@ institutionRouter.get(
         }),
       ]);
 
+      const thirtyDaysAgo = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000);
+      const donorCounts = await prisma.donation.groupBy({
+        by: ['donorId'],
+        where: {
+          institutionId: profile.id,
+          status: { in: ['COMPLETED', 'BATCHED', 'ANCHORED'] },
+        },
+        _count: { donorId: true },
+      });
+      const donorCounts30d = await prisma.donation.groupBy({
+        by: ['donorId'],
+        where: {
+          institutionId: profile.id,
+          status: { in: ['COMPLETED', 'BATCHED', 'ANCHORED'] },
+          createdAt: { gte: thirtyDaysAgo },
+        },
+        _count: { donorId: true },
+      });
+
       success(res, {
         institutionId: profile.id,
         publicName: profile.publicName,
@@ -227,6 +246,9 @@ institutionRouter.get(
         status: profile.status,
         totalDonations,
         totalGoldMg: totalGoldMg._sum.goldQuantityMg || 0,
+        uniqueDonors: donorCounts.length,
+        repeatDonors: donorCounts.filter((row) => row._count.donorId >= 2).length,
+        activeDonors30d: donorCounts30d.length,
         recentDonations,
       });
     } catch (e) {

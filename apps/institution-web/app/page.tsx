@@ -185,6 +185,18 @@ export default function InstitutionHome() {
                 {(parseFloat(dashboard.totalGoldMg || 0) / 1000).toFixed(4)}
               </p>
             </div>
+            <div className="rounded-xl border bg-white p-5">
+              <p className="text-sm text-gray-500">Unique Donors</p>
+              <p className="mt-1 text-2xl font-bold">{dashboard.uniqueDonors ?? 0}</p>
+            </div>
+            <div className="rounded-xl border bg-white p-5">
+              <p className="text-sm text-gray-500">Repeat Donors</p>
+              <p className="mt-1 text-2xl font-bold">{dashboard.repeatDonors ?? 0}</p>
+            </div>
+            <div className="rounded-xl border bg-white p-5">
+              <p className="text-sm text-gray-500">Active Donors (30d)</p>
+              <p className="mt-1 text-2xl font-bold">{dashboard.activeDonors30d ?? 0}</p>
+            </div>
           </div>
 
           <DonationQr

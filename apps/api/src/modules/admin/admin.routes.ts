@@ -20,19 +20,49 @@ adminRouter.use(authenticate);
 // ── Dashboard KPIs ──
 adminRouter.get('/dashboard', requirePlatformStaff, async (_req: Request, res: Response, next: NextFunction) => {
   try {
-    const [donors, institutions, donations, pendingInstitutions, failedDonations] =
+    const now = new Date();
+    const thirtyDaysAgo = new Date(now.getTime() - 30 * 24 * 60 * 60 * 1000);
+    const successfulStatuses = ['COMPLETED', 'BATCHED', 'ANCHORED'] as const;
+
+    const [donors, institutions, donations, pendingInstitutions, failedDonations, newDonors30d, amountAgg30d] =
       await Promise.all([
         prisma.donorProfile.count(),
         prisma.institutionProfile.count({ where: { status: 'ACTIVE' } }),
-        prisma.donation.count({ where: { status: { in: ['COMPLETED', 'BATCHED', 'ANCHORED'] } } }),
+        prisma.donation.count({ where: { status: { in: successfulStatuses as any } } }),
         prisma.institutionProfile.count({
           where: { status: { in: ['SUBMITTED', 'UNDER_REVIEW'] } },
         }),
         prisma.donation.count({
           where: { status: { in: ['PAYMENT_FAILED', 'VENDOR_FAILED', 'DISPUTED'] } },
         }),
+        prisma.donorProfile.count({ where: { createdAt: { gte: thirtyDaysAgo } } }),
+        prisma.donation.aggregate({
+          where: { status: { in: successfulStatuses as any }, createdAt: { gte: thirtyDaysAgo } },
+          _avg: { amountPaise: true },
+        }),
       ]);
-    success(res, { donors, institutions, donations, pendingInstitutions, failedDonations });
+
+    const donorCounts30d = await prisma.donation.groupBy({
+      by: ['donorId'],
+      where: { status: { in: successfulStatuses as any }, createdAt: { gte: thirtyDaysAgo } },
+      _count: { donorId: true },
+    });
+
+    const activeDonors30d = donorCounts30d.length;
+    const repeatDonors30d = donorCounts30d.filter((row) => row._count.donorId >= 2).length;
+    const avgDonationTicketPaise30d = Math.round(Number(amountAgg30d._avg.amountPaise || 0));
+
+    success(res, {
+      donors,
+      institutions,
+      donations,
+      pendingInstitutions,
+      failedDonations,
+      newDonors30d,
+      activeDonors30d,
+      repeatDonors30d,
+      avgDonationTicketPaise30d,
+    });
   } catch (e) {
     next(e);
   }

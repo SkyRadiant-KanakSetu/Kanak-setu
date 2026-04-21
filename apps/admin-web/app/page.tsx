@@ -153,6 +153,15 @@ function DashboardTab() {
     { label: 'Pending Approvals', value: data.pendingInstitutions, alert: true },
     { label: 'Failed/Disputed', value: data.failedDonations, alert: true },
   ];
+  const donorCards = [
+    { label: 'New Donors (30d)', value: data.newDonors30d ?? 0 },
+    { label: 'Active Donors (30d)', value: data.activeDonors30d ?? 0 },
+    { label: 'Repeat Donors (30d)', value: data.repeatDonors30d ?? 0 },
+    {
+      label: 'Avg Ticket (30d)',
+      value: `₹${(((data.avgDonationTicketPaise30d ?? 0) as number) / 100).toFixed(0)}`,
+    },
+  ];
 
   return (
     <div>
@@ -163,6 +172,15 @@ function DashboardTab() {
             key={c.label}
             className={`rounded-xl border p-4 ${c.alert && c.value > 0 ? 'border-red-200 bg-red-50' : 'bg-white'}`}
           >
+            <p className="text-xs text-gray-500">{c.label}</p>
+            <p className="mt-1 text-2xl font-bold">{c.value}</p>
+          </div>
+        ))}
+      </div>
+      <h3 className="mt-8 text-sm font-semibold text-gray-700">Donor Analytics</h3>
+      <div className="mt-3 grid gap-4 md:grid-cols-2 lg:grid-cols-4">
+        {donorCards.map((c) => (
+          <div key={c.label} className="rounded-xl border bg-white p-4">
             <p className="text-xs text-gray-500">{c.label}</p>
             <p className="mt-1 text-2xl font-bold">{c.value}</p>
           </div>
