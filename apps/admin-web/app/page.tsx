@@ -350,16 +350,12 @@ function InstitutionsTab() {
   const buildDonorLink = (inst: any) => {
     const base = donorSiteBase();
     if (inst.publicPageSlug) {
-      const q = new URLSearchParams();
-      if (inst.upiId) q.set('upi', inst.upiId);
-      const suffix = q.toString();
-      return `${base}/give/${encodeURIComponent(inst.publicPageSlug)}${suffix ? `?${suffix}` : ''}`;
+      return `${base}/give/${encodeURIComponent(inst.publicPageSlug)}`;
     }
     const q = new URLSearchParams({
       institution: inst.id,
       name: inst.publicName,
     });
-    if (inst.upiId) q.set('upi', inst.upiId);
     return `${base}/donate?${q.toString()}`;
   };
 

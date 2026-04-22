@@ -6,7 +6,6 @@ type Props = {
   institutionId: string;
   publicName: string;
   publicPageSlug: string | null;
-  upiId?: string | null;
   status: string;
 };
 
@@ -23,26 +22,21 @@ function donorSiteBase(): string {
   return 'https://kanaksetu.com';
 }
 
-export function DonationQr({ institutionId, publicName, publicPageSlug, upiId, status }: Props) {
+export function DonationQr({ institutionId, publicName, publicPageSlug, status }: Props) {
   const [dataUrl, setDataUrl] = useState<string | null>(null);
   const [copyOk, setCopyOk] = useState(false);
 
   const donateUrl = useMemo(() => {
     const base = donorSiteBase();
-    const upiParam = upiId?.trim();
     if (publicPageSlug && status === 'ACTIVE') {
-      const q = new URLSearchParams();
-      if (upiParam) q.set('upi', upiParam);
-      const suffix = q.toString();
-      return `${base}/give/${encodeURIComponent(publicPageSlug)}${suffix ? `?${suffix}` : ''}`;
+      return `${base}/give/${encodeURIComponent(publicPageSlug)}`;
     }
     const q = new URLSearchParams({
       institution: institutionId,
       name: publicName,
     });
-    if (upiParam) q.set('upi', upiParam);
     return `${base}/donate?${q.toString()}`;
-  }, [institutionId, publicName, publicPageSlug, status, upiId]);
+  }, [institutionId, publicName, publicPageSlug, status]);
 
   useEffect(() => {
     let cancelled = false;

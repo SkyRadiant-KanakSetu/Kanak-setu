@@ -40,12 +40,9 @@ export default function InstitutionsPage() {
       ) : (
         <div className="mt-8 grid gap-6 md:grid-cols-2 lg:grid-cols-3">
           {list.map((inst) => {
-            const upiSuffix = inst.upiId ? `?upi=${encodeURIComponent(inst.upiId)}` : '';
             const donateHref = inst.publicPageSlug
-              ? `/give/${encodeURIComponent(inst.publicPageSlug)}${upiSuffix}`
-              : `/donate?institution=${inst.id}&name=${encodeURIComponent(inst.publicName)}${
-                  inst.upiId ? `&upi=${encodeURIComponent(inst.upiId)}` : ''
-                }`;
+              ? `/give/${encodeURIComponent(inst.publicPageSlug)}`
+              : `/donate?institution=${inst.id}&name=${encodeURIComponent(inst.publicName)}`;
             return (
             <Link
               key={inst.id}

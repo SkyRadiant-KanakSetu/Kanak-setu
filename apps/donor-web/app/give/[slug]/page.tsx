@@ -32,9 +32,7 @@ export default function GiveBySlugPage() {
         institution: id,
         name: publicName,
       });
-      const forwardedUpi = new URLSearchParams(window.location.search).get('upi');
-      if (forwardedUpi) q.set('upi', forwardedUpi);
-      else if (upiId) q.set('upi', upiId);
+      if (upiId) q.set('upi', upiId);
       router.replace(`/donate?${q.toString()}`);
     })();
     return () => {

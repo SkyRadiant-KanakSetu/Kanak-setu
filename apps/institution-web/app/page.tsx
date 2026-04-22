@@ -281,7 +281,6 @@ export default function InstitutionHome() {
             institutionId={dashboard.institutionId}
             publicName={dashboard.publicName}
             publicPageSlug={dashboard.publicPageSlug}
-            upiId={dashboard.upiId}
             status={dashboard.status}
           />
 
