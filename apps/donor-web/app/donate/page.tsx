@@ -261,36 +261,38 @@ function DonateForm() {
           </div>
         )}
 
-        <div className="rounded-xl border border-gold-200 bg-white p-4">
-          <h2 className="text-base font-semibold text-gray-900">Pay using UPI QR</h2>
-          <p className="mt-1 text-sm text-gray-600">
-            Scan this QR to pay for <strong>{effectiveInstitutionName}</strong> through any UPI app.
-          </p>
-          <div className="mt-4 flex flex-col items-center gap-4 sm:flex-row sm:items-start">
-            {upiQrDataUrl ? (
-              <img src={upiQrDataUrl} alt="UPI payment QR code" className="h-40 w-40 rounded-lg border p-2" />
-            ) : (
-              <div className="flex h-40 w-40 items-center justify-center rounded-lg border border-dashed text-xs text-gray-400">
-                Generating QR...
+        {parseFloat(amount) > 0 && (
+          <div className="rounded-xl border border-gold-200 bg-white p-4">
+            <h2 className="text-base font-semibold text-gray-900">Pay using UPI QR</h2>
+            <p className="mt-1 text-sm text-gray-600">
+              Scan this QR to pay for <strong>{effectiveInstitutionName}</strong> through any UPI app.
+            </p>
+            <div className="mt-4 flex flex-col items-center gap-4 sm:flex-row sm:items-start">
+              {upiQrDataUrl ? (
+                <img src={upiQrDataUrl} alt="UPI payment QR code" className="h-40 w-40 rounded-lg border p-2" />
+              ) : (
+                <div className="flex h-40 w-40 items-center justify-center rounded-lg border border-dashed text-xs text-gray-400">
+                  Generating QR...
+                </div>
+              )}
+              <div className="text-sm text-gray-600">
+                <p>
+                  Amount: <strong>₹{amount || '0'}</strong>
+                </p>
+                <a href={upiLink} className="mt-2 inline-block text-sm font-medium text-gold-700 hover:underline">
+                  Open in UPI app
+                </a>
+                <p className="mt-2 text-xs text-gray-500">
+                  If amount is entered above, it is auto-filled in the UPI request.
+                </p>
               </div>
-            )}
-            <div className="text-sm text-gray-600">
-              <p>
-                Amount: <strong>₹{amount || '0'}</strong>
-              </p>
-              <a href={upiLink} className="mt-2 inline-block text-sm font-medium text-gold-700 hover:underline">
-                Open in UPI app
-              </a>
-              <p className="mt-2 text-xs text-gray-500">
-                If amount is entered above, it is auto-filled in the UPI request.
-              </p>
             </div>
           </div>
-        </div>
+        )}
 
         <button
           onClick={handleDonate}
-          disabled={step === 'processing' || !amount}
+          disabled={step === 'processing' || amountPaise < 100}
           className="w-full rounded-xl bg-gold-500 py-3.5 text-lg font-semibold text-white shadow-lg hover:bg-gold-600 disabled:opacity-50 transition"
         >
           {step === 'processing' ? 'Processing...' : `Donate ₹${amount || '0'} as Gold`}
