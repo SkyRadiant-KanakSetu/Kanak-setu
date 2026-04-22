@@ -1,4 +1,36 @@
+const fs = require('fs');
+const path = require('path');
+const dotenv = require('dotenv');
+
 const APP_DIR = process.env.APP_DIR || '/opt/kanak-setu';
+
+/**
+ * Bakes infra/prod/.env.production into PM2's process env (survives reboot, no missing DATABASE_URL
+ * in fresh systemd sessions; matches what deploy-vps.sh sources for builds).
+ */
+function readProdFileEnv() {
+  const p = path.join(APP_DIR, 'infra', 'prod', '.env.production');
+  if (!fs.existsSync(p)) return {};
+  try {
+    return dotenv.parse(fs.readFileSync(p));
+  } catch {
+    return {};
+  }
+}
+
+const fileEnv = readProdFileEnv();
+
+function nextRuntimeEnv() {
+  return {
+    ...Object.fromEntries(
+      Object.entries(fileEnv).filter(([k]) => k.startsWith('NEXT_PUBLIC_'))
+    ),
+  };
+}
+
+function appEnv(overrides) {
+  return { ...fileEnv, ...overrides };
+}
 
 module.exports = {
   apps: [
@@ -7,40 +39,31 @@ module.exports = {
       cwd: APP_DIR,
       script: 'npm',
       args: 'run start -w @kanak-setu/api',
-      env: {
+      env: appEnv({
         NODE_ENV: 'production',
         PORT: '4000',
-      },
+      }),
     },
     {
       name: 'kanak-donor-web',
       cwd: APP_DIR,
       script: 'npm',
       args: 'run start -w @kanak-setu/donor-web',
-      env: {
-        NODE_ENV: 'production',
-        PORT: '3000',
-      },
+      env: { NODE_ENV: 'production', PORT: '3000', ...nextRuntimeEnv() },
     },
     {
       name: 'kanak-institution-web',
       cwd: APP_DIR,
       script: 'npm',
       args: 'run start -w @kanak-setu/institution-web',
-      env: {
-        NODE_ENV: 'production',
-        PORT: '3001',
-      },
+      env: { NODE_ENV: 'production', PORT: '3001', ...nextRuntimeEnv() },
     },
     {
       name: 'kanak-admin-web',
       cwd: APP_DIR,
       script: 'npm',
       args: 'run start -w @kanak-setu/admin-web',
-      env: {
-        NODE_ENV: 'production',
-        PORT: '3002',
-      },
+      env: { NODE_ENV: 'production', PORT: '3002', ...nextRuntimeEnv() },
     },
   ],
 };

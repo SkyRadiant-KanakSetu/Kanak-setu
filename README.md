@@ -80,6 +80,39 @@ npm run dev:institution  # http://localhost:3001
 npm run dev:admin        # http://localhost:3002
 ```
 
+### 8. Start Mobile App (Expo)
+
+```bash
+# In a new terminal
+npm run dev:mobile
+```
+
+Set mobile API base before starting Expo (device cannot use your laptop localhost):
+
+```bash
+export EXPO_PUBLIC_API_BASE_URL=http://<your-lan-ip>:4000/api/v1
+# Example: http://192.168.1.20:4000/api/v1
+```
+
+### 9. Publish Mobile App (Live)
+
+```bash
+cd apps/mobile
+npx expo login
+npx eas login
+
+# One-time project setup and cloud build
+EXPO_PUBLIC_API_BASE_URL=https://api.kanaksetu.com/api/v1 npm run build:android
+EXPO_PUBLIC_API_BASE_URL=https://api.kanaksetu.com/api/v1 npm run build:ios
+```
+
+After build completes, submit stores:
+
+```bash
+npm run submit:android
+npm run submit:ios
+```
+
 ## Test Accounts
 
 After `npm run db:seed` (non-production defaults), seeded users share `SEED_PASSWORD` (defaults to `password123` in dev).

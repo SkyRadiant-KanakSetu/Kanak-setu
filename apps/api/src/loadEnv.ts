@@ -8,12 +8,16 @@ function repoRoot(): string {
 }
 
 const root = repoRoot();
-const candidates = [
-  path.join(root, 'infra', 'prod', '.env.production'),
-  path.join(root, 'infra', '.env'),
-  path.join(root, 'infra', '.env.local'),
-  path.join(root, 'infra', '.env.example'),
-];
+const isProd = process.env.NODE_ENV === 'production';
+// Never use .env.example in production: wrong secrets cause silent startup failures and 502 from Caddy.
+const candidates = isProd
+  ? [path.join(root, 'infra', 'prod', '.env.production'), path.join(root, 'infra', '.env')]
+  : [
+      path.join(root, 'infra', 'prod', '.env.production'),
+      path.join(root, 'infra', '.env'),
+      path.join(root, 'infra', '.env.local'),
+      path.join(root, 'infra', '.env.example'),
+    ];
 
 for (const p of candidates) {
   if (fs.existsSync(p)) {

@@ -6,7 +6,12 @@ function resolveApiBase() {
   if (envBase) return envBase.replace(/\/$/, '');
   if (typeof window === 'undefined') return '/api/v1';
   const host = window.location.hostname;
-  if (host === 'admin.kanaksetu.com' || host === 'institution.kanaksetu.com' || host === 'kanaksetu.com') {
+  if (
+    host === 'admin.kanaksetu.com' ||
+    host === 'institution.kanaksetu.com' ||
+    host === 'kanaksetu.com' ||
+    host === 'www.kanaksetu.com'
+  ) {
     return 'https://api.kanaksetu.com/api/v1';
   }
   return '/api/v1';
@@ -106,13 +111,17 @@ export async function api<T = any>(
       };
     }
   } catch (e: any) {
+    const raw = String(e?.message || '');
+    const isBrowserNetwork =
+      /failed to fetch|load failed|networkerror when attempting to fetch resource/i.test(raw);
     return {
       success: false,
       error: {
         code: 'NETWORK_ERROR',
-        message:
-          e?.message ||
-          'Could not reach the API. Set NEXT_PUBLIC_API_BASE_URL if the API is on another host.',
+        message: isBrowserNetwork
+          ? 'The sign-in service is unreachable. It may be restarting—try again shortly, or ask your host to check the API and database (e.g. pm2 logs for kanak-api, Caddy upstream, DATABASE_URL).'
+          : raw ||
+            'Could not reach the API. Set NEXT_PUBLIC_API_BASE_URL if the API is on another host.',
       },
     };
   }
