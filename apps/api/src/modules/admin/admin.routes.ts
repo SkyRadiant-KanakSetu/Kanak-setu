@@ -353,7 +353,20 @@ adminRouter.get('/donations', requirePlatformStaff, async (req: Request, res: Re
         include: {
           donor: { select: { firstName: true, lastName: true } },
           institution: { select: { publicName: true } },
-          payment: { select: { status: true } },
+          payment: {
+            select: {
+              status: true,
+              provider: true,
+              providerOrderId: true,
+              providerPaymentId: true,
+              updatedAt: true,
+              events: {
+                orderBy: { createdAt: 'desc' },
+                take: 1,
+                select: { eventType: true, createdAt: true },
+              },
+            },
+          },
           vendorOrder: { select: { status: true } },
         },
       }),

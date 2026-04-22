@@ -13,7 +13,9 @@ function DonateForm() {
   const institutionUpiId = searchParams.get('upi')?.trim() || '';
 
   const [amount, setAmount] = useState('');
-  const [step, setStep] = useState<'amount' | 'processing' | 'awaiting_confirmation' | 'error'>('amount');
+  const [step, setStep] = useState<
+    'amount' | 'payment' | 'processing' | 'awaiting_confirmation' | 'error'
+  >('amount');
   const [activeDonationId, setActiveDonationId] = useState('');
   const [upiReference, setUpiReference] = useState('');
   const [error, setError] = useState('');
@@ -114,6 +116,15 @@ function DonateForm() {
     }
   };
 
+  const goToPaymentStep = () => {
+    if (amountPaise < 100) {
+      setError('Minimum ₹1');
+      return;
+    }
+    setError('');
+    setStep('payment');
+  };
+
   const handlePaymentConfirmed = async () => {
     if (!activeDonationId) return;
     if (!upiReference.trim()) {
@@ -207,6 +218,57 @@ function DonateForm() {
     return <div className="py-16 text-center text-gray-500">Processing payment update...</div>;
   }
 
+  if (step === 'payment') {
+    return (
+      <div className="mx-auto max-w-lg px-4 py-12">
+        <h1 className="font-display text-2xl font-bold text-gray-900">Pay using UPI QR</h1>
+        <p className="mt-1 text-gray-600">
+          Institution: <strong className="text-gold-700">{effectiveInstitutionName}</strong>
+        </p>
+        <p className="mt-1 text-sm text-gray-600">
+          Amount: <strong>₹{(amountPaise / 100).toFixed(2)}</strong>
+        </p>
+
+        <div className="mt-6 rounded-xl border border-gold-200 bg-white p-4">
+          <div className="flex flex-col items-center gap-4 sm:flex-row sm:items-start">
+            {upiQrDataUrl ? (
+              <img src={upiQrDataUrl} alt="UPI payment QR code" className="h-40 w-40 rounded-lg border p-2" />
+            ) : (
+              <div className="flex h-40 w-40 items-center justify-center rounded-lg border border-dashed text-xs text-gray-400">
+                Generating QR...
+              </div>
+            )}
+            <div className="text-sm text-gray-600">
+              <a href={upiLink} className="inline-block text-sm font-medium text-gold-700 hover:underline">
+                Open in UPI app
+              </a>
+              <p className="mt-2 text-xs text-gray-500">
+                After payment, click below to continue and submit UTR/reference.
+              </p>
+            </div>
+          </div>
+        </div>
+
+        {error && <div className="mt-4 rounded-lg bg-red-50 p-3 text-sm text-red-700">{error}</div>}
+
+        <div className="mt-6 flex gap-4">
+          <button
+            onClick={handleDonate}
+            className="rounded-lg bg-gold-500 px-6 py-2 text-white hover:bg-gold-600"
+          >
+            I Have Paid
+          </button>
+          <button
+            onClick={() => setStep('amount')}
+            className="rounded-lg border border-gold-300 px-6 py-2 text-gold-700 hover:bg-gold-50"
+          >
+            Change Amount
+          </button>
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div className="mx-auto max-w-lg px-4 py-12">
       <h1 className="font-display text-2xl font-bold text-gray-900">Donate Gold</h1>
@@ -261,41 +323,12 @@ function DonateForm() {
           </div>
         )}
 
-        {parseFloat(amount) > 0 && (
-          <div className="rounded-xl border border-gold-200 bg-white p-4">
-            <h2 className="text-base font-semibold text-gray-900">Pay using UPI QR</h2>
-            <p className="mt-1 text-sm text-gray-600">
-              Scan this QR to pay for <strong>{effectiveInstitutionName}</strong> through any UPI app.
-            </p>
-            <div className="mt-4 flex flex-col items-center gap-4 sm:flex-row sm:items-start">
-              {upiQrDataUrl ? (
-                <img src={upiQrDataUrl} alt="UPI payment QR code" className="h-40 w-40 rounded-lg border p-2" />
-              ) : (
-                <div className="flex h-40 w-40 items-center justify-center rounded-lg border border-dashed text-xs text-gray-400">
-                  Generating QR...
-                </div>
-              )}
-              <div className="text-sm text-gray-600">
-                <p>
-                  Amount: <strong>₹{amount || '0'}</strong>
-                </p>
-                <a href={upiLink} className="mt-2 inline-block text-sm font-medium text-gold-700 hover:underline">
-                  Open in UPI app
-                </a>
-                <p className="mt-2 text-xs text-gray-500">
-                  If amount is entered above, it is auto-filled in the UPI request.
-                </p>
-              </div>
-            </div>
-          </div>
-        )}
-
         <button
-          onClick={handleDonate}
+          onClick={goToPaymentStep}
           disabled={step === 'processing' || amountPaise < 100}
           className="w-full rounded-xl bg-gold-500 py-3.5 text-lg font-semibold text-white shadow-lg hover:bg-gold-600 disabled:opacity-50 transition"
         >
-          {step === 'processing' ? 'Processing...' : `Donate ₹${amount || '0'} as Gold`}
+          Continue to UPI QR
         </button>
 
         <p className="text-center text-xs text-gray-400">

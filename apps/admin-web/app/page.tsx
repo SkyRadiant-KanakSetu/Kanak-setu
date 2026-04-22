@@ -622,17 +622,20 @@ function DonationsTab() {
         <table className="w-full text-sm">
           <thead className="bg-gray-50 text-left text-xs text-gray-500">
             <tr>
+              <th className="px-3 py-2">Donation Ref</th>
               <th className="px-3 py-2">Donor</th>
               <th className="px-3 py-2">Institution</th>
               <th className="px-3 py-2">Amount</th>
               <th className="px-3 py-2">Gold</th>
               <th className="px-3 py-2">Status</th>
+              <th className="px-3 py-2">Payment Ref</th>
               <th className="px-3 py-2">Actions</th>
             </tr>
           </thead>
           <tbody>
             {list.map((d: any) => (
               <tr key={d.id} className="border-t">
+                <td className="px-3 py-2 font-mono text-xs">{d.donationRef?.slice(0, 10) || d.id.slice(0, 10)}</td>
                 <td className="px-3 py-2">
                   {d.donor?.firstName} {d.donor?.lastName}
                 </td>
@@ -643,6 +646,12 @@ function DonationsTab() {
                 </td>
                 <td className="px-3 py-2">
                   <span className="rounded bg-gray-100 px-1.5 py-0.5 text-xs">{d.status}</span>
+                </td>
+                <td className="px-3 py-2 text-xs">
+                  <p className="font-mono text-[10px]">{d.payment?.providerPaymentId || d.payment?.providerOrderId || '-'}</p>
+                  {d.payment?.events?.[0]?.eventType && (
+                    <p className="mt-0.5 text-[10px] text-gray-500">{d.payment.events[0].eventType}</p>
+                  )}
                 </td>
                 <td className="px-3 py-2">
                   {d.status === 'VENDOR_FAILED' && (

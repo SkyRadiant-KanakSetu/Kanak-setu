@@ -129,6 +129,17 @@ export async function confirmPayment(
     where: { donationId },
     data: { providerPaymentId, status: 'CAPTURED' },
   });
+  await prisma.paymentEvent.create({
+    data: {
+      transactionId: donation.payment!.id,
+      eventType: actorUserId ? 'DONOR_UPI_CONFIRMATION' : 'SYSTEM_CONFIRMATION',
+      payload: {
+        providerPaymentId,
+        actorUserId: actorUserId || null,
+      } as object,
+      processedAt: new Date(),
+    },
+  });
 
   if (donation.institution.status !== 'ACTIVE') {
     await prisma.donation.update({
