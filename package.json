@@ -32,7 +32,9 @@
     "smoke:proof": "bash scripts/smoke-proof.sh",
     "smoke:all": "bash scripts/smoke-all.sh",
     "smoke:ci": "bash scripts/smoke-ci.sh",
-    "deploy:vps": "bash scripts/prod/deploy-vps.sh"
+    "deploy:vps": "bash scripts/prod/deploy-vps.sh",
+    "db:align-pg": "bash scripts/prod/align-postgres-with-env.sh",
+    "db:show-prod-db": "bash scripts/prod/show-prod-db-secret.sh"
   },
   "devDependencies": {
     "dotenv": "^16.4.0",
