@@ -37,7 +37,8 @@ donationRouter.post(
     try {
       const result = await donationService.confirmPayment(
         req.params.id,
-        req.body.providerPaymentId
+        req.body.providerPaymentId,
+        req.auth!.userId
       );
       success(res, result);
     } catch (e) {

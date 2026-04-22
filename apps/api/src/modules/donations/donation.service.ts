@@ -91,12 +91,19 @@ export async function initiateDonation(params: {
 }
 
 // ── Step 2: Handle payment confirmation (called from webhook or client verify) ──
-export async function confirmPayment(donationId: string, providerPaymentId: string) {
+export async function confirmPayment(
+  donationId: string,
+  providerPaymentId: string,
+  actorUserId?: string
+) {
   const donation = await prisma.donation.findUnique({
     where: { id: donationId },
-    include: { payment: true, institution: true },
+    include: { payment: true, institution: true, donor: true },
   });
   if (!donation) throw new AppError(404, 'NOT_FOUND', 'Donation not found');
+  if (actorUserId && donation.donor.userId !== actorUserId) {
+    throw new AppError(403, 'FORBIDDEN', 'This donation does not belong to you');
+  }
   if (donation.status !== 'PAYMENT_PENDING') {
     if (
       [

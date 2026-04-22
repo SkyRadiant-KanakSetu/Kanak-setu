@@ -2,7 +2,7 @@
 import { useState, useEffect, useMemo, Suspense } from 'react';
 import { useSearchParams, useRouter } from 'next/navigation';
 import { useAuth } from '@/lib/auth';
-import { donations, institutions, mockPayment } from '@/lib/api';
+import { donations, institutions } from '@/lib/api';
 
 function DonateForm() {
   const searchParams = useSearchParams();
@@ -13,8 +13,9 @@ function DonateForm() {
   const institutionUpiId = searchParams.get('upi')?.trim() || '';
 
   const [amount, setAmount] = useState('');
-  const [step, setStep] = useState<'amount' | 'processing' | 'success' | 'error'>('amount');
-  const [donationResult, setDonationResult] = useState<any>(null);
+  const [step, setStep] = useState<'amount' | 'processing' | 'awaiting_confirmation' | 'error'>('amount');
+  const [activeDonationId, setActiveDonationId] = useState('');
+  const [upiReference, setUpiReference] = useState('');
   const [error, setError] = useState('');
   const [goldPrice, setGoldPrice] = useState(0);
   const [quoteSource, setQuoteSource] = useState<string | undefined>();
@@ -105,59 +106,93 @@ function DonateForm() {
       });
       if (!res.success) throw new Error(res.error?.message || 'Failed to create donation');
 
-      // Simulate payment (in production, open Razorpay checkout here)
-      const simRes = await mockPayment.simulate(res.data.donationId, 'CAPTURED');
-      if (!simRes.success) {
-        if (simRes.error?.code === 'MOCK_PAYMENT_DISABLED') {
-          throw new Error(
-            'Mock payments are off on the server. For demos, set ALLOW_MOCK_PAYMENT_SIMULATION=1 on the API and redeploy; otherwise use a real payment integration.'
-          );
-        }
-        throw new Error(simRes.error?.message || 'Payment simulation failed');
-      }
-
-      setDonationResult(simRes.data);
-      setStep('success');
+      setActiveDonationId(res.data.donationId);
+      setStep('awaiting_confirmation');
     } catch (err: any) {
       setError(err.message);
       setStep('error');
     }
   };
 
-  if (step === 'success') {
+  const handlePaymentConfirmed = async () => {
+    if (!activeDonationId) return;
+    if (!upiReference.trim()) {
+      setError('Enter UPI reference/UTR');
+      return;
+    }
+    setStep('processing');
+    setError('');
+    const res = await donations.confirmPayment(activeDonationId, upiReference.trim());
+    if (!res.success) {
+      setError(res.error?.message || 'Could not confirm payment');
+      setStep('awaiting_confirmation');
+      return;
+    }
+    router.push(`/receipt/${activeDonationId}`);
+  };
+
+  if (step === 'awaiting_confirmation') {
     return (
       <div className="mx-auto max-w-lg px-4 py-16 text-center">
-        <div className="text-5xl">✅</div>
-        <h1 className="mt-4 font-display text-2xl font-bold text-gray-900">Donation Complete!</h1>
-        <p className="mt-2 text-gray-500">
-          Your digital gold donation to {effectiveInstitutionName} has been processed.
+        <h1 className="mt-2 font-display text-2xl font-bold text-gray-900">Complete UPI Payment</h1>
+        <p className="mt-2 text-gray-600">
+          Pay via UPI for <strong>{effectiveInstitutionName}</strong>, then enter your UPI reference/UTR to generate
+          receipt.
         </p>
-        <div className="mt-6 rounded-xl bg-green-50 p-4 text-sm text-green-800">
-          <p>
+        <div className="mt-6 rounded-xl border border-gold-200 bg-white p-4 text-left">
+          <p className="text-sm text-gray-700">
             <strong>Amount:</strong> ₹{(amountPaise / 100).toFixed(2)}
           </p>
-          <p>
-            <strong>Gold Allocated:</strong> ~{donationResult?.goldQuantityMg || goldEstimateMg} mg
-          </p>
-          <p>
-            <strong>Status:</strong> {donationResult?.status || 'COMPLETED'}
-          </p>
+          <div className="mt-3 flex flex-col items-center gap-4 sm:flex-row sm:items-start">
+            {upiQrDataUrl ? (
+              <img src={upiQrDataUrl} alt="UPI payment QR code" className="h-40 w-40 rounded-lg border p-2" />
+            ) : (
+              <div className="flex h-40 w-40 items-center justify-center rounded-lg border border-dashed text-xs text-gray-400">
+                Generating QR...
+              </div>
+            )}
+            <div>
+              <a href={upiLink} className="inline-block text-sm font-medium text-gold-700 hover:underline">
+                Open in UPI app
+              </a>
+              <p className="mt-2 text-xs text-gray-500">
+                After payment, copy UTR/reference number from your UPI app and submit below.
+              </p>
+            </div>
+          </div>
         </div>
-        <div className="mt-8 flex gap-4 justify-center">
+
+        {error && <div className="mt-4 rounded-lg bg-red-50 p-3 text-sm text-red-700">{error}</div>}
+
+        <div className="mt-6 text-left">
+          <label className="block text-sm font-medium text-gray-700">UPI Reference / UTR</label>
+          <input
+            type="text"
+            value={upiReference}
+            onChange={(e) => setUpiReference(e.target.value)}
+            placeholder="e.g. 431245678901"
+            className="mt-1 w-full rounded-lg border border-gray-200 px-4 py-3 text-base focus:border-gold-400 focus:outline-none"
+          />
+        </div>
+
+        <div className="mt-6 flex gap-4 justify-center">
           <button
-            onClick={() => router.push('/history')}
+            onClick={handlePaymentConfirmed}
             className="rounded-lg bg-gold-500 px-6 py-2 text-white hover:bg-gold-600"
           >
-            View Donations
+            Confirm Payment & View Receipt
           </button>
           <button
             onClick={() => {
               setStep('amount');
               setAmount('');
+              setActiveDonationId('');
+              setUpiReference('');
+              setError('');
             }}
             className="rounded-lg border border-gold-300 px-6 py-2 text-gold-700 hover:bg-gold-50"
           >
-            Donate Again
+            Cancel
           </button>
         </div>
       </div>
@@ -166,6 +201,10 @@ function DonateForm() {
 
   if (loading || !user) {
     return <div className="py-16 text-center text-gray-400">Redirecting to sign in...</div>;
+  }
+
+  if (step === 'processing') {
+    return <div className="py-16 text-center text-gray-500">Processing payment update...</div>;
   }
 
   return (
