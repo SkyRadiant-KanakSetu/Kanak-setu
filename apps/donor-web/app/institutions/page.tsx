@@ -11,6 +11,7 @@ interface Institution {
   city: string;
   state: string;
   publicPageSlug: string | null;
+  upiId?: string | null;
   has80G: boolean;
 }
 
@@ -38,14 +39,17 @@ export default function InstitutionsPage() {
         <div className="mt-12 text-center text-gray-400">No active institutions yet</div>
       ) : (
         <div className="mt-8 grid gap-6 md:grid-cols-2 lg:grid-cols-3">
-          {list.map((inst) => (
+          {list.map((inst) => {
+            const upiSuffix = inst.upiId ? `?upi=${encodeURIComponent(inst.upiId)}` : '';
+            const donateHref = inst.publicPageSlug
+              ? `/give/${encodeURIComponent(inst.publicPageSlug)}${upiSuffix}`
+              : `/donate?institution=${inst.id}&name=${encodeURIComponent(inst.publicName)}${
+                  inst.upiId ? `&upi=${encodeURIComponent(inst.upiId)}` : ''
+                }`;
+            return (
             <Link
               key={inst.id}
-              href={
-                inst.publicPageSlug
-                  ? `/give/${encodeURIComponent(inst.publicPageSlug)}`
-                  : `/donate?institution=${inst.id}&name=${encodeURIComponent(inst.publicName)}`
-              }
+              href={donateHref}
               className="group rounded-2xl border border-gold-100 bg-white p-6 shadow-sm transition hover:shadow-md hover:border-gold-300"
             >
               <div className="flex items-start justify-between">
@@ -73,7 +77,8 @@ export default function InstitutionsPage() {
                 Donate Gold →
               </div>
             </Link>
-          ))}
+            );
+          })}
         </div>
       )}
     </div>

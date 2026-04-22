@@ -6,6 +6,7 @@ type Props = {
   institutionId: string;
   publicName: string;
   publicPageSlug: string | null;
+  upiId?: string | null;
   status: string;
 };
 
@@ -22,21 +23,26 @@ function donorSiteBase(): string {
   return 'https://kanaksetu.com';
 }
 
-export function DonationQr({ institutionId, publicName, publicPageSlug, status }: Props) {
+export function DonationQr({ institutionId, publicName, publicPageSlug, upiId, status }: Props) {
   const [dataUrl, setDataUrl] = useState<string | null>(null);
   const [copyOk, setCopyOk] = useState(false);
 
   const donateUrl = useMemo(() => {
     const base = donorSiteBase();
+    const upiParam = upiId?.trim();
     if (publicPageSlug && status === 'ACTIVE') {
-      return `${base}/give/${encodeURIComponent(publicPageSlug)}`;
+      const q = new URLSearchParams();
+      if (upiParam) q.set('upi', upiParam);
+      const suffix = q.toString();
+      return `${base}/give/${encodeURIComponent(publicPageSlug)}${suffix ? `?${suffix}` : ''}`;
     }
     const q = new URLSearchParams({
       institution: institutionId,
       name: publicName,
     });
+    if (upiParam) q.set('upi', upiParam);
     return `${base}/donate?${q.toString()}`;
-  }, [institutionId, publicName, publicPageSlug, status]);
+  }, [institutionId, publicName, publicPageSlug, status, upiId]);
 
   useEffect(() => {
     let cancelled = false;
@@ -78,7 +84,6 @@ export function DonationQr({ institutionId, publicName, publicPageSlug, status }
       )}
       <div className="mt-4 flex flex-col items-center gap-4 md:flex-row md:items-start">
         {dataUrl ? (
-          // eslint-disable-next-line @next/next/no-img-element
           <img src={dataUrl} alt="Donation QR code" className="h-48 w-48 rounded-lg border bg-white p-2" />
         ) : (
           <div className="flex h-48 w-48 items-center justify-center rounded-lg border border-dashed text-xs text-gray-400">

@@ -144,6 +144,7 @@ adminRouter.post(
         pan,
         registrationNo,
         publicPageSlug,
+        upiId,
         notes,
         status,
       } = req.body;
@@ -196,6 +197,7 @@ adminRouter.post(
           pan: pan ? String(pan) : null,
           registrationNo: registrationNo ? String(registrationNo) : null,
           publicPageSlug: publicPageSlug ? String(publicPageSlug) : null,
+          upiId: upiId ? String(upiId) : null,
         },
       });
 
@@ -220,6 +222,44 @@ adminRouter.post(
         undefined,
         201
       );
+    } catch (e) {
+      next(e);
+    }
+  }
+);
+
+// ── Update institution UPI ID ──
+adminRouter.patch(
+  '/institutions/:id/upi',
+  requireInstitutionReviewers,
+  async (req: Request, res: Response, next: NextFunction) => {
+    try {
+      const inst = await prisma.institutionProfile.findUnique({ where: { id: req.params.id } });
+      if (!inst) throw new AppError(404, 'NOT_FOUND', 'Institution not found');
+
+      const rawUpiId = typeof req.body?.upiId === 'string' ? req.body.upiId.trim().toLowerCase() : '';
+      const upiId = rawUpiId || null;
+      if (upiId && !/^[a-z0-9.\-_]{2,}@[a-z]{2,}$/i.test(upiId)) {
+        throw new AppError(400, 'INVALID_UPI_ID', 'Enter a valid UPI ID (example: temple@okicici)');
+      }
+
+      const updated = await prisma.institutionProfile.update({
+        where: { id: req.params.id },
+        data: { upiId },
+        select: { id: true, upiId: true, updatedAt: true },
+      });
+
+      await auditLog({
+        userId: req.auth!.userId,
+        action: 'UPDATE',
+        entity: 'InstitutionProfile',
+        entityId: req.params.id,
+        before: { upiId: inst.upiId },
+        after: { upiId: updated.upiId },
+        req,
+      });
+
+      success(res, updated);
     } catch (e) {
       next(e);
     }

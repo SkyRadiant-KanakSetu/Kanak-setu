@@ -91,9 +91,15 @@ export const admin = {
     pan?: string;
     registrationNo?: string;
     publicPageSlug?: string;
+    upiId?: string;
     status?: string;
     notes?: string;
   }) => api('/admin/institutions/onboard', { method: 'POST', body: JSON.stringify(data) }),
+  updateInstitutionUpi: (id: string, upiId: string) =>
+    api(`/admin/institutions/${id}/upi`, {
+      method: 'PATCH',
+      body: JSON.stringify({ upiId }),
+    }),
   changeInstitutionStatus: (id: string, status: string, notes?: string) =>
     api(`/admin/institutions/${id}/status`, {
       method: 'PATCH',

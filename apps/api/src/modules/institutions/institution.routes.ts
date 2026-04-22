@@ -27,6 +27,7 @@ institutionRouter.get('/', async (req: Request, res: Response, next: NextFunctio
           city: true,
           state: true,
           publicPageSlug: true,
+          upiId: true,
           has80G: true,
         },
         orderBy: { publicName: 'asc' },
@@ -53,6 +54,7 @@ institutionRouter.get('/slug/:slug', async (req: Request, res: Response, next: N
         websiteUrl: true,
         city: true,
         state: true,
+        upiId: true,
         has80G: true,
         campaigns: {
           where: { isActive: true },
@@ -100,6 +102,7 @@ institutionRouter.post(
         signatoryPhone,
         signatoryEmail,
         publicPageSlug,
+        upiId,
       } = req.body;
 
       const profile = await prisma.institutionProfile.create({
@@ -125,6 +128,7 @@ institutionRouter.post(
           signatoryPhone,
           signatoryEmail,
           publicPageSlug,
+          upiId,
           status: 'DRAFT',
         },
       });
@@ -172,6 +176,47 @@ institutionRouter.post(
         entityId: profile.id,
         before: { status: profile.status },
         after: { status: 'SUBMITTED' },
+        req,
+      });
+
+      success(res, updated);
+    } catch (e) {
+      next(e);
+    }
+  }
+);
+
+// ── PORTAL: Update donation UPI ID ──
+institutionRouter.patch(
+  '/portal/upi',
+  authenticate,
+  requireRole('INSTITUTION_ADMIN'),
+  async (req: Request, res: Response, next: NextFunction) => {
+    try {
+      const profile = await prisma.institutionProfile.findUnique({
+        where: { userId: req.auth!.userId },
+      });
+      if (!profile) throw new AppError(404, 'NOT_FOUND', 'No institution profile');
+
+      const rawUpiId = typeof req.body?.upiId === 'string' ? req.body.upiId.trim().toLowerCase() : '';
+      const upiId = rawUpiId || null;
+      if (upiId && !/^[a-z0-9.\-_]{2,}@[a-z]{2,}$/i.test(upiId)) {
+        throw new AppError(400, 'INVALID_UPI_ID', 'Enter a valid UPI ID (example: temple@okicici)');
+      }
+
+      const updated = await prisma.institutionProfile.update({
+        where: { id: profile.id },
+        data: { upiId },
+        select: { id: true, upiId: true, updatedAt: true },
+      });
+
+      await auditLog({
+        userId: req.auth!.userId,
+        action: 'UPDATE',
+        entity: 'InstitutionProfile',
+        entityId: profile.id,
+        before: { upiId: profile.upiId },
+        after: { upiId: updated.upiId },
         req,
       });
 
@@ -278,6 +323,7 @@ institutionRouter.get(
         institutionId: profile.id,
         publicName: profile.publicName,
         publicPageSlug: profile.publicPageSlug,
+        upiId: profile.upiId,
         status: profile.status,
         totalDonations,
         totalGoldMg: totalGoldMg._sum.goldQuantityMg || 0,

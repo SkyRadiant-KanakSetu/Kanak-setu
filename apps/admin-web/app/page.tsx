@@ -241,6 +241,9 @@ function InstitutionsTab() {
   const [creating, setCreating] = useState(false);
   const [createError, setCreateError] = useState('');
   const [createOk, setCreateOk] = useState('');
+  const [savingUpiForId, setSavingUpiForId] = useState('');
+  const [upiDraftById, setUpiDraftById] = useState<Record<string, string>>({});
+  const [copiedLinkForId, setCopiedLinkForId] = useState('');
   const [newInstitution, setNewInstitution] = useState({
     legalName: '',
     publicName: '',
@@ -254,10 +257,22 @@ function InstitutionsTab() {
     pan: '',
     registrationNo: '',
     publicPageSlug: '',
+    upiId: '',
     status: 'ACTIVE',
   });
   const load = () =>
-    admin.institutions(1, filter || undefined).then((r) => r.success && setList(r.data || []));
+    admin.institutions(1, filter || undefined).then((r) => {
+      if (!r.success) return;
+      const items = r.data || [];
+      setList(items);
+      setUpiDraftById((prev) => {
+        const next = { ...prev };
+        for (const inst of items) {
+          if (next[inst.id] === undefined) next[inst.id] = inst.upiId || '';
+        }
+        return next;
+      });
+    });
   useEffect(() => {
     load();
   }, [filter]);
@@ -275,6 +290,7 @@ function InstitutionsTab() {
       pan: newInstitution.pan || undefined,
       registrationNo: newInstitution.registrationNo || undefined,
       publicPageSlug: newInstitution.publicPageSlug || undefined,
+      upiId: newInstitution.upiId || undefined,
     });
     setCreating(false);
 
@@ -297,6 +313,7 @@ function InstitutionsTab() {
       pan: '',
       registrationNo: '',
       publicPageSlug: '',
+      upiId: '',
       status: 'ACTIVE',
     });
     load();
@@ -306,6 +323,56 @@ function InstitutionsTab() {
     const notes = prompt('Admin notes (optional):');
     await admin.changeInstitutionStatus(id, status, notes || undefined);
     load();
+  };
+
+  const saveUpiId = async (id: string) => {
+    setSavingUpiForId(id);
+    const draft = (upiDraftById[id] || '').trim();
+    const res = await admin.updateInstitutionUpi(id, draft);
+    if (res.success) {
+      setList((prev) => prev.map((inst) => (inst.id === id ? { ...inst, upiId: res.data?.upiId || '' } : inst)));
+      setUpiDraftById((prev) => ({ ...prev, [id]: res.data?.upiId || '' }));
+    } else {
+      alert(res.error?.message || 'Failed to save UPI ID');
+    }
+    setSavingUpiForId('');
+  };
+
+  const donorSiteBase = () => {
+    const env = process.env.NEXT_PUBLIC_DONOR_SITE_URL?.trim().replace(/\/$/, '');
+    if (env) return env;
+    if (typeof window === 'undefined') return 'https://kanaksetu.com';
+    const host = window.location.hostname;
+    if (host.startsWith('admin.')) return `${window.location.protocol}//${host.replace(/^admin\./, '')}`;
+    return window.location.origin;
+  };
+
+  const buildDonorLink = (inst: any) => {
+    const base = donorSiteBase();
+    if (inst.publicPageSlug) {
+      const q = new URLSearchParams();
+      if (inst.upiId) q.set('upi', inst.upiId);
+      const suffix = q.toString();
+      return `${base}/give/${encodeURIComponent(inst.publicPageSlug)}${suffix ? `?${suffix}` : ''}`;
+    }
+    const q = new URLSearchParams({
+      institution: inst.id,
+      name: inst.publicName,
+    });
+    if (inst.upiId) q.set('upi', inst.upiId);
+    return `${base}/donate?${q.toString()}`;
+  };
+
+  const copyDonorLink = async (inst: any) => {
+    try {
+      await navigator.clipboard.writeText(buildDonorLink(inst));
+      setCopiedLinkForId(inst.id);
+      window.setTimeout(() => {
+        setCopiedLinkForId((prev) => (prev === inst.id ? '' : prev));
+      }, 1800);
+    } catch {
+      alert('Could not copy link. Please copy manually from browser address bar.');
+    }
   };
 
   const filters = ['', 'SUBMITTED', 'UNDER_REVIEW', 'ACTIVE', 'SUSPENDED', 'REJECTED'];
@@ -407,6 +474,12 @@ function InstitutionsTab() {
             placeholder="Public slug (optional)"
             className="rounded border px-2 py-1.5 text-sm"
           />
+          <input
+            value={newInstitution.upiId}
+            onChange={(e) => setNewInstitution((f) => ({ ...f, upiId: e.target.value }))}
+            placeholder="UPI ID (optional)"
+            className="rounded border px-2 py-1.5 text-sm"
+          />
         </div>
         <label className="mt-3 inline-flex items-center gap-2 text-xs text-gray-600">
           <input
@@ -493,6 +566,27 @@ function InstitutionsTab() {
                   Reinstate
                 </button>
               )}
+              <button
+                onClick={() => copyDonorLink(inst)}
+                className="rounded bg-zinc-100 px-2 py-1 text-xs text-zinc-700 hover:bg-zinc-200"
+              >
+                {copiedLinkForId === inst.id ? 'Copied donor link' : 'Copy donor link'}
+              </button>
+            </div>
+            <div className="mt-3 flex flex-col gap-2 sm:flex-row sm:items-center">
+              <input
+                value={upiDraftById[inst.id] ?? inst.upiId ?? ''}
+                onChange={(e) => setUpiDraftById((prev) => ({ ...prev, [inst.id]: e.target.value }))}
+                placeholder="institution@upi"
+                className="w-full rounded border px-2 py-1.5 text-xs sm:max-w-xs"
+              />
+              <button
+                onClick={() => saveUpiId(inst.id)}
+                disabled={savingUpiForId === inst.id}
+                className="rounded bg-zinc-900 px-2 py-1 text-xs text-white hover:bg-zinc-800 disabled:opacity-60"
+              >
+                {savingUpiForId === inst.id ? 'Saving...' : 'Save UPI ID'}
+              </button>
             </div>
           </div>
         ))}

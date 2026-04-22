@@ -27,11 +27,14 @@ export default function GiveBySlugPage() {
         setError(res.error?.message || 'Institution not found');
         return;
       }
-      const { id, publicName } = res.data as { id: string; publicName: string };
+      const { id, publicName, upiId } = res.data as { id: string; publicName: string; upiId?: string | null };
       const q = new URLSearchParams({
         institution: id,
         name: publicName,
       });
+      const forwardedUpi = new URLSearchParams(window.location.search).get('upi');
+      if (forwardedUpi) q.set('upi', forwardedUpi);
+      else if (upiId) q.set('upi', upiId);
       router.replace(`/donate?${q.toString()}`);
     })();
     return () => {

@@ -13,6 +13,9 @@ export default function InstitutionHome() {
   const [ledger, setLedger] = useState<any[]>([]);
   const [portalError, setPortalError] = useState('');
   const [rangeDays, setRangeDays] = useState<7 | 30 | 90>(30);
+  const [upiIdInput, setUpiIdInput] = useState('');
+  const [upiSaving, setUpiSaving] = useState(false);
+  const [upiMessage, setUpiMessage] = useState('');
 
   useEffect(() => {
     if (typeof window !== 'undefined' && localStorage.getItem('accessToken')) {
@@ -24,7 +27,10 @@ export default function InstitutionHome() {
   const loadDashboard = async () => {
     setPortalError('');
     const [d, l] = await Promise.all([portal.dashboard(rangeDays), portal.ledger()]);
-    if (d.success) setDashboard(d.data);
+    if (d.success) {
+      setDashboard(d.data);
+      setUpiIdInput(d.data?.upiId || '');
+    }
     else setPortalError(d.error?.message || 'Could not load dashboard');
     if (l.success) setLedger(l.data || []);
   };
@@ -59,6 +65,23 @@ export default function InstitutionHome() {
     clearTokens();
     setLoggedIn(false);
     setDashboard(null);
+  };
+
+  const handleSaveUpiId = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setUpiSaving(true);
+    setUpiMessage('');
+    const res = await portal.updateUpi(upiIdInput.trim());
+    if (!res.success) {
+      setUpiMessage(res.error?.message || 'Could not save UPI ID');
+      setUpiSaving(false);
+      return;
+    }
+    const savedUpiId = res.data?.upiId || '';
+    setUpiIdInput(savedUpiId);
+    setDashboard((prev: any) => (prev ? { ...prev, upiId: savedUpiId } : prev));
+    setUpiMessage('UPI ID saved');
+    setUpiSaving(false);
   };
 
   if (!loggedIn) {
@@ -230,10 +253,35 @@ export default function InstitutionHome() {
             </div>
           </div>
 
+          <div className="mt-4 rounded-xl border bg-white p-4">
+            <h2 className="text-sm font-semibold text-gray-900">Donation UPI ID</h2>
+            <p className="mt-1 text-xs text-gray-500">
+              Set the UPI ID where donors should pay from your QR and donation links.
+            </p>
+            <form onSubmit={handleSaveUpiId} className="mt-3 flex flex-col gap-3 sm:flex-row">
+              <input
+                type="text"
+                value={upiIdInput}
+                onChange={(e) => setUpiIdInput(e.target.value)}
+                placeholder="example@upi"
+                className="w-full rounded-lg border px-3 py-2 text-sm sm:max-w-md"
+              />
+              <button
+                type="submit"
+                disabled={upiSaving}
+                className="rounded-lg bg-amber-700 px-4 py-2 text-sm font-medium text-white hover:bg-amber-800 disabled:opacity-60"
+              >
+                {upiSaving ? 'Saving...' : 'Save UPI'}
+              </button>
+            </form>
+            {upiMessage && <p className="mt-2 text-xs text-gray-600">{upiMessage}</p>}
+          </div>
+
           <DonationQr
             institutionId={dashboard.institutionId}
             publicName={dashboard.publicName}
             publicPageSlug={dashboard.publicPageSlug}
+            upiId={dashboard.upiId}
             status={dashboard.status}
           />
 

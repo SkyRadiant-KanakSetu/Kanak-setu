@@ -149,6 +149,7 @@ model InstitutionProfile {
   signatoryPhone    String?
   signatoryEmail    String?
   publicPageSlug    String?           @unique
+  upiId             String?
   createdAt         DateTime          @default(now())
   updatedAt         DateTime          @updatedAt
 

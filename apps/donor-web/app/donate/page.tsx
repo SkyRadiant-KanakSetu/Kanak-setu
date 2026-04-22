@@ -1,5 +1,5 @@
 'use client';
-import { useState, useEffect, Suspense } from 'react';
+import { useState, useEffect, useMemo, Suspense } from 'react';
 import { useSearchParams, useRouter } from 'next/navigation';
 import { useAuth } from '@/lib/auth';
 import { donations, mockPayment } from '@/lib/api';
@@ -10,6 +10,7 @@ function DonateForm() {
   const { user, loading } = useAuth();
   const institutionId = searchParams.get('institution') || '';
   const institutionName = searchParams.get('name') || 'Institution';
+  const institutionUpiId = searchParams.get('upi')?.trim() || '';
 
   const [amount, setAmount] = useState('');
   const [step, setStep] = useState<'amount' | 'processing' | 'success' | 'error'>('amount');
@@ -17,6 +18,7 @@ function DonateForm() {
   const [error, setError] = useState('');
   const [goldPrice, setGoldPrice] = useState(0);
   const [quoteSource, setQuoteSource] = useState<string | undefined>();
+  const [upiQrDataUrl, setUpiQrDataUrl] = useState<string | null>(null);
 
   useEffect(() => {
     donations.quote().then((res) => {
@@ -35,6 +37,34 @@ function DonateForm() {
 
   const amountPaise = Math.round(parseFloat(amount || '0') * 100);
   const goldEstimateMg = goldPrice > 0 ? ((amountPaise / goldPrice) * 1000).toFixed(2) : '0';
+  const upiAmount = amountPaise > 0 ? (amountPaise / 100).toFixed(2) : '';
+  const upiLink = useMemo(() => {
+    const receiver =
+      institutionUpiId || process.env.NEXT_PUBLIC_DONATION_UPI_ID?.trim() || 'kanaksetu@upi';
+    const params = new URLSearchParams({
+      pa: receiver,
+      pn: institutionName,
+      cu: 'INR',
+      tn: `Donation to ${institutionName} via Kanak Setu`,
+    });
+    if (upiAmount) params.set('am', upiAmount);
+    return `upi://pay?${params.toString()}`;
+  }, [institutionName, institutionUpiId, upiAmount]);
+
+  useEffect(() => {
+    let cancelled = false;
+    import('qrcode')
+      .then((QR) => QR.toDataURL(upiLink, { width: 220, margin: 2, errorCorrectionLevel: 'M' }))
+      .then((url) => {
+        if (!cancelled) setUpiQrDataUrl(url);
+      })
+      .catch(() => {
+        if (!cancelled) setUpiQrDataUrl(null);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [upiLink]);
 
   const handleDonate = async () => {
     if (!user) {
@@ -173,6 +203,33 @@ function DonateForm() {
             </p>
           </div>
         )}
+
+        <div className="rounded-xl border border-gold-200 bg-white p-4">
+          <h2 className="text-base font-semibold text-gray-900">Pay using UPI QR</h2>
+          <p className="mt-1 text-sm text-gray-600">
+            Scan this QR to pay for <strong>{institutionName}</strong> through any UPI app.
+          </p>
+          <div className="mt-4 flex flex-col items-center gap-4 sm:flex-row sm:items-start">
+            {upiQrDataUrl ? (
+              <img src={upiQrDataUrl} alt="UPI payment QR code" className="h-40 w-40 rounded-lg border p-2" />
+            ) : (
+              <div className="flex h-40 w-40 items-center justify-center rounded-lg border border-dashed text-xs text-gray-400">
+                Generating QR...
+              </div>
+            )}
+            <div className="text-sm text-gray-600">
+              <p>
+                Amount: <strong>₹{amount || '0'}</strong>
+              </p>
+              <a href={upiLink} className="mt-2 inline-block text-sm font-medium text-gold-700 hover:underline">
+                Open in UPI app
+              </a>
+              <p className="mt-2 text-xs text-gray-500">
+                If amount is entered above, it is auto-filled in the UPI request.
+              </p>
+            </div>
+          </div>
+        </div>
 
         <button
           onClick={handleDonate}
