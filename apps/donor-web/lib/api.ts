@@ -158,6 +158,7 @@ export const donors = {
 export const institutions = {
   list: (page = 1) => api(`/institutions?page=${page}`),
   bySlug: (slug: string) => api(`/institutions/slug/${slug}`),
+  byId: (id: string) => api(`/institutions/id/${id}`),
 };
 
 // ── Donations ──

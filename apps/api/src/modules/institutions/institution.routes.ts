@@ -69,6 +69,25 @@ institutionRouter.get('/slug/:slug', async (req: Request, res: Response, next: N
   }
 });
 
+// ── PUBLIC: Get institution by id ──
+institutionRouter.get('/id/:id', async (req: Request, res: Response, next: NextFunction) => {
+  try {
+    const inst = await prisma.institutionProfile.findFirst({
+      where: { id: req.params.id, status: 'ACTIVE' },
+      select: {
+        id: true,
+        publicName: true,
+        upiId: true,
+        publicPageSlug: true,
+      },
+    });
+    if (!inst) throw new AppError(404, 'NOT_FOUND', 'Institution not found');
+    success(res, inst);
+  } catch (e) {
+    next(e);
+  }
+});
+
 // ── PORTAL: Onboard institution ──
 institutionRouter.post(
   '/portal/onboard',

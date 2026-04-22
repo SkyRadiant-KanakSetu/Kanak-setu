@@ -2,7 +2,7 @@
 import { useState, useEffect, useMemo, Suspense } from 'react';
 import { useSearchParams, useRouter } from 'next/navigation';
 import { useAuth } from '@/lib/auth';
-import { donations, mockPayment } from '@/lib/api';
+import { donations, institutions, mockPayment } from '@/lib/api';
 
 function DonateForm() {
   const searchParams = useSearchParams();
@@ -19,6 +19,8 @@ function DonateForm() {
   const [goldPrice, setGoldPrice] = useState(0);
   const [quoteSource, setQuoteSource] = useState<string | undefined>();
   const [upiQrDataUrl, setUpiQrDataUrl] = useState<string | null>(null);
+  const [resolvedInstitutionName, setResolvedInstitutionName] = useState('');
+  const [resolvedUpiId, setResolvedUpiId] = useState('');
 
   useEffect(() => {
     donations.quote().then((res) => {
@@ -30,6 +32,20 @@ function DonateForm() {
   }, []);
 
   useEffect(() => {
+    if (!institutionId) return;
+    let cancelled = false;
+    institutions.byId(institutionId).then((res) => {
+      if (cancelled || !res.success || !res.data) return;
+      const data = res.data as { publicName?: string; upiId?: string | null };
+      if (data.publicName) setResolvedInstitutionName(data.publicName);
+      if (data.upiId) setResolvedUpiId(data.upiId);
+    });
+    return () => {
+      cancelled = true;
+    };
+  }, [institutionId]);
+
+  useEffect(() => {
     if (loading || user) return;
     const returnTo = `/donate${window.location.search}`;
     router.replace(`/auth?returnTo=${encodeURIComponent(returnTo)}`);
@@ -38,18 +54,20 @@ function DonateForm() {
   const amountPaise = Math.round(parseFloat(amount || '0') * 100);
   const goldEstimateMg = goldPrice > 0 ? ((amountPaise / goldPrice) * 1000).toFixed(2) : '0';
   const upiAmount = amountPaise > 0 ? (amountPaise / 100).toFixed(2) : '';
+  const effectiveInstitutionName = resolvedInstitutionName || institutionName;
+  const effectiveUpiId = institutionUpiId || resolvedUpiId;
   const upiLink = useMemo(() => {
     const receiver =
-      institutionUpiId || process.env.NEXT_PUBLIC_DONATION_UPI_ID?.trim() || 'kanaksetu@upi';
+      effectiveUpiId || process.env.NEXT_PUBLIC_DONATION_UPI_ID?.trim() || 'kanaksetu@upi';
     const params = new URLSearchParams({
       pa: receiver,
-      pn: institutionName,
+      pn: effectiveInstitutionName,
       cu: 'INR',
-      tn: `Donation to ${institutionName} via Kanak Setu`,
+      tn: `Donation to ${effectiveInstitutionName} via Kanak Setu`,
     });
     if (upiAmount) params.set('am', upiAmount);
     return `upi://pay?${params.toString()}`;
-  }, [institutionName, institutionUpiId, upiAmount]);
+  }, [effectiveInstitutionName, effectiveUpiId, upiAmount]);
 
   useEffect(() => {
     let cancelled = false;
@@ -112,7 +130,7 @@ function DonateForm() {
         <div className="text-5xl">✅</div>
         <h1 className="mt-4 font-display text-2xl font-bold text-gray-900">Donation Complete!</h1>
         <p className="mt-2 text-gray-500">
-          Your digital gold donation to {institutionName} has been processed.
+          Your digital gold donation to {effectiveInstitutionName} has been processed.
         </p>
         <div className="mt-6 rounded-xl bg-green-50 p-4 text-sm text-green-800">
           <p>
@@ -154,7 +172,7 @@ function DonateForm() {
     <div className="mx-auto max-w-lg px-4 py-12">
       <h1 className="font-display text-2xl font-bold text-gray-900">Donate Gold</h1>
       <p className="mt-1 text-gray-500">
-        To: <strong className="text-gold-700">{institutionName}</strong>
+        To: <strong className="text-gold-700">{effectiveInstitutionName}</strong>
       </p>
 
       {error && <div className="mt-4 rounded-lg bg-red-50 p-3 text-sm text-red-700">{error}</div>}
@@ -207,7 +225,7 @@ function DonateForm() {
         <div className="rounded-xl border border-gold-200 bg-white p-4">
           <h2 className="text-base font-semibold text-gray-900">Pay using UPI QR</h2>
           <p className="mt-1 text-sm text-gray-600">
-            Scan this QR to pay for <strong>{institutionName}</strong> through any UPI app.
+            Scan this QR to pay for <strong>{effectiveInstitutionName}</strong> through any UPI app.
           </p>
           <div className="mt-4 flex flex-col items-center gap-4 sm:flex-row sm:items-start">
             {upiQrDataUrl ? (
