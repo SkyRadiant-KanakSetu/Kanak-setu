@@ -325,7 +325,7 @@ function DonateForm() {
 
         <button
           onClick={goToPaymentStep}
-          disabled={step === 'processing' || amountPaise < 100}
+          disabled={amountPaise < 100}
           className="w-full rounded-xl bg-gold-500 py-3.5 text-lg font-semibold text-white shadow-lg hover:bg-gold-600 disabled:opacity-50 transition"
         >
           Continue to UPI QR
