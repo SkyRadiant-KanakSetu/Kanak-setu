@@ -19,14 +19,19 @@ const products = [
   ["82", "Neem Laundry Sanitizer", "Laundry", "₹100", "₹299", "67%", "Low", "High", "80"]
 ];
 
-export default function Opportunities({ onSendToAdvisor }) {
+export default function Opportunities({ onSendToAdvisor, live }) {
   const [analysis, setAnalysis] = useState("");
 
   const analyze = async (row) => {
     const [score, product, category, cost, sell, margin, risk, repeat, demand] = row;
     const prompt = `Analyze this white-label opportunity for Sky Radiant India:
 Product: ${product}, Category: ${category}, Score: ${score}, Cost: ${cost}, Sell: ${sell}, Margin: ${margin}, Return Risk: ${risk}, Repeat Potential: ${repeat}, Demand: ${demand}.
-Give go/no-go, positioning, and launch steps.`;
+Live pulse context: Orders/hour ${live.pulse.ordersPerHour}, Conversion ${live.pulse.conversionRate}%, Returns ${live.pulse.returnRate}%.
+Give:
+1) Go/No-Go verdict with confidence score /100
+2) Positioning angle + pricing guardrails
+3) Packaging + claims to reduce returns
+4) Launch checklist for first 14 days.`;
     const result = await callAi([{ role: "user", content: prompt }]);
     setAnalysis(result.content);
   };
@@ -34,6 +39,12 @@ Give go/no-go, positioning, and launch steps.`;
   return (
     <section className="space-y-4">
       <h3 className="font-heading text-lg font-semibold">Product Opportunity Explorer</h3>
+      <div className="rounded-lg border border-white/10 bg-surface p-3">
+        <p className="text-xs text-muted">
+          Live Demand Pulse: {live.pulse.ordersPerHour} orders/hr · Conversion {live.pulse.conversionRate}% · At-risk SKUs{" "}
+          {live.pulse.atRiskSkus}
+        </p>
+      </div>
       <div className="overflow-x-auto rounded-lg border border-white/10">
         <table className="w-full min-w-[1050px] text-sm">
           <thead className="bg-surface/80 text-left text-muted">

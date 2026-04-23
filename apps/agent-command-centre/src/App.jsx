@@ -2,11 +2,13 @@ import { useState } from "react";
 import Sidebar from "./components/Sidebar";
 import TopBar from "./components/TopBar";
 import AiAdvisor from "./components/AiAdvisor";
+import LiveCommandDeck from "./components/LiveCommandDeck";
 import Research from "./components/Research";
 import Opportunities from "./components/Opportunities";
 import ListingBuilder from "./components/ListingBuilder";
 import Marketing from "./components/Marketing";
 import Revenue from "./components/Revenue";
+import { useRealtimeMetrics } from "./lib/realtime";
 
 const tabs = [
   { id: "research", label: "Research Engine" },
@@ -18,6 +20,7 @@ const tabs = [
 
 export default function App() {
   const [activeTab, setActiveTab] = useState("research");
+  const live = useRealtimeMetrics();
   const [advisorMessages, setAdvisorMessages] = useState([
     {
       role: "assistant",
@@ -36,13 +39,14 @@ export default function App() {
       <div className="flex h-full">
         <Sidebar tabs={tabs} activeTab={activeTab} setActiveTab={setActiveTab} />
         <main className="flex-1 overflow-y-auto">
-          <TopBar />
+          <TopBar live={live} />
           <div className="p-6">
-            {activeTab === "research" && <Research onSendToAdvisor={onSendToAdvisor} />}
-            {activeTab === "opportunity" && <Opportunities onSendToAdvisor={onSendToAdvisor} />}
+            <LiveCommandDeck live={live} />
+            {activeTab === "research" && <Research onSendToAdvisor={onSendToAdvisor} live={live} />}
+            {activeTab === "opportunity" && <Opportunities onSendToAdvisor={onSendToAdvisor} live={live} />}
             {activeTab === "listing" && <ListingBuilder onSendToAdvisor={onSendToAdvisor} />}
-            {activeTab === "marketing" && <Marketing onSendToAdvisor={onSendToAdvisor} />}
-            {activeTab === "revenue" && <Revenue />}
+            {activeTab === "marketing" && <Marketing onSendToAdvisor={onSendToAdvisor} live={live} />}
+            {activeTab === "revenue" && <Revenue live={live} />}
           </div>
         </main>
         <AiAdvisor messages={advisorMessages} setMessages={setAdvisorMessages} />

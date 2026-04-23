@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { callAi } from "../lib/api";
+import { callAi, SKY_RADIANT_SYSTEM_PROMPT } from "../lib/api";
 
 const chips = [
   "Find 3 low-return products under ₹400 cost",
@@ -20,7 +20,10 @@ export default function AiAdvisor({ messages, setMessages }) {
     setLoading(true);
 
     try {
-      const aiResponse = await callAi(nextMessages);
+      const aiResponse = await callAi(
+        nextMessages,
+        `${SKY_RADIANT_SYSTEM_PROMPT} Always include concrete numbers and one immediate next action.`
+      );
       setMessages((prev) => [...prev, { role: "assistant", content: aiResponse.content }]);
     } catch (error) {
       setMessages((prev) => [

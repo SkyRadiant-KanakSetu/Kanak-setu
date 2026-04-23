@@ -36,7 +36,10 @@ Return:
 3) Product Description
 4) Backend Search Terms
 5) Return Risk Reduction Tips
-6) A+ Content Outline`;
+6) A+ Content Outline
+7) Top 10 conversion keywords (India intent)
+
+Rules: prioritize clarity, compliance-safe claims, and repeat purchase hooks.`;
 
       const result = await callAi([{ role: "user", content: prompt }]);
       setOutput(result.content);

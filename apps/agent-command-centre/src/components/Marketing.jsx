@@ -13,13 +13,20 @@ const strategies = [
   "Festive Season Playbook"
 ];
 
-export default function Marketing({ onSendToAdvisor }) {
+export default function Marketing({ onSendToAdvisor, live }) {
   const [result, setResult] = useState("");
   const [active, setActive] = useState("");
 
   const generateStrategy = async (topic) => {
     setActive(topic);
-    const prompt = `Build a practical execution strategy for Sky Radiant India on: ${topic}. Include timeline, channel split, and KPI targets in India market context.`;
+    const prompt = `Build a high-performance execution strategy for Sky Radiant India on: ${topic}.
+Live context: ROAS ${live.pulse.roas}x, Orders/hour ${live.pulse.ordersPerHour}, Repeat Rate ${live.pulse.repeatRate}%, Return Rate ${live.pulse.returnRate}%.
+Return:
+- 30/60/90-day roadmap
+- Budget split (% by channel)
+- KPI tree with thresholds
+- Automation ideas for faster execution
+- Risk controls for keeping return rate under 3%.`;
     const response = await callAi([{ role: "user", content: prompt }]);
     setResult(response.content);
   };

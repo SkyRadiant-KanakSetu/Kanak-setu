@@ -10,7 +10,7 @@ const topics = [
   "Zero-Return + Repeat Buyers"
 ];
 
-export default function Research({ onSendToAdvisor }) {
+export default function Research({ onSendToAdvisor, live }) {
   const [results, setResults] = useState([]);
   const [custom, setCustom] = useState("");
   const [loading, setLoading] = useState(false);
@@ -18,7 +18,14 @@ export default function Research({ onSendToAdvisor }) {
   const runResearch = async (topic) => {
     setLoading(true);
     try {
-      const prompt = `Generate India-specific research insights for Sky Radiant India on: ${topic}. Focus on low return risk and high repeat purchase opportunities.`;
+      const prompt = `Generate India-specific research intelligence for Sky Radiant India on: ${topic}.
+Live signal: Orders/hour ${live.pulse.ordersPerHour}, ROAS ${live.pulse.roas}x, Return Rate ${live.pulse.returnRate}%, Repeat Rate ${live.pulse.repeatRate}%.
+Output format:
+1) What changed in last 30 days
+2) Opportunity pockets (with rough margin bands)
+3) Risk flags and return-rate prevention
+4) 7-day action sprint.
+Keep it practical and decision-ready.`;
       const response = await callAi([{ role: "user", content: prompt }]);
       setResults((prev) => [{ title: topic, content: response.content }, ...prev]);
     } finally {
@@ -29,6 +36,9 @@ export default function Research({ onSendToAdvisor }) {
   return (
     <section className="space-y-4">
       <h3 className="font-heading text-lg font-semibold">Research Engine</h3>
+      <p className="text-xs text-muted">
+        AI blends market research with live command signals for faster, higher-confidence decisions.
+      </p>
       <div className="grid grid-cols-2 gap-3">
         {topics.map((topic) => (
           <button

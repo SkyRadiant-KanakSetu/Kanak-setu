@@ -1,6 +1,13 @@
 import {
   ResponsiveContainer,
   BarChart,
+  LineChart,
+  Line,
+  ComposedChart,
+  Area,
+  PieChart,
+  Pie,
+  Cell,
   CartesianGrid,
   Tooltip,
   XAxis,
@@ -39,7 +46,12 @@ const levers = [
   ["A+ Content", "+14%"]
 ];
 
-export default function Revenue() {
+const channelColors = ["#FF5C00", "#4C8BF5", "#A174FF", "#34D399", "#F59E0B"];
+
+export default function Revenue({ live }) {
+  const trendData = live?.liveTrend || [];
+  const channelMix = live?.channelMix || [];
+
   return (
     <section className="space-y-4">
       <h3 className="font-heading text-lg font-semibold">Revenue Forecast (May 2026 - Apr 2027)</h3>
@@ -68,20 +80,67 @@ export default function Revenue() {
         </ResponsiveContainer>
       </div>
 
-      <div className="rounded-lg bg-surface p-4">
-        <h4 className="mb-3 font-semibold">Profit Levers</h4>
-        <div className="space-y-2">
-          {levers.map(([name, impact]) => (
-            <div key={name}>
-              <div className="mb-1 flex justify-between text-sm">
-                <span>{name}</span>
-                <span className="text-accent">{impact}</span>
+      <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
+        <div className="h-[300px] rounded-lg bg-surface p-3">
+          <h4 className="mb-2 font-semibold">Target vs Actual Revenue Pulse (₹L)</h4>
+          <ResponsiveContainer width="100%" height="100%">
+            <ComposedChart data={trendData}>
+              <CartesianGrid strokeDasharray="3 3" stroke="#283140" />
+              <XAxis dataKey="month" stroke="#A0A9B8" />
+              <YAxis stroke="#A0A9B8" />
+              <Tooltip />
+              <Legend />
+              <Area type="monotone" dataKey="target" fill="#FF5C00" stroke="#FF5C00" fillOpacity={0.2} />
+              <Line type="monotone" dataKey="actual" stroke="#34D399" strokeWidth={2.5} dot={false} />
+            </ComposedChart>
+          </ResponsiveContainer>
+        </div>
+
+        <div className="h-[300px] rounded-lg bg-surface p-3">
+          <h4 className="mb-2 font-semibold">Marketplace Revenue Mix (Live)</h4>
+          <ResponsiveContainer width="100%" height="100%">
+            <PieChart>
+              <Pie data={channelMix} dataKey="value" nameKey="name" cx="50%" cy="50%" outerRadius={95}>
+                {channelMix.map((entry, idx) => (
+                  <Cell key={entry.name} fill={channelColors[idx % channelColors.length]} />
+                ))}
+              </Pie>
+              <Tooltip />
+              <Legend />
+            </PieChart>
+          </ResponsiveContainer>
+        </div>
+      </div>
+
+      <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
+        <div className="h-[280px] rounded-lg bg-surface p-3">
+          <h4 className="mb-2 font-semibold">Ad Spend Efficiency Trend (₹L)</h4>
+          <ResponsiveContainer width="100%" height="100%">
+            <LineChart data={trendData}>
+              <CartesianGrid strokeDasharray="3 3" stroke="#283140" />
+              <XAxis dataKey="month" stroke="#A0A9B8" />
+              <YAxis stroke="#A0A9B8" />
+              <Tooltip />
+              <Line type="monotone" dataKey="adSpend" stroke="#A174FF" strokeWidth={2.5} />
+            </LineChart>
+          </ResponsiveContainer>
+        </div>
+
+        <div className="rounded-lg bg-surface p-4">
+          <h4 className="mb-3 font-semibold">Profit Levers</h4>
+          <div className="space-y-2">
+            {levers.map(([name, impact]) => (
+              <div key={name}>
+                <div className="mb-1 flex justify-between text-sm">
+                  <span>{name}</span>
+                  <span className="text-accent">{impact}</span>
+                </div>
+                <div className="h-2 rounded bg-white/10">
+                  <div className="h-2 rounded bg-accent" style={{ width: impact.replace("+", "") }} />
+                </div>
               </div>
-              <div className="h-2 rounded bg-white/10">
-                <div className="h-2 rounded bg-accent" style={{ width: impact.replace("+", "") }} />
-              </div>
-            </div>
-          ))}
+            ))}
+          </div>
         </div>
       </div>
     </section>
