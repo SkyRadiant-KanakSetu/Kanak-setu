@@ -3,6 +3,7 @@ import Sidebar from "./components/Sidebar";
 import TopBar from "./components/TopBar";
 import AiAdvisor from "./components/AiAdvisor";
 import LiveCommandDeck from "./components/LiveCommandDeck";
+import MissionControl from "./components/MissionControl";
 import Research from "./components/Research";
 import Opportunities from "./components/Opportunities";
 import ListingBuilder from "./components/ListingBuilder";
@@ -11,6 +12,7 @@ import Revenue from "./components/Revenue";
 import { useRealtimeMetrics } from "./lib/realtime";
 
 const tabs = [
+  { id: "mission", label: "Mission Control" },
   { id: "research", label: "Research Engine" },
   { id: "opportunity", label: "Product Opportunity Explorer" },
   { id: "listing", label: "AI Listing Builder" },
@@ -19,7 +21,7 @@ const tabs = [
 ];
 
 export default function App() {
-  const [activeTab, setActiveTab] = useState("research");
+  const [activeTab, setActiveTab] = useState("mission");
   const live = useRealtimeMetrics();
   const [advisorMessages, setAdvisorMessages] = useState([
     {
@@ -42,6 +44,7 @@ export default function App() {
           <TopBar live={live} />
           <div className="p-6">
             <LiveCommandDeck live={live} />
+            {activeTab === "mission" && <MissionControl />}
             {activeTab === "research" && <Research onSendToAdvisor={onSendToAdvisor} live={live} />}
             {activeTab === "opportunity" && <Opportunities onSendToAdvisor={onSendToAdvisor} live={live} />}
             {activeTab === "listing" && <ListingBuilder onSendToAdvisor={onSendToAdvisor} />}

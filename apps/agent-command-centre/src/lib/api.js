@@ -15,3 +15,40 @@ export async function callAi(messages, systemPrompt = SKY_RADIANT_SYSTEM_PROMPT)
 
   return response.json();
 }
+
+async function http(path, options = {}) {
+  const ownerToken =
+    typeof window !== "undefined" ? window.localStorage.getItem("ownerToken") || undefined : undefined;
+  const response = await fetch(path, {
+    ...options,
+    headers: {
+      ...(options.headers || {}),
+      ...(ownerToken ? { "x-owner-token": ownerToken } : {})
+    }
+  });
+  if (!response.ok) {
+    const err = await response.json().catch(() => ({ error: "Request failed" }));
+    throw new Error(err.error || "Request failed");
+  }
+  return response.json();
+}
+
+export function getSystemStatus() {
+  return http("/api/system/status");
+}
+
+export function getCommandFeed() {
+  return http("/api/commands/feed");
+}
+
+export function runCommandCycle() {
+  return http("/api/commands/run-cycle", { method: "POST" });
+}
+
+export function updateSystemControls(payload) {
+  return http("/api/system/controls", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(payload)
+  });
+}
