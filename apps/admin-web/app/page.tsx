@@ -5,7 +5,13 @@ import { authApi, admin, merkleApi, setTokens, clearTokens } from '@/lib/api';
 
 type Tab = 'dashboard' | 'institutions' | 'donations' | 'merkle' | 'assistant' | 'webhooks' | 'audit';
 const EXPLORER_TX_BASE_URL =
-  process.env.NEXT_PUBLIC_BLOCK_EXPLORER_TX_BASE_URL || 'https://amoy.polygonscan.com/tx';
+  process.env.NEXT_PUBLIC_BLOCK_EXPLORER_TX_BASE_URL || '';
+
+function getExplorerTxBaseUrl(network?: string): string {
+  if (network === 'polygon_mainnet') return 'https://polygonscan.com/tx';
+  if (network === 'polygon_amoy') return 'https://amoy.polygonscan.com/tx';
+  return EXPLORER_TX_BASE_URL || 'https://polygonscan.com/tx';
+}
 
 export default function AdminPage() {
   const showDevHints = process.env.NODE_ENV !== 'production';
@@ -788,7 +794,16 @@ function MerkleTab() {
   const [wallet, setWallet] = useState<any>(null);
   const [msg, setMsg] = useState('');
   const [loadingWallet, setLoadingWallet] = useState(false);
-  const load = () => merkleApi.batches().then((r) => r.success && setBatches(r.data || []));
+  const load = () =>
+    merkleApi.batches().then((r) => {
+      if (!r.success) return;
+      const nextBatches = r.data || [];
+      setBatches(nextBatches);
+      // Clear stale action errors once no batches are currently failing.
+      if (!nextBatches.some((b: any) => b.status === 'ANCHOR_FAILED')) {
+        setMsg('');
+      }
+    });
   const loadWallet = async () => {
     setLoadingWallet(true);
     const r = await merkleApi.walletBalance();
@@ -803,6 +818,7 @@ function MerkleTab() {
     load();
     loadWallet();
   }, []);
+  const explorerTxBaseUrl = getExplorerTxBaseUrl(wallet?.network);
 
   const seal = async () => {
     setMsg('Sealing...');
@@ -823,7 +839,7 @@ function MerkleTab() {
       <div className="mt-4 rounded-xl border bg-white p-4">
         <div className="flex items-start justify-between gap-3">
           <div>
-            <p className="text-xs uppercase tracking-wide text-gray-500">Amoy Wallet Balance</p>
+            <p className="text-xs uppercase tracking-wide text-gray-500">Anchor Wallet Balance</p>
             <p className="mt-1 text-2xl font-bold">
               {wallet ? `${Number(wallet.balanceMatic || 0).toFixed(6)} MATIC` : '--'}
             </p>
@@ -907,7 +923,7 @@ function MerkleTab() {
                 <td className="px-3 py-2 text-xs">
                   {b.anchor?.txHash ? (
                     <a
-                      href={`${EXPLORER_TX_BASE_URL}/${b.anchor.txHash}`}
+                      href={`${explorerTxBaseUrl}/${b.anchor.txHash}`}
                       target="_blank"
                       className="text-blue-600 hover:underline"
                     >
