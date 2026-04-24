@@ -15,7 +15,7 @@ export function Navbar() {
             alt="Kanak Setu"
             width={48}
             height={48}
-            className="h-11 w-11 rounded-full border border-gold-200 bg-white p-0.5 shadow-sm"
+            className="h-12 w-12 rounded-full border border-gold-300/70 p-0.5 shadow-[0_6px_18px_rgba(180,120,20,0.22)] saturate-150"
           />
           <div className="leading-tight">
             <p className="font-display text-xl font-bold text-gold-800">Kanak Setu</p>

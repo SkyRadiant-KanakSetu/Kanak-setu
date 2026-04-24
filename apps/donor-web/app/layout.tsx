@@ -39,7 +39,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
                 alt="Kanak Setu"
                 width={32}
                 height={32}
-                className="h-8 w-8 rounded-full border border-gold-200 bg-white p-0.5"
+                className="h-8 w-8 rounded-full border border-gold-300/70 p-0.5 shadow-[0_4px_12px_rgba(180,120,20,0.2)] saturate-150"
               />
               <span className="font-display text-base font-semibold text-gold-800">Kanak Setu</span>
             </div>

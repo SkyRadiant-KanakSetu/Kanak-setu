@@ -41,7 +41,7 @@ export default function AdminPage() {
               alt="Kanak Setu"
               width={76}
               height={76}
-              className="h-16 w-16 rounded-full border border-zinc-200 bg-white p-0.5 shadow-sm"
+              className="h-16 w-16 rounded-full border border-amber-300/70 p-0.5 shadow-[0_8px_22px_rgba(180,120,20,0.24)] saturate-150"
             />
             <p className="mt-2 text-xs font-semibold uppercase tracking-wide text-zinc-500">Admin Console</p>
           </div>
@@ -92,7 +92,7 @@ export default function AdminPage() {
             alt="Kanak Setu"
             width={42}
             height={42}
-            className="h-10 w-10 rounded-full border border-zinc-200 bg-white p-0.5 shadow-sm"
+            className="h-11 w-11 rounded-full border border-amber-300/70 p-0.5 shadow-[0_6px_18px_rgba(180,120,20,0.22)] saturate-150"
           />
           <span className="leading-tight">
             <span className="block">Kanak Setu</span>
