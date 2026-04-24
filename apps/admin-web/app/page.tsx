@@ -794,6 +794,7 @@ function MerkleTab() {
   const [wallet, setWallet] = useState<any>(null);
   const [msg, setMsg] = useState('');
   const [loadingWallet, setLoadingWallet] = useState(false);
+  const [actionLoading, setActionLoading] = useState(false);
   const load = () =>
     merkleApi.batches().then((r) => {
       if (!r.success) return;
@@ -820,17 +821,38 @@ function MerkleTab() {
   }, []);
   const explorerTxBaseUrl = getExplorerTxBaseUrl(wallet?.network);
 
+  const formatAnchorResultMessage = (result: any) => {
+    const items = Array.isArray(result) ? result : [result];
+    const anchored = items.filter((item: any) => item?.txHash).length;
+    const failed = items.filter((item: any) => item?.error).length;
+    const exhausted = items.filter((item: any) =>
+      String(item?.error || '').includes('Anchor retries exhausted')
+    ).length;
+
+    if (anchored || failed) {
+      const parts = [`Anchored: ${anchored}`];
+      if (failed) parts.push(`Failed: ${failed}`);
+      if (exhausted) parts.push(`Skipped exhausted: ${exhausted}`);
+      return parts.join(' | ');
+    }
+    return 'No sealed batches to anchor.';
+  };
+
   const seal = async () => {
+    setActionLoading(true);
     setMsg('Sealing...');
     const r = await merkleApi.seal();
-    setMsg(JSON.stringify(r.data));
-    load();
+    setMsg(r.success ? 'Batch seal completed.' : r.error?.message || 'Failed to seal batch.');
+    await load();
+    setActionLoading(false);
   };
   const anchorAll = async () => {
+    setActionLoading(true);
     setMsg('Anchoring...');
     const r = await merkleApi.anchorAll();
-    setMsg(JSON.stringify(r.data));
-    load();
+    setMsg(r.success ? formatAnchorResultMessage(r.data) : r.error?.message || 'Failed to anchor sealed batches.');
+    await load();
+    setActionLoading(false);
   };
 
   return (
@@ -862,23 +884,32 @@ function MerkleTab() {
       <div className="mt-4 flex gap-3">
         <button
           onClick={seal}
+          disabled={actionLoading}
           className="rounded bg-indigo-600 px-4 py-2 text-sm text-white hover:bg-indigo-700"
         >
           Seal Batch
         </button>
         <button
           onClick={anchorAll}
+          disabled={actionLoading}
           className="rounded bg-green-600 px-4 py-2 text-sm text-white hover:bg-green-700"
         >
           Anchor All Sealed
         </button>
         <button
           onClick={async () => {
+            setActionLoading(true);
             setMsg('Anchoring (force mode)...');
             const r = await merkleApi.anchorAll(true);
-            setMsg(JSON.stringify(r.data));
-            load();
+            setMsg(
+              r.success
+                ? formatAnchorResultMessage(r.data)
+                : r.error?.message || 'Failed to force-anchor sealed batches.'
+            );
+            await load();
+            setActionLoading(false);
           }}
+          disabled={actionLoading}
           className="rounded bg-amber-600 px-4 py-2 text-sm text-white hover:bg-amber-700"
         >
           Force Anchor (override min leaves)
