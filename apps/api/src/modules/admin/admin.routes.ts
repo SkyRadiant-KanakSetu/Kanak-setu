@@ -49,6 +49,37 @@ function buildLocalAssistantReply(query: string) {
   ].join('\n\n');
 }
 
+function buildFactsDrivenReply(query: string, facts: Record<string, any>) {
+  const q = query.toLowerCase();
+  const lines: string[] = [];
+
+  if ((q.includes('today') || q.includes('donation') || q.includes('payment') || q.includes('amount')) && facts.today) {
+    lines.push(
+      `Today successful donations: ${facts.today.successfulDonations}`,
+      `Today successful amount: ₹${Number(facts.today.successfulAmountRupees || 0).toFixed(2)}`,
+      `Today failed/disputed donations: ${facts.today.failedOrDisputedDonations}`
+    );
+  }
+
+  if ((q.includes('anchor') || q.includes('merkle') || q.includes('blockchain') || q.includes('batch')) && facts.blockchain) {
+    const summary = (facts.blockchain.statusSummary || [])
+      .map((s: { status: string; count: number }) => `${s.status}: ${s.count}`)
+      .join(', ');
+    lines.push(`Blockchain batch summary: ${summary || 'No batch data'}`);
+  }
+
+  if ((q.includes('institution') || q.includes('review') || q.includes('kyc') || q.includes('upi')) && facts.institutions) {
+    lines.push(
+      `Institutions pending review: ${facts.institutions.pendingReview}`,
+      `Active institutions: ${facts.institutions.active}`,
+      `Suspended institutions: ${facts.institutions.suspended}`
+    );
+  }
+
+  if (!lines.length) return null;
+  return lines.join('\n');
+}
+
 async function askOpenAiAdminAssistant(query: string, adminContext: Record<string, unknown>) {
   const apiKey = process.env.OPENAI_API_KEY;
   if (!apiKey) return null;
@@ -284,7 +315,9 @@ adminRouter.post('/assistant/query', requirePlatformStaff, async (req: Request, 
     } catch {
       answer = null;
     }
-    if (!answer) answer = buildLocalAssistantReply(query);
+    if (!answer) {
+      answer = buildFactsDrivenReply(query, facts) || buildLocalAssistantReply(query);
+    }
 
     await auditLog({
       userId: req.auth!.userId,
