@@ -93,6 +93,14 @@ function VerifyContent() {
               <strong>{proof.donationRef}</strong>
             </div>
             <div>
+              <span className="text-gray-400">Amount:</span>{' '}
+              <strong>
+                {typeof proof.amountRupees === 'number'
+                  ? `₹${proof.amountRupees.toFixed(2)}`
+                  : `₹${((proof.amountPaise || 0) / 100).toFixed(2)}`}
+              </strong>
+            </div>
+            <div>
               <span className="text-gray-400">Leaf Hash:</span>{' '}
               <code className="text-xs bg-gray-50 px-1 rounded">{proof.leafHash}</code>
               <button

@@ -131,6 +131,9 @@ merkleRouter.get('/proof/:donationId', async (req: Request, res: Response, next:
 
     success(res, {
       donationRef: leaf.donation.donationRef,
+      amountPaise: leaf.donation.amountPaise,
+      amountRupees: Number((leaf.donation.amountPaise / 100).toFixed(2)),
+      goldQuantityMg: leaf.donation.goldQuantityMg,
       leafHash: leaf.leafHash,
       leafIndex: leaf.leafIndex,
       proof: leaf.proofPath,
