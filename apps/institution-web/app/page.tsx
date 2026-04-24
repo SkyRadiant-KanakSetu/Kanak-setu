@@ -3,6 +3,8 @@ import { useState, useEffect } from 'react';
 import { auth, portal, setTokens, clearTokens } from '@/lib/api';
 import { DonationQr } from '@/components/DonationQr';
 
+type InstitutionTab = 'overview' | 'donations' | 'donors' | 'ledger' | 'settings';
+
 export default function InstitutionHome() {
   const showDevHints = process.env.NODE_ENV !== 'production';
   const [loggedIn, setLoggedIn] = useState(false);
@@ -16,6 +18,7 @@ export default function InstitutionHome() {
   const [upiIdInput, setUpiIdInput] = useState('');
   const [upiSaving, setUpiSaving] = useState(false);
   const [upiMessage, setUpiMessage] = useState('');
+  const [activeTab, setActiveTab] = useState<InstitutionTab>('overview');
 
   useEffect(() => {
     if (typeof window !== 'undefined' && localStorage.getItem('accessToken')) {
@@ -198,223 +201,258 @@ export default function InstitutionHome() {
             </span>
           </div>
 
-          <div className="mt-6 grid gap-4 md:grid-cols-3">
-            <div className="rounded-xl border bg-white p-5">
-              <p className="text-sm text-gray-500">Total Donations</p>
-              <p className="mt-1 text-2xl font-bold">{dashboard.totalDonations}</p>
-            </div>
-            <div className="rounded-xl border bg-white p-5">
-              <p className="text-sm text-gray-500">Total Gold (mg)</p>
-              <p className="mt-1 text-2xl font-bold text-amber-700">
-                {parseFloat(dashboard.totalGoldMg || 0).toFixed(2)}
-              </p>
-            </div>
-            <div className="rounded-xl border bg-white p-5">
-              <p className="text-sm text-gray-500">Total Gold (grams)</p>
-              <p className="mt-1 text-2xl font-bold text-amber-700">
-                {(parseFloat(dashboard.totalGoldMg || 0) / 1000).toFixed(4)}
-              </p>
-            </div>
-            <div className="rounded-xl border bg-white p-5">
-              <p className="text-sm text-gray-500">Unique Donors</p>
-              <p className="mt-1 text-2xl font-bold">{dashboard.uniqueDonors ?? 0}</p>
-            </div>
-            <div className="rounded-xl border bg-white p-5">
-              <p className="text-sm text-gray-500">Repeat Donors</p>
-              <p className="mt-1 text-2xl font-bold">{dashboard.repeatDonors ?? 0}</p>
-            </div>
-            <div className="rounded-xl border bg-white p-5">
-              <p className="text-sm text-gray-500">Active Donors ({dashboard.rangeDays ?? 30}d)</p>
-              <p className="mt-1 text-2xl font-bold">{dashboard.activeDonorsInRange ?? 0}</p>
-            </div>
-          </div>
-          <div className="mt-4 flex gap-2">
-            {[7, 30, 90].map((d) => (
+          <div className="mt-5 flex flex-wrap gap-2">
+            {[
+              { key: 'overview', label: 'Overview' },
+              { key: 'donations', label: 'Recent Donations' },
+              { key: 'donors', label: 'Donor Directory' },
+              { key: 'ledger', label: 'Gold Ledger' },
+              { key: 'settings', label: 'Settings' },
+            ].map((tab) => (
               <button
-                key={d}
-                onClick={() => setRangeDays(d as 7 | 30 | 90)}
-                className={`rounded px-3 py-1 text-xs ${rangeDays === d ? 'bg-amber-700 text-white' : 'bg-gray-100 hover:bg-gray-200'}`}
+                key={tab.key}
+                onClick={() => setActiveTab(tab.key as InstitutionTab)}
+                className={`rounded-lg px-3 py-1.5 text-xs font-medium ${
+                  activeTab === tab.key ? 'bg-amber-700 text-white' : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+                }`}
               >
-                {d}d
+                {tab.label}
               </button>
             ))}
           </div>
-          <div className="mt-4 rounded-xl border bg-white p-4">
-            <p className="text-xs text-gray-500">Donor trend ({dashboard.rangeDays}d)</p>
-            <div className="mt-3 grid grid-cols-1 gap-4 md:grid-cols-2">
-              <MiniTrend
-                title="Donations / day"
-                values={(dashboard.donorTrend || []).map((d: any) => d.donations)}
-              />
-              <MiniTrend
-                title="Active donors / day"
-                values={(dashboard.donorTrend || []).map((d: any) => d.activeDonors)}
-              />
-            </div>
-          </div>
 
-          <div className="mt-4 rounded-xl border bg-white p-4">
-            <h2 className="text-sm font-semibold text-gray-900">Donation UPI ID</h2>
-            <p className="mt-1 text-xs text-gray-500">
-              Set the UPI ID where donors should pay from your QR and donation links.
-            </p>
-            <form onSubmit={handleSaveUpiId} className="mt-3 flex flex-col gap-3 sm:flex-row">
-              <input
-                type="text"
-                value={upiIdInput}
-                onChange={(e) => setUpiIdInput(e.target.value)}
-                placeholder="example@upi"
-                className="w-full rounded-lg border px-3 py-2 text-sm sm:max-w-md"
-              />
-              <button
-                type="submit"
-                disabled={upiSaving}
-                className="rounded-lg bg-amber-700 px-4 py-2 text-sm font-medium text-white hover:bg-amber-800 disabled:opacity-60"
-              >
-                {upiSaving ? 'Saving...' : 'Save UPI'}
-              </button>
-            </form>
-            {upiMessage && <p className="mt-2 text-xs text-gray-600">{upiMessage}</p>}
-          </div>
-
-          <DonationQr
-            institutionId={dashboard.institutionId}
-            publicName={dashboard.publicName}
-            publicPageSlug={dashboard.publicPageSlug}
-            status={dashboard.status}
-          />
-
-          {/* Recent donations */}
-          <h2 className="mt-10 font-semibold text-lg">Recent Donations</h2>
-          <div className="mt-3 rounded-xl border bg-white overflow-hidden">
-            <table className="w-full text-sm">
-              <thead className="bg-gray-50 text-left text-xs text-gray-500">
-                <tr>
-                  <th className="px-4 py-2">Ref</th>
-                  <th className="px-4 py-2">Donor</th>
-                  <th className="px-4 py-2">Phone</th>
-                  <th className="px-4 py-2">Location</th>
-                  <th className="px-4 py-2">Profession</th>
-                  <th className="px-4 py-2">Age</th>
-                  <th className="px-4 py-2">Amount</th>
-                  <th className="px-4 py-2">Gold (mg)</th>
-                  <th className="px-4 py-2">Status</th>
-                  <th className="px-4 py-2">Date</th>
-                </tr>
-              </thead>
-              <tbody>
-                {(dashboard.recentDonations || []).map((d: any) => (
-                  <tr key={d.id} className="border-t">
-                    <td className="px-4 py-2 font-mono text-xs">{d.donationRef?.slice(0, 12)}</td>
-                    <td className="px-4 py-2">
-                      {[d.donor?.firstName, d.donor?.lastName].filter(Boolean).join(' ') || '-'}
-                    </td>
-                    <td className="px-4 py-2">{d.donor?.user?.phone || '-'}</td>
-                    <td className="px-4 py-2">{[d.donor?.city, d.donor?.state].filter(Boolean).join(', ') || '-'}</td>
-                    <td className="px-4 py-2">{d.donor?.profession || '-'}</td>
-                    <td className="px-4 py-2">
-                      {calcAge(d.donor?.dateOfBirth)}
-                    </td>
-                    <td className="px-4 py-2">₹{(d.amountPaise / 100).toFixed(2)}</td>
-                    <td className="px-4 py-2">
-                      {d.goldQuantityMg ? parseFloat(d.goldQuantityMg).toFixed(2) : '-'}
-                    </td>
-                    <td className="px-4 py-2">
-                      <span className="rounded bg-gray-100 px-1.5 py-0.5 text-xs">{d.status}</span>
-                    </td>
-                    <td className="px-4 py-2 text-gray-400">
-                      {new Date(d.createdAt).toLocaleDateString('en-IN')}
-                    </td>
-                  </tr>
+          {activeTab === 'overview' && (
+            <>
+              <div className="mt-6 grid gap-4 md:grid-cols-3">
+                <div className="rounded-xl border bg-white p-5">
+                  <p className="text-sm text-gray-500">Total Donations</p>
+                  <p className="mt-1 text-2xl font-bold">{dashboard.totalDonations}</p>
+                </div>
+                <div className="rounded-xl border bg-white p-5">
+                  <p className="text-sm text-gray-500">Total Gold (mg)</p>
+                  <p className="mt-1 text-2xl font-bold text-amber-700">
+                    {parseFloat(dashboard.totalGoldMg || 0).toFixed(2)}
+                  </p>
+                </div>
+                <div className="rounded-xl border bg-white p-5">
+                  <p className="text-sm text-gray-500">Total Gold (grams)</p>
+                  <p className="mt-1 text-2xl font-bold text-amber-700">
+                    {(parseFloat(dashboard.totalGoldMg || 0) / 1000).toFixed(4)}
+                  </p>
+                </div>
+                <div className="rounded-xl border bg-white p-5">
+                  <p className="text-sm text-gray-500">Unique Donors</p>
+                  <p className="mt-1 text-2xl font-bold">{dashboard.uniqueDonors ?? 0}</p>
+                </div>
+                <div className="rounded-xl border bg-white p-5">
+                  <p className="text-sm text-gray-500">Repeat Donors</p>
+                  <p className="mt-1 text-2xl font-bold">{dashboard.repeatDonors ?? 0}</p>
+                </div>
+                <div className="rounded-xl border bg-white p-5">
+                  <p className="text-sm text-gray-500">Active Donors ({dashboard.rangeDays ?? 30}d)</p>
+                  <p className="mt-1 text-2xl font-bold">{dashboard.activeDonorsInRange ?? 0}</p>
+                </div>
+              </div>
+              <div className="mt-4 flex gap-2">
+                {[7, 30, 90].map((d) => (
+                  <button
+                    key={d}
+                    onClick={() => setRangeDays(d as 7 | 30 | 90)}
+                    className={`rounded px-3 py-1 text-xs ${rangeDays === d ? 'bg-amber-700 text-white' : 'bg-gray-100 hover:bg-gray-200'}`}
+                  >
+                    {d}d
+                  </button>
                 ))}
-              </tbody>
-            </table>
-          </div>
+              </div>
+              <div className="mt-4 rounded-xl border bg-white p-4">
+                <p className="text-xs text-gray-500">Donor trend ({dashboard.rangeDays}d)</p>
+                <div className="mt-3 grid grid-cols-1 gap-4 md:grid-cols-2">
+                  <MiniTrend
+                    title="Donations / day"
+                    values={(dashboard.donorTrend || []).map((d: any) => d.donations)}
+                  />
+                  <MiniTrend
+                    title="Active donors / day"
+                    values={(dashboard.donorTrend || []).map((d: any) => d.activeDonors)}
+                  />
+                </div>
+              </div>
+            </>
+          )}
 
-          <h2 className="mt-10 font-semibold text-lg">Donor Directory</h2>
-          <div className="mt-3 rounded-xl border bg-white overflow-hidden">
-            <table className="w-full text-sm">
-              <thead className="bg-gray-50 text-left text-xs text-gray-500">
-                <tr>
-                  <th className="px-4 py-2">Name</th>
-                  <th className="px-4 py-2">Email</th>
-                  <th className="px-4 py-2">Phone</th>
-                  <th className="px-4 py-2">Profession</th>
-                  <th className="px-4 py-2">Age</th>
-                  <th className="px-4 py-2">Address</th>
-                  <th className="px-4 py-2">Latest Donation</th>
-                </tr>
-              </thead>
-              <tbody>
-                {(dashboard.donorDirectory || []).map((d: any) => (
-                  <tr key={d.donorId} className="border-t">
-                    <td className="px-4 py-2">{[d.firstName, d.lastName].filter(Boolean).join(' ') || '-'}</td>
-                    <td className="px-4 py-2">{d.email || '-'}</td>
-                    <td className="px-4 py-2">{d.phone || '-'}</td>
-                    <td className="px-4 py-2">{d.profession || '-'}</td>
-                    <td className="px-4 py-2">{d.age ?? '-'}</td>
-                    <td className="px-4 py-2 text-xs text-gray-600">
-                      {[d.address, d.city, d.state, d.pincode].filter(Boolean).join(', ') || '-'}
-                    </td>
-                    <td className="px-4 py-2 text-gray-400">
-                      {d.latestDonationAt ? new Date(d.latestDonationAt).toLocaleDateString('en-IN') : '-'}
-                    </td>
-                  </tr>
-                ))}
-                {(dashboard.donorDirectory || []).length === 0 && (
-                  <tr>
-                    <td colSpan={7} className="px-4 py-6 text-center text-gray-400">
-                      No donor profiles available yet
-                    </td>
-                  </tr>
-                )}
-              </tbody>
-            </table>
-          </div>
+          {activeTab === 'settings' && (
+            <>
+              <div className="mt-4 rounded-xl border bg-white p-4">
+                <h2 className="text-sm font-semibold text-gray-900">Donation UPI ID</h2>
+                <p className="mt-1 text-xs text-gray-500">
+                  Set the UPI ID where donors should pay from your QR and donation links.
+                </p>
+                <form onSubmit={handleSaveUpiId} className="mt-3 flex flex-col gap-3 sm:flex-row">
+                  <input
+                    type="text"
+                    value={upiIdInput}
+                    onChange={(e) => setUpiIdInput(e.target.value)}
+                    placeholder="example@upi"
+                    className="w-full rounded-lg border px-3 py-2 text-sm sm:max-w-md"
+                  />
+                  <button
+                    type="submit"
+                    disabled={upiSaving}
+                    className="rounded-lg bg-amber-700 px-4 py-2 text-sm font-medium text-white hover:bg-amber-800 disabled:opacity-60"
+                  >
+                    {upiSaving ? 'Saving...' : 'Save UPI'}
+                  </button>
+                </form>
+                {upiMessage && <p className="mt-2 text-xs text-gray-600">{upiMessage}</p>}
+              </div>
+              <DonationQr
+                institutionId={dashboard.institutionId}
+                publicName={dashboard.publicName}
+                publicPageSlug={dashboard.publicPageSlug}
+                status={dashboard.status}
+              />
+            </>
+          )}
 
-          {/* Ledger */}
-          <h2 className="mt-10 font-semibold text-lg">Gold Ledger</h2>
-          <div className="mt-3 rounded-xl border bg-white overflow-hidden">
-            <table className="w-full text-sm">
-              <thead className="bg-gray-50 text-left text-xs text-gray-500">
-                <tr>
-                  <th className="px-4 py-2">Type</th>
-                  <th className="px-4 py-2">Gold (mg)</th>
-                  <th className="px-4 py-2">Balance After</th>
-                  <th className="px-4 py-2">Description</th>
-                  <th className="px-4 py-2">Date</th>
-                </tr>
-              </thead>
-              <tbody>
-                {ledger.map((e: any) => (
-                  <tr key={e.id} className="border-t">
-                    <td className="px-4 py-2">
-                      <span
-                        className={`rounded px-1.5 py-0.5 text-xs ${e.entryType === 'CREDIT' ? 'bg-green-50 text-green-700' : 'bg-red-50 text-red-700'}`}
-                      >
-                        {e.entryType}
-                      </span>
-                    </td>
-                    <td className="px-4 py-2">{parseFloat(e.goldQuantityMg).toFixed(2)}</td>
-                    <td className="px-4 py-2 font-medium">
-                      {parseFloat(e.balanceAfterMg).toFixed(2)}
-                    </td>
-                    <td className="px-4 py-2 text-gray-500 text-xs">{e.description}</td>
-                    <td className="px-4 py-2 text-gray-400">
-                      {new Date(e.createdAt).toLocaleDateString('en-IN')}
-                    </td>
-                  </tr>
-                ))}
-                {ledger.length === 0 && (
-                  <tr>
-                    <td colSpan={5} className="px-4 py-6 text-center text-gray-400">
-                      No ledger entries yet
-                    </td>
-                  </tr>
-                )}
-              </tbody>
-            </table>
-          </div>
+          {activeTab === 'donations' && (
+            <>
+              <h2 className="mt-10 font-semibold text-lg">Recent Donations</h2>
+              <div className="mt-3 rounded-xl border bg-white overflow-hidden">
+                <table className="w-full text-sm">
+                  <thead className="bg-gray-50 text-left text-xs text-gray-500">
+                    <tr>
+                      <th className="px-4 py-2">Ref</th>
+                      <th className="px-4 py-2">Donor</th>
+                      <th className="px-4 py-2">Phone</th>
+                      <th className="px-4 py-2">Location</th>
+                      <th className="px-4 py-2">Profession</th>
+                      <th className="px-4 py-2">Age</th>
+                      <th className="px-4 py-2">Amount</th>
+                      <th className="px-4 py-2">Gold (mg)</th>
+                      <th className="px-4 py-2">Status</th>
+                      <th className="px-4 py-2">Date</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {(dashboard.recentDonations || []).map((d: any) => (
+                      <tr key={d.id} className="border-t">
+                        <td className="px-4 py-2 font-mono text-xs">{d.donationRef?.slice(0, 12)}</td>
+                        <td className="px-4 py-2">
+                          {[d.donor?.firstName, d.donor?.lastName].filter(Boolean).join(' ') || '-'}
+                        </td>
+                        <td className="px-4 py-2">{d.donor?.user?.phone || '-'}</td>
+                        <td className="px-4 py-2">
+                          {[d.donor?.city, d.donor?.state].filter(Boolean).join(', ') || '-'}
+                        </td>
+                        <td className="px-4 py-2">{d.donor?.profession || '-'}</td>
+                        <td className="px-4 py-2">{calcAge(d.donor?.dateOfBirth)}</td>
+                        <td className="px-4 py-2">₹{(d.amountPaise / 100).toFixed(2)}</td>
+                        <td className="px-4 py-2">
+                          {d.goldQuantityMg ? parseFloat(d.goldQuantityMg).toFixed(2) : '-'}
+                        </td>
+                        <td className="px-4 py-2">
+                          <span className="rounded bg-gray-100 px-1.5 py-0.5 text-xs">{d.status}</span>
+                        </td>
+                        <td className="px-4 py-2 text-gray-400">
+                          {new Date(d.createdAt).toLocaleDateString('en-IN')}
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            </>
+          )}
+
+          {activeTab === 'donors' && (
+            <>
+              <h2 className="mt-10 font-semibold text-lg">Donor Directory</h2>
+              <div className="mt-3 rounded-xl border bg-white overflow-hidden">
+                <table className="w-full text-sm">
+                  <thead className="bg-gray-50 text-left text-xs text-gray-500">
+                    <tr>
+                      <th className="px-4 py-2">Name</th>
+                      <th className="px-4 py-2">Email</th>
+                      <th className="px-4 py-2">Phone</th>
+                      <th className="px-4 py-2">Profession</th>
+                      <th className="px-4 py-2">Age</th>
+                      <th className="px-4 py-2">Address</th>
+                      <th className="px-4 py-2">Latest Donation</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {(dashboard.donorDirectory || []).map((d: any) => (
+                      <tr key={d.donorId} className="border-t">
+                        <td className="px-4 py-2">{[d.firstName, d.lastName].filter(Boolean).join(' ') || '-'}</td>
+                        <td className="px-4 py-2">{d.email || '-'}</td>
+                        <td className="px-4 py-2">{d.phone || '-'}</td>
+                        <td className="px-4 py-2">{d.profession || '-'}</td>
+                        <td className="px-4 py-2">{d.age ?? '-'}</td>
+                        <td className="px-4 py-2 text-xs text-gray-600">
+                          {[d.address, d.city, d.state, d.pincode].filter(Boolean).join(', ') || '-'}
+                        </td>
+                        <td className="px-4 py-2 text-gray-400">
+                          {d.latestDonationAt ? new Date(d.latestDonationAt).toLocaleDateString('en-IN') : '-'}
+                        </td>
+                      </tr>
+                    ))}
+                    {(dashboard.donorDirectory || []).length === 0 && (
+                      <tr>
+                        <td colSpan={7} className="px-4 py-6 text-center text-gray-400">
+                          No donor profiles available yet
+                        </td>
+                      </tr>
+                    )}
+                  </tbody>
+                </table>
+              </div>
+            </>
+          )}
+
+          {activeTab === 'ledger' && (
+            <>
+              <h2 className="mt-10 font-semibold text-lg">Gold Ledger</h2>
+              <div className="mt-3 rounded-xl border bg-white overflow-hidden">
+                <table className="w-full text-sm">
+                  <thead className="bg-gray-50 text-left text-xs text-gray-500">
+                    <tr>
+                      <th className="px-4 py-2">Type</th>
+                      <th className="px-4 py-2">Gold (mg)</th>
+                      <th className="px-4 py-2">Balance After</th>
+                      <th className="px-4 py-2">Description</th>
+                      <th className="px-4 py-2">Date</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {ledger.map((e: any) => (
+                      <tr key={e.id} className="border-t">
+                        <td className="px-4 py-2">
+                          <span
+                            className={`rounded px-1.5 py-0.5 text-xs ${e.entryType === 'CREDIT' ? 'bg-green-50 text-green-700' : 'bg-red-50 text-red-700'}`}
+                          >
+                            {e.entryType}
+                          </span>
+                        </td>
+                        <td className="px-4 py-2">{parseFloat(e.goldQuantityMg).toFixed(2)}</td>
+                        <td className="px-4 py-2 font-medium">{parseFloat(e.balanceAfterMg).toFixed(2)}</td>
+                        <td className="px-4 py-2 text-gray-500 text-xs">{e.description}</td>
+                        <td className="px-4 py-2 text-gray-400">
+                          {new Date(e.createdAt).toLocaleDateString('en-IN')}
+                        </td>
+                      </tr>
+                    ))}
+                    {ledger.length === 0 && (
+                      <tr>
+                        <td colSpan={5} className="px-4 py-6 text-center text-gray-400">
+                          No ledger entries yet
+                        </td>
+                      </tr>
+                    )}
+                  </tbody>
+                </table>
+              </div>
+            </>
+          )}
         </>
       )}
     </div>
