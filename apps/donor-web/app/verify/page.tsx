@@ -38,14 +38,16 @@ function VerifyContent() {
 
   return (
     <div className="mx-auto max-w-2xl px-4 py-12">
-      <h1 className="font-display text-2xl font-bold text-gray-900">Verify Donation</h1>
-      <p className="mt-1 text-sm text-gray-500">
-        Verify the authenticity of a donation using its certificate reference or blockchain proof
-      </p>
+      <div className="rounded-3xl border border-gold-100 bg-gradient-to-r from-white via-gold-50 to-gold-100 p-6">
+        <h1 className="font-display text-2xl font-bold text-gray-900">Verify Donation</h1>
+        <p className="mt-1 text-sm text-gray-600">
+          Validate donation authenticity using certificate reference or blockchain proof details.
+        </p>
+      </div>
 
       {/* Search by certificate ref */}
       {!donationId && (
-        <div className="mt-6 flex gap-3">
+        <div className="mt-6 flex gap-3 rounded-2xl border border-gray-100 bg-white p-4">
           <input
             type="text"
             value={searchRef}
@@ -55,7 +57,7 @@ function VerifyContent() {
           />
           <button
             onClick={() => handleVerify()}
-            className="rounded-lg bg-gold-500 px-6 py-2.5 text-sm font-medium text-white hover:bg-gold-600"
+            className="rounded-lg bg-gold-600 px-6 py-2.5 text-sm font-medium text-white hover:bg-gold-700"
           >
             Verify
           </button>
@@ -67,7 +69,7 @@ function VerifyContent() {
       {/* Blockchain proof view */}
       {proof && (
         <div className="mt-8 space-y-4">
-          <div className="rounded-xl bg-green-50 p-4">
+          <div className="rounded-xl border border-green-200 bg-green-50 p-4">
             <h3 className="font-semibold text-green-800">✓ Donation Proof Found</h3>
           </div>
           <div className="rounded-xl border border-gray-100 bg-white p-5 space-y-3 text-sm">
@@ -115,7 +117,7 @@ function VerifyContent() {
       {/* Certificate verification view */}
       {certData && (
         <div className="mt-8 space-y-4">
-          <div className="rounded-xl bg-green-50 p-4">
+          <div className="rounded-xl border border-green-200 bg-green-50 p-4">
             <h3 className="font-semibold text-green-800">✓ Certificate Verified</h3>
           </div>
           <div className="rounded-xl border border-gray-100 bg-white p-5 space-y-3 text-sm">

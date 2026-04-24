@@ -77,6 +77,18 @@ function AuthContent() {
     return path;
   }
 
+  function getOtpRequestErrorMessage(err: any) {
+    const code = err?.code;
+    const message = String(err?.message || '');
+    if (code === 'DONOR_NOT_FOUND' || message.includes('No active donor account found for phone')) {
+      return 'No donor account found for this number. Use Sign up to create an account first.';
+    }
+    if (code === 'UNEXPECTED_ERROR' || message.toLowerCase().includes('unexpected error')) {
+      return 'Could not send OTP right now. Please try again in a few seconds.';
+    }
+    return message || 'Failed to send OTP';
+  }
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setError('');
@@ -126,15 +138,18 @@ function AuthContent() {
         throw err;
       }
     } catch (err: any) {
-      setError(err.message || 'Failed to send OTP');
+      setError(getOtpRequestErrorMessage(err));
     } finally {
       setLoading(false);
     }
   };
 
   return (
-    <div className="flex min-h-[80vh] items-center justify-center px-4">
-      <div className="w-full max-w-md rounded-2xl border border-gold-100 bg-white p-8 shadow-lg">
+    <div className="flex min-h-[80vh] items-center justify-center px-4 py-10">
+      <div className="w-full max-w-md rounded-3xl border border-gold-100 bg-white p-8 shadow-lg">
+        <div className="mb-4 inline-flex rounded-full border border-gold-200 bg-gold-50 px-3 py-1 text-xs font-semibold uppercase tracking-wide text-gold-700">
+          Secure OTP Authentication
+        </div>
         <h1 className="font-display text-2xl font-bold text-gray-900">
           {isLogin ? 'Welcome Back' : 'Create Account'}
         </h1>
@@ -183,7 +198,7 @@ function AuthContent() {
               type="button"
               onClick={handleContinueWithPhone}
               disabled={loading || !phone.trim()}
-              className="w-full rounded-lg border border-gold-500 py-2.5 font-semibold text-gold-700 hover:bg-gold-50 disabled:opacity-50 transition"
+              className="w-full rounded-xl border border-gold-500 py-2.5 font-semibold text-gold-700 transition hover:bg-gold-50 disabled:opacity-50"
             >
               {loading ? 'Getting OTP...' : 'Get OTP'}
             </button>
@@ -238,7 +253,7 @@ function AuthContent() {
                 type="button"
                 onClick={handleContinueWithPhone}
                 disabled={loading || resendCooldown > 0}
-                className="text-sm text-gold-700 hover:underline"
+                className="text-sm font-medium text-gold-700 hover:underline"
               >
                 {resendCooldown > 0 ? `Resend OTP in ${resendCooldown}s` : 'Resend OTP'}
               </button>
@@ -250,7 +265,7 @@ function AuthContent() {
           <button
             type="submit"
             disabled={loading || !otpSent}
-            className="w-full rounded-lg bg-gold-500 py-2.5 font-semibold text-white hover:bg-gold-600 disabled:opacity-50 transition"
+            className="w-full rounded-xl bg-gold-600 py-2.5 font-semibold text-white shadow-sm transition hover:bg-gold-700 disabled:opacity-50"
           >
             {loading
               ? 'Please wait...'

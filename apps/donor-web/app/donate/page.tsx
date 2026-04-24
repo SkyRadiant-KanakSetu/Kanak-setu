@@ -145,6 +145,9 @@ function DonateForm() {
   if (step === 'awaiting_confirmation') {
     return (
       <div className="mx-auto max-w-lg px-4 py-16 text-center">
+        <div className="mb-5 inline-flex rounded-full border border-gold-200 bg-gold-50 px-3 py-1 text-xs font-semibold uppercase tracking-wide text-gold-700">
+          Step 3 of 3: Confirm UTR
+        </div>
         <h1 className="mt-2 font-display text-2xl font-bold text-gray-900">Complete UPI Payment</h1>
         <p className="mt-2 text-gray-600">
           Pay via UPI for <strong>{effectiveInstitutionName}</strong>, then enter your UPI reference/UTR to generate
@@ -221,6 +224,9 @@ function DonateForm() {
   if (step === 'payment') {
     return (
       <div className="mx-auto max-w-lg px-4 py-12">
+        <div className="mb-5 inline-flex rounded-full border border-gold-200 bg-gold-50 px-3 py-1 text-xs font-semibold uppercase tracking-wide text-gold-700">
+          Step 2 of 3: Pay via UPI
+        </div>
         <h1 className="font-display text-2xl font-bold text-gray-900">Pay using UPI QR</h1>
         <p className="mt-1 text-gray-600">
           Institution: <strong className="text-gold-700">{effectiveInstitutionName}</strong>
@@ -254,7 +260,7 @@ function DonateForm() {
         <div className="mt-6 flex gap-4">
           <button
             onClick={handleDonate}
-            className="rounded-lg bg-gold-500 px-6 py-2 text-white hover:bg-gold-600"
+            className="rounded-lg bg-gold-600 px-6 py-2 text-white hover:bg-gold-700"
           >
             I Have Paid
           </button>
@@ -271,6 +277,9 @@ function DonateForm() {
 
   return (
     <div className="mx-auto max-w-lg px-4 py-12">
+      <div className="mb-5 inline-flex rounded-full border border-gold-200 bg-gold-50 px-3 py-1 text-xs font-semibold uppercase tracking-wide text-gold-700">
+        Step 1 of 3: Enter amount
+      </div>
       <h1 className="font-display text-2xl font-bold text-gray-900">Donate Gold</h1>
       <p className="mt-1 text-gray-500">
         To: <strong className="text-gold-700">{effectiveInstitutionName}</strong>
@@ -278,7 +287,7 @@ function DonateForm() {
 
       {error && <div className="mt-4 rounded-lg bg-red-50 p-3 text-sm text-red-700">{error}</div>}
 
-      <div className="mt-8 space-y-6">
+      <div className="mt-8 space-y-6 rounded-2xl border border-gold-100 bg-white p-5 shadow-sm">
         {/* Quick amounts */}
         <div className="flex flex-wrap gap-3">
           {[500, 1000, 2500, 5000, 10000].map((v) => (
@@ -326,7 +335,7 @@ function DonateForm() {
         <button
           onClick={goToPaymentStep}
           disabled={amountPaise < 100}
-          className="w-full rounded-xl bg-gold-500 py-3.5 text-lg font-semibold text-white shadow-lg hover:bg-gold-600 disabled:opacity-50 transition"
+          className="w-full rounded-xl bg-gold-600 py-3.5 text-lg font-semibold text-white shadow-lg transition hover:bg-gold-700 disabled:opacity-50"
         >
           Continue to UPI QR
         </button>

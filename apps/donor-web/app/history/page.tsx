@@ -2,13 +2,14 @@
 import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { useAuth } from '@/lib/auth';
-import { donors } from '@/lib/api';
+import { certificates, donors } from '@/lib/api';
 
 export default function HistoryPage() {
   const { user, loading: authLoading } = useAuth();
   const router = useRouter();
   const [donations, setDonations] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
+  const [downloadingCertId, setDownloadingCertId] = useState<string | null>(null);
 
   useEffect(() => {
     if (authLoading) return;
@@ -21,6 +22,20 @@ export default function HistoryPage() {
       setLoading(false);
     });
   }, [user, authLoading, router]);
+
+  const handleDownloadCertificate = async (certId: string) => {
+    try {
+      setDownloadingCertId(certId);
+      const res = await certificates.download(certId);
+      if (!res.success || !res.data?.downloadUrl) {
+        window.alert(res.error?.message || 'Certificate is not available yet');
+        return;
+      }
+      window.open(res.data.downloadUrl, '_blank', 'noopener,noreferrer');
+    } finally {
+      setDownloadingCertId(null);
+    }
+  };
 
   const statusColor: Record<string, string> = {
     COMPLETED: 'bg-green-50 text-green-700',
@@ -38,17 +53,26 @@ export default function HistoryPage() {
 
   return (
     <div className="mx-auto max-w-4xl px-4 py-12">
-      <h1 className="font-display text-2xl font-bold text-gray-900">My Donations</h1>
+      <div className="rounded-3xl border border-gold-100 bg-gradient-to-r from-white via-gold-50 to-gold-100 p-6">
+        <h1 className="font-display text-2xl font-bold text-gray-900">My Donations</h1>
+        <p className="mt-2 text-sm text-gray-600">
+          Track every donation, download receipts and certificates, and verify blockchain proofs.
+        </p>
+      </div>
 
       {loading ? (
-        <p className="mt-8 text-gray-400">Loading...</p>
+        <div className="mt-8 space-y-4">
+          {Array.from({ length: 3 }).map((_, idx) => (
+            <div key={idx} className="h-36 animate-pulse rounded-xl border border-gray-100 bg-white" />
+          ))}
+        </div>
       ) : donations.length === 0 ? (
-        <p className="mt-8 text-gray-400">
-          No donations yet.{' '}
-          <a href="/institutions" className="text-gold-600 hover:underline">
+        <div className="mt-8 rounded-2xl border border-gray-200 bg-white p-8 text-center text-gray-500">
+          <p>No donations yet.</p>
+          <a href="/institutions" className="mt-2 inline-block font-medium text-gold-600 hover:underline">
             Browse institutions
           </a>
-        </p>
+        </div>
       ) : (
         <div className="mt-6 space-y-4">
           {donations.map((d: any) => (
@@ -84,19 +108,36 @@ export default function HistoryPage() {
                   </div>
                 )}
               </div>
-              <div className="mt-3 flex gap-3 text-xs">
+              <div className="mt-3 flex flex-wrap gap-2 text-xs">
                 {d.certificates
                   ?.filter((c: any) => c.status === 'ISSUED')
                   .map((c: any) => (
-                    <span key={c.id} className="rounded bg-gold-50 px-2 py-1 text-gold-700">
-                      {c.type.replace('_', ' ')}
-                    </span>
+                    <button
+                      key={c.id}
+                      type="button"
+                      onClick={() => handleDownloadCertificate(c.id)}
+                      disabled={downloadingCertId === c.id}
+                      className="rounded bg-gold-50 px-2 py-1 text-gold-700 hover:bg-gold-100 disabled:opacity-60"
+                    >
+                      {downloadingCertId === c.id
+                        ? 'Preparing...'
+                        : c.type === 'TAX_80G'
+                          ? 'Download 80G Certificate'
+                          : `Download ${c.type.replace('_', ' ')}`}
+                    </button>
                   ))}
                 {d.status === 'UNDER_REVIEW' && (
                   <p className="text-amber-700">
                     Payment received; compliance is reviewing this donation before gold is settled.
                   </p>
                 )}
+                <button
+                  type="button"
+                  onClick={() => router.push(`/receipt/${d.id}`)}
+                  className="rounded bg-emerald-50 px-2 py-1 text-emerald-700 hover:bg-emerald-100"
+                >
+                  Download Receipt
+                </button>
                 {['COMPLETED', 'BATCHED', 'ANCHORED'].includes(d.status) && (
                   <button
                     type="button"

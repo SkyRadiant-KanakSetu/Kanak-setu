@@ -12,6 +12,8 @@ export default function ProfilePage() {
   const [form, setForm] = useState({
     firstName: '',
     lastName: '',
+    profession: '',
+    dateOfBirth: '',
     pan: '',
     address: '',
     city: '',
@@ -31,6 +33,8 @@ export default function ProfilePage() {
         setForm({
           firstName: res.data.firstName,
           lastName: res.data.lastName,
+          profession: res.data.profession || '',
+          dateOfBirth: res.data.dateOfBirth ? String(res.data.dateOfBirth).slice(0, 10) : '',
           pan: res.data.pan || '',
           address: res.data.address || '',
           city: res.data.city || '',
@@ -49,7 +53,7 @@ export default function ProfilePage() {
     }
   };
 
-  if (!profile) return <div className="py-16 text-center text-gray-400">Loading...</div>;
+  if (!profile) return <div className="py-16 text-center text-gray-400">Loading profile...</div>;
 
   const kycColor: Record<string, string> = {
     VERIFIED: 'bg-green-50 text-green-700',
@@ -60,10 +64,18 @@ export default function ProfilePage() {
 
   return (
     <div className="mx-auto max-w-xl px-4 py-12">
+      <div className="rounded-3xl border border-gold-100 bg-gradient-to-r from-white via-gold-50 to-gold-100 p-6">
+        <p className="text-xs font-semibold uppercase tracking-wide text-gold-700">Donor Profile</p>
+        <h1 className="mt-1 font-display text-2xl font-bold text-gray-900">My Profile</h1>
+        <p className="mt-2 text-sm text-gray-600">
+          Keep your details updated for smoother receipts, compliance checks, and faster donation support.
+        </p>
+      </div>
+
       <div className="flex items-center justify-between">
-        <h1 className="font-display text-2xl font-bold text-gray-900">My Profile</h1>
+        <h2 className="mt-6 font-display text-lg font-bold text-gray-900">Account Details</h2>
         <span
-          className={`rounded-full px-3 py-1 text-xs font-medium ${kycColor[profile.kycStatus] || 'bg-gray-50 text-gray-600'}`}
+          className={`mt-6 rounded-full px-3 py-1 text-xs font-medium ${kycColor[profile.kycStatus] || 'bg-gray-50 text-gray-600'}`}
         >
           KYC: {profile.kycStatus}
         </span>
@@ -83,6 +95,20 @@ export default function ProfilePage() {
                 value={form.lastName}
                 onChange={(e) => setForm((f) => ({ ...f, lastName: e.target.value }))}
                 placeholder="Last Name"
+                className="rounded-lg border px-3 py-2 text-sm"
+              />
+            </div>
+            <div className="grid grid-cols-2 gap-3">
+              <input
+                value={form.profession}
+                onChange={(e) => setForm((f) => ({ ...f, profession: e.target.value }))}
+                placeholder="Profession"
+                className="rounded-lg border px-3 py-2 text-sm"
+              />
+              <input
+                type="date"
+                value={form.dateOfBirth}
+                onChange={(e) => setForm((f) => ({ ...f, dateOfBirth: e.target.value }))}
                 className="rounded-lg border px-3 py-2 text-sm"
               />
             </div>
@@ -142,6 +168,22 @@ export default function ProfilePage() {
               <p>
                 <span className="text-gray-400">Email:</span> {profile.user?.email}
               </p>
+              {profile.user?.phone && (
+                <p>
+                  <span className="text-gray-400">Phone:</span> {profile.user.phone}
+                </p>
+              )}
+              {profile.profession && (
+                <p>
+                  <span className="text-gray-400">Profession:</span> {profile.profession}
+                </p>
+              )}
+              {profile.dateOfBirth && (
+                <p>
+                  <span className="text-gray-400">Date of Birth:</span>{' '}
+                  {new Date(profile.dateOfBirth).toLocaleDateString('en-IN')}
+                </p>
+              )}
               {profile.pan && (
                 <p>
                   <span className="text-gray-400">PAN:</span> {profile.pan}

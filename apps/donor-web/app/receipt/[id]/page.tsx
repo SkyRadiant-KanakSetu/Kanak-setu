@@ -48,9 +48,12 @@ export default function ReceiptPage() {
 
   return (
     <div className="mx-auto max-w-xl px-4 py-12">
-      <h1 className="font-display text-2xl font-bold text-gray-900">Payment Receipt</h1>
-      <p className="mt-1 text-gray-500">Donation successfully recorded on Kanak Setu.</p>
-      <div className="mt-6 rounded-xl border bg-white p-5 text-sm">
+      <div className="rounded-3xl border border-gold-100 bg-gradient-to-r from-white via-gold-50 to-gold-100 p-6">
+        <p className="text-xs font-semibold uppercase tracking-wide text-gold-700">Receipt</p>
+        <h1 className="mt-1 font-display text-2xl font-bold text-gray-900">Payment Receipt</h1>
+        <p className="mt-1 text-gray-600">Donation successfully recorded on Kanak Setu.</p>
+      </div>
+      <div className="mt-6 rounded-2xl border border-gray-100 bg-white p-5 text-sm shadow-sm">
         <p>
           <strong>Institution:</strong> {donation?.institution?.publicName || 'Institution'}
         </p>
@@ -63,6 +66,11 @@ export default function ReceiptPage() {
         <p className="mt-2">
           <strong>Donation Ref:</strong> {donation?.donationRef || donation?.id}
         </p>
+        {donation?.payment?.providerPaymentId && (
+          <p className="mt-2">
+            <strong>Payment Ref (UTR):</strong> {donation.payment.providerPaymentId}
+          </p>
+        )}
         {donation?.goldQuantityMg && (
           <p className="mt-2">
             <strong>Gold Allocated:</strong> {parseFloat(donation.goldQuantityMg).toFixed(2)} mg
@@ -77,11 +85,18 @@ export default function ReceiptPage() {
           })}
         </p>
       </div>
-      <div className="mt-6 flex gap-3">
+      <div className="mt-6 flex flex-wrap gap-3">
+        <button
+          type="button"
+          onClick={() => window.print()}
+          className="rounded-lg border border-gray-300 px-4 py-2 text-gray-700 hover:bg-gray-50"
+        >
+          Download / Print Receipt
+        </button>
         <button
           type="button"
           onClick={() => router.push('/history')}
-          className="rounded-lg bg-gold-500 px-4 py-2 text-white hover:bg-gold-600"
+          className="rounded-lg bg-gold-600 px-4 py-2 text-white hover:bg-gold-700"
         >
           View donation history
         </button>
