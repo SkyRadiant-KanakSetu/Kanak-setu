@@ -3,7 +3,7 @@ import { useState, useEffect } from 'react';
 import Image from 'next/image';
 import { authApi, admin, merkleApi, setTokens, clearTokens } from '@/lib/api';
 
-type Tab = 'dashboard' | 'institutions' | 'donations' | 'merkle' | 'webhooks' | 'audit';
+type Tab = 'dashboard' | 'institutions' | 'donations' | 'merkle' | 'assistant' | 'webhooks' | 'audit';
 const EXPLORER_TX_BASE_URL =
   process.env.NEXT_PUBLIC_BLOCK_EXPLORER_TX_BASE_URL || 'https://amoy.polygonscan.com/tx';
 
@@ -79,6 +79,7 @@ export default function AdminPage() {
     { key: 'institutions', label: '🏛 Institutions' },
     { key: 'donations', label: '💰 Donations' },
     { key: 'merkle', label: '⛓ Blockchain' },
+    { key: 'assistant', label: '🤖 Master Agent' },
     { key: 'webhooks', label: '🔔 Webhooks' },
     { key: 'audit', label: '📋 Audit Log' },
   ];
@@ -125,9 +126,90 @@ export default function AdminPage() {
         {tab === 'institutions' && <InstitutionsTab />}
         {tab === 'donations' && <DonationsTab />}
         {tab === 'merkle' && <MerkleTab />}
+        {tab === 'assistant' && <AssistantTab />}
         {tab === 'webhooks' && <WebhooksTab />}
         {tab === 'audit' && <AuditTab />}
       </main>
+    </div>
+  );
+}
+
+function AssistantTab() {
+  const [query, setQuery] = useState('');
+  const [loading, setLoading] = useState(false);
+  const [history, setHistory] = useState<Array<{ role: 'admin' | 'agent'; text: string }>>([
+    {
+      role: 'agent',
+      text: 'I am your Kanak Setu Master Agent. Ask me about blockchain anchoring, donation flow issues, deployment checks, reconciliation, or institution operations.',
+    },
+  ]);
+
+  const ask = async () => {
+    const q = query.trim();
+    if (!q || loading) return;
+    setHistory((prev) => [...prev, { role: 'admin', text: q }]);
+    setQuery('');
+    setLoading(true);
+    const res = await admin.assistantQuery(q);
+    if (res.success) {
+      setHistory((prev) => [...prev, { role: 'agent', text: res.data?.answer || 'No response available.' }]);
+    } else {
+      setHistory((prev) => [
+        ...prev,
+        { role: 'agent', text: res.error?.message || 'Unable to process your query right now.' },
+      ]);
+    }
+    setLoading(false);
+  };
+
+  return (
+    <div>
+      <h2 className="text-lg font-bold">Master Admin Agent</h2>
+      <p className="mt-1 text-sm text-gray-500">
+        Ask operational questions and get guided next steps for the platform.
+      </p>
+
+      <div className="mt-4 h-[420px] overflow-y-auto rounded-xl border bg-white p-4">
+        <div className="space-y-3">
+          {history.map((item, idx) => (
+            <div
+              key={`${item.role}-${idx}`}
+              className={`max-w-[90%] rounded-xl px-3 py-2 text-sm ${
+                item.role === 'admin' ? 'ml-auto bg-zinc-900 text-white' : 'bg-gray-100 text-zinc-800'
+              }`}
+            >
+              <p className="whitespace-pre-wrap">{item.text}</p>
+            </div>
+          ))}
+          {loading && (
+            <div className="max-w-[90%] rounded-xl bg-gray-100 px-3 py-2 text-sm text-zinc-600">
+              Thinking...
+            </div>
+          )}
+        </div>
+      </div>
+
+      <div className="mt-3 flex gap-2">
+        <input
+          value={query}
+          onChange={(e) => setQuery(e.target.value)}
+          onKeyDown={(e) => {
+            if (e.key === 'Enter' && !e.shiftKey) {
+              e.preventDefault();
+              ask();
+            }
+          }}
+          placeholder="Ask anything about admin operations..."
+          className="flex-1 rounded-lg border px-3 py-2 text-sm"
+        />
+        <button
+          onClick={ask}
+          disabled={loading}
+          className="rounded-lg bg-zinc-900 px-4 py-2 text-sm text-white hover:bg-zinc-800 disabled:opacity-60"
+        >
+          Send
+        </button>
+      </div>
     </div>
   );
 }

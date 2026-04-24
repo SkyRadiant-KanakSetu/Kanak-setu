@@ -17,6 +17,73 @@ import { runReconciliationJob } from '../reconciliation/reconciliation.service';
 export const adminRouter = Router();
 adminRouter.use(authenticate);
 
+function buildLocalAssistantReply(query: string) {
+  const q = query.toLowerCase();
+  if (q.includes('anchor') || q.includes('merkle') || q.includes('blockchain')) {
+    return [
+      'To stabilize blockchain operations: 1) check anchor wallet balance, 2) seal pending donations, 3) anchor sealed batches, and 4) verify recent tx hashes in the Blockchain tab.',
+      'If you see ANCHOR_FAILED rows, they are often historical retries-exhausted batches. Prioritize newly sealed batches first, then retry failed ones selectively.',
+    ].join('\n\n');
+  }
+  if (q.includes('donation') || q.includes('payment') || q.includes('utr')) {
+    return [
+      'For donation/payment issues: verify donation status progression (CREATED -> COMPLETED/BATCHED/ANCHORED), confirm UTR/providerPaymentId presence, and inspect latest payment event in Admin > Donations.',
+      'If many failures appear, check webhook delivery statuses and run reconciliation from Admin > Webhooks.',
+    ].join('\n\n');
+  }
+  if (q.includes('institution') || q.includes('upi')) {
+    return [
+      'For institution onboarding and UPI support: validate status transitions, ensure UPI ID format is valid, and confirm donor link/slug correctness before sharing.',
+      'When donors report wrong QR target, re-save institution UPI ID and retest `/give/[slug]` resolution.',
+    ].join('\n\n');
+  }
+  if (q.includes('deploy') || q.includes('live') || q.includes('production')) {
+    return [
+      'Recommended production sequence: git pull -> db:generate -> build api/admin/donor/institution -> pm2 startOrReload --update-env -> pm2 save.',
+      'After deploy, always run health check and one end-to-end donation + proof check before declaring success.',
+    ].join('\n\n');
+  }
+  return [
+    'I can help with operations, donations, institutions, blockchain anchoring, deploy checks, and troubleshooting.',
+    'Ask me a specific task such as: "Why is proof not found?", "How to fix anchor failed batches?", or "Give go-live checklist for today."',
+  ].join('\n\n');
+}
+
+async function askOpenAiAdminAssistant(query: string, adminContext: Record<string, unknown>) {
+  const apiKey = process.env.OPENAI_API_KEY;
+  if (!apiKey) return null;
+
+  const model = process.env.OPENAI_ADMIN_ASSISTANT_MODEL || 'gpt-4o-mini';
+  const response = await fetch('https://api.openai.com/v1/chat/completions', {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      Authorization: `Bearer ${apiKey}`,
+    },
+    body: JSON.stringify({
+      model,
+      temperature: 0.2,
+      messages: [
+        {
+          role: 'system',
+          content:
+            'You are the Kanak Setu platform master admin assistant. Give practical, safe, concise operational guidance. Do not fabricate metrics. If data is missing, say so and provide next checks.',
+        },
+        {
+          role: 'user',
+          content: `Admin context:\n${JSON.stringify(adminContext)}\n\nAdmin question:\n${query}`,
+        },
+      ],
+    }),
+  });
+
+  if (!response.ok) {
+    throw new Error(`OpenAI request failed with status ${response.status}`);
+  }
+  const payload = (await response.json()) as any;
+  return payload?.choices?.[0]?.message?.content?.trim() || null;
+}
+
 // ── Dashboard KPIs ──
 adminRouter.get('/dashboard', requirePlatformStaff, async (_req: Request, res: Response, next: NextFunction) => {
   try {
@@ -97,6 +164,52 @@ adminRouter.get('/dashboard', requirePlatformStaff, async (_req: Request, res: R
       avgDonationTicketPaiseInRange,
       donorTrend,
     });
+  } catch (e) {
+    next(e);
+  }
+});
+
+// ── Master admin assistant (guidance only) ──
+adminRouter.post('/assistant/query', requirePlatformStaff, async (req: Request, res: Response, next: NextFunction) => {
+  try {
+    const query = String(req.body?.query || '').trim();
+    if (!query || query.length < 3) {
+      throw new AppError(400, 'INVALID_INPUT', 'Please provide a meaningful query');
+    }
+
+    const [activeInstitutions, completedDonations, pendingReviewCount, anchorSummary] = await Promise.all([
+      prisma.institutionProfile.count({ where: { status: 'ACTIVE' } }),
+      prisma.donation.count({ where: { status: { in: ['COMPLETED', 'BATCHED', 'ANCHORED'] as any } } }),
+      prisma.institutionProfile.count({ where: { status: { in: ['SUBMITTED', 'UNDER_REVIEW'] } } }),
+      prisma.merkleBatch.groupBy({ by: ['status'], _count: { status: true } }),
+    ]);
+
+    const context = {
+      activeInstitutions,
+      completedDonations,
+      pendingReviewCount,
+      anchorSummary: anchorSummary.map((row) => ({ status: row.status, count: row._count.status })),
+      timestamp: new Date().toISOString(),
+    };
+
+    let answer: string | null = null;
+    try {
+      answer = await askOpenAiAdminAssistant(query, context);
+    } catch {
+      answer = null;
+    }
+    if (!answer) answer = buildLocalAssistantReply(query);
+
+    await auditLog({
+      userId: req.auth!.userId,
+      action: 'READ',
+      entity: 'AdminAssistant',
+      entityId: 'query',
+      metadata: { query, usedLlm: Boolean(process.env.OPENAI_API_KEY) },
+      req,
+    });
+
+    success(res, { answer, context });
   } catch (e) {
     next(e);
   }

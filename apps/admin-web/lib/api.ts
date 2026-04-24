@@ -125,6 +125,8 @@ export const admin = {
     api(
       `/admin/webhooks/deliveries?page=${page}${provider ? `&provider=${encodeURIComponent(provider)}` : ''}`
     ),
+  assistantQuery: (query: string) =>
+    api('/admin/assistant/query', { method: 'POST', body: JSON.stringify({ query }) }),
   ledgerAdjust: (data: any) =>
     api('/admin/ledger/adjust', { method: 'POST', body: JSON.stringify(data) }),
 };
