@@ -5,7 +5,7 @@ import { prisma } from '../../config/prisma';
 import { success, paginated } from '../../utils/response';
 import { AppError } from '../../middleware/errorHandler';
 import { sealCurrentBatch, verifyProof } from './merkle.service';
-import { anchorBatch, anchorAllSealed } from './anchor.service';
+import { anchorBatch, anchorAllSealed, getAnchorWalletBalance } from './anchor.service';
 
 export const merkleRouter = Router();
 
@@ -76,6 +76,21 @@ merkleRouter.post(
       const force = req.query.force === '1' || req.body?.force === true;
       const results = await anchorAllSealed(force);
       success(res, results);
+    } catch (e) {
+      next(e);
+    }
+  }
+);
+
+// ── Get anchor wallet balance (admin) ──
+merkleRouter.get(
+  '/wallet-balance',
+  authenticate,
+  requirePlatformStaff,
+  async (_req: Request, res: Response, next: NextFunction) => {
+    try {
+      const balance = await getAnchorWalletBalance();
+      success(res, balance);
     } catch (e) {
       next(e);
     }

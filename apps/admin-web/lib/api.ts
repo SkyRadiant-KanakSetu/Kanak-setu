@@ -131,6 +131,7 @@ export const admin = {
 
 export const merkleApi = {
   batches: (page = 1) => api(`/merkle/batches?page=${page}`),
+  walletBalance: () => api('/merkle/wallet-balance'),
   seal: () => api('/merkle/seal', { method: 'POST' }),
   anchor: (batchId: string) => api(`/merkle/anchor/${batchId}`, { method: 'POST' }),
   anchorAll: (force = false) => api(`/merkle/anchor-all${force ? '?force=1' : ''}`, { method: 'POST' }),

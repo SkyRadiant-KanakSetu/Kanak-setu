@@ -37,6 +37,25 @@ function getSigner() {
   return new ethers.Wallet(key, getProvider());
 }
 
+export async function getAnchorWalletBalance() {
+  await assertAnchorRuntimeReady();
+  const signer = getSigner();
+  const provider = getProvider();
+  const [balanceWei, network] = await Promise.all([
+    provider.getBalance(signer.address),
+    provider.getNetwork(),
+  ]);
+
+  return {
+    address: signer.address,
+    network: Number(network.chainId) === EXPECTED_CHAIN_ID ? 'polygon_amoy' : String(network.name || 'unknown'),
+    chainId: Number(network.chainId),
+    balanceWei: balanceWei.toString(),
+    balanceMatic: ethers.formatEther(balanceWei),
+    anchoringEnabled: process.env.ENABLE_BLOCKCHAIN_ANCHORING !== '0',
+  };
+}
+
 function getContract() {
   const addr = process.env.ANCHOR_CONTRACT_ADDRESS;
   if (!addr) throw new AppError(500, 'CONFIG', 'ANCHOR_CONTRACT_ADDRESS not configured');

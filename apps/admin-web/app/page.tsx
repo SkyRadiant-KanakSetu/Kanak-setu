@@ -703,10 +703,23 @@ function DonationsTab() {
 // ── Merkle / Blockchain ──
 function MerkleTab() {
   const [batches, setBatches] = useState<any[]>([]);
+  const [wallet, setWallet] = useState<any>(null);
   const [msg, setMsg] = useState('');
+  const [loadingWallet, setLoadingWallet] = useState(false);
   const load = () => merkleApi.batches().then((r) => r.success && setBatches(r.data || []));
+  const loadWallet = async () => {
+    setLoadingWallet(true);
+    const r = await merkleApi.walletBalance();
+    if (r.success) {
+      setWallet(r.data || null);
+    } else {
+      setMsg(r.error?.message || 'Failed to fetch Amoy wallet balance');
+    }
+    setLoadingWallet(false);
+  };
   useEffect(() => {
     load();
+    loadWallet();
   }, []);
 
   const seal = async () => {
@@ -725,6 +738,29 @@ function MerkleTab() {
   return (
     <div>
       <h2 className="text-lg font-bold">Blockchain Anchoring</h2>
+      <div className="mt-4 rounded-xl border bg-white p-4">
+        <div className="flex items-start justify-between gap-3">
+          <div>
+            <p className="text-xs uppercase tracking-wide text-gray-500">Amoy Wallet Balance</p>
+            <p className="mt-1 text-2xl font-bold">
+              {wallet ? `${Number(wallet.balanceMatic || 0).toFixed(6)} MATIC` : '--'}
+            </p>
+            <p className="mt-1 text-xs text-gray-500">
+              {wallet?.address ? `Address: ${wallet.address}` : 'Address unavailable'}
+            </p>
+            <p className="mt-1 text-xs text-gray-500">
+              {wallet?.network ? `Network: ${wallet.network} (${wallet.chainId})` : ''}
+            </p>
+          </div>
+          <button
+            onClick={loadWallet}
+            disabled={loadingWallet}
+            className="rounded bg-zinc-100 px-3 py-1.5 text-xs font-medium text-zinc-700 hover:bg-zinc-200 disabled:opacity-60"
+          >
+            {loadingWallet ? 'Refreshing...' : 'Refresh balance'}
+          </button>
+        </div>
+      </div>
       <div className="mt-4 flex gap-3">
         <button
           onClick={seal}
