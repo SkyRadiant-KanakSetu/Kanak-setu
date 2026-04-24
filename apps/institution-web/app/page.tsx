@@ -151,8 +151,15 @@ export default function InstitutionHome() {
 
   return (
     <div className="mx-auto max-w-6xl px-4 py-8">
-      <div className="flex items-center justify-between">
-        <h1 className="font-serif text-2xl font-bold">Dashboard</h1>
+      <div className="relative flex items-start justify-end">
+        <div className="absolute left-1/2 top-0 w-full -translate-x-1/2 text-center">
+          <h1 className="font-serif text-2xl font-bold">
+            {dashboard?.publicName || dashboard?.legalName || 'Institution Portal'}
+          </h1>
+          <p className="mt-1 text-sm text-gray-600">
+            Welcome, {dashboard?.publicName || dashboard?.legalName || 'Institution'}
+          </p>
+        </div>
         <button
           onClick={handleLogout}
           className="rounded border px-3 py-1 text-sm hover:bg-gray-50"
