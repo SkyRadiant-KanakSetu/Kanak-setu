@@ -7,6 +7,17 @@ import { auditLog } from '../../utils/auditLog';
 
 export const institutionRouter = Router();
 
+function calculateAgeFromDob(dateOfBirth: Date | null | undefined) {
+  if (!dateOfBirth) return null;
+  const today = new Date();
+  let age = today.getFullYear() - dateOfBirth.getFullYear();
+  const monthDiff = today.getMonth() - dateOfBirth.getMonth();
+  const hasBirthdayPassed =
+    monthDiff > 0 || (monthDiff === 0 && today.getDate() >= dateOfBirth.getDate());
+  if (!hasBirthdayPassed) age -= 1;
+  return age >= 0 ? age : null;
+}
+
 // ── PUBLIC: List active institutions ──
 institutionRouter.get('/', async (req: Request, res: Response, next: NextFunction) => {
   try {
@@ -260,7 +271,7 @@ institutionRouter.get(
       });
       if (!profile) throw new AppError(404, 'NOT_FOUND', 'No institution profile');
 
-      const [totalDonations, totalGoldMg, recentDonations] = await Promise.all([
+      const [totalDonations, totalGoldMg, recentDonations, donorSnapshotDonations] = await Promise.all([
         prisma.donation.count({
           where: {
             institutionId: profile.id,
@@ -282,6 +293,54 @@ institutionRouter.get(
             goldQuantityMg: true,
             status: true,
             createdAt: true,
+            donor: {
+              select: {
+                firstName: true,
+                lastName: true,
+                profession: true,
+                dateOfBirth: true,
+                city: true,
+                state: true,
+                pincode: true,
+                address: true,
+                user: {
+                  select: {
+                    email: true,
+                    phone: true,
+                  },
+                },
+              },
+            },
+          },
+        }),
+        prisma.donation.findMany({
+          where: {
+            institutionId: profile.id,
+            status: { in: ['COMPLETED', 'BATCHED', 'ANCHORED'] },
+          },
+          take: 100,
+          orderBy: { createdAt: 'desc' },
+          select: {
+            donorId: true,
+            createdAt: true,
+            donor: {
+              select: {
+                firstName: true,
+                lastName: true,
+                profession: true,
+                dateOfBirth: true,
+                city: true,
+                state: true,
+                pincode: true,
+                address: true,
+                user: {
+                  select: {
+                    email: true,
+                    phone: true,
+                  },
+                },
+              },
+            },
           },
         }),
       ]);
@@ -338,6 +397,27 @@ institutionRouter.get(
         activeDonors: donorsByDay[d].size,
       }));
 
+      const donorDirectoryMap = new Map<string, any>();
+      for (const row of donorSnapshotDonations) {
+        if (!row.donor || donorDirectoryMap.has(row.donorId)) continue;
+        donorDirectoryMap.set(row.donorId, {
+          donorId: row.donorId,
+          firstName: row.donor.firstName,
+          lastName: row.donor.lastName,
+          email: row.donor.user.email,
+          phone: row.donor.user.phone,
+          profession: row.donor.profession,
+          age: calculateAgeFromDob(row.donor.dateOfBirth),
+          dateOfBirth: row.donor.dateOfBirth,
+          address: row.donor.address,
+          city: row.donor.city,
+          state: row.donor.state,
+          pincode: row.donor.pincode,
+          latestDonationAt: row.createdAt,
+        });
+      }
+      const donorDirectory = Array.from(donorDirectoryMap.values());
+
       success(res, {
         institutionId: profile.id,
         publicName: profile.publicName,
@@ -351,6 +431,7 @@ institutionRouter.get(
         activeDonorsInRange: donorCounts30d.length,
         rangeDays,
         donorTrend,
+        donorDirectory,
         recentDonations,
       });
     } catch (e) {

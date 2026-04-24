@@ -291,6 +291,11 @@ export default function InstitutionHome() {
               <thead className="bg-gray-50 text-left text-xs text-gray-500">
                 <tr>
                   <th className="px-4 py-2">Ref</th>
+                  <th className="px-4 py-2">Donor</th>
+                  <th className="px-4 py-2">Phone</th>
+                  <th className="px-4 py-2">Location</th>
+                  <th className="px-4 py-2">Profession</th>
+                  <th className="px-4 py-2">Age</th>
                   <th className="px-4 py-2">Amount</th>
                   <th className="px-4 py-2">Gold (mg)</th>
                   <th className="px-4 py-2">Status</th>
@@ -301,6 +306,15 @@ export default function InstitutionHome() {
                 {(dashboard.recentDonations || []).map((d: any) => (
                   <tr key={d.id} className="border-t">
                     <td className="px-4 py-2 font-mono text-xs">{d.donationRef?.slice(0, 12)}</td>
+                    <td className="px-4 py-2">
+                      {[d.donor?.firstName, d.donor?.lastName].filter(Boolean).join(' ') || '-'}
+                    </td>
+                    <td className="px-4 py-2">{d.donor?.user?.phone || '-'}</td>
+                    <td className="px-4 py-2">{[d.donor?.city, d.donor?.state].filter(Boolean).join(', ') || '-'}</td>
+                    <td className="px-4 py-2">{d.donor?.profession || '-'}</td>
+                    <td className="px-4 py-2">
+                      {calcAge(d.donor?.dateOfBirth)}
+                    </td>
                     <td className="px-4 py-2">₹{(d.amountPaise / 100).toFixed(2)}</td>
                     <td className="px-4 py-2">
                       {d.goldQuantityMg ? parseFloat(d.goldQuantityMg).toFixed(2) : '-'}
@@ -313,6 +327,47 @@ export default function InstitutionHome() {
                     </td>
                   </tr>
                 ))}
+              </tbody>
+            </table>
+          </div>
+
+          <h2 className="mt-10 font-semibold text-lg">Donor Directory</h2>
+          <div className="mt-3 rounded-xl border bg-white overflow-hidden">
+            <table className="w-full text-sm">
+              <thead className="bg-gray-50 text-left text-xs text-gray-500">
+                <tr>
+                  <th className="px-4 py-2">Name</th>
+                  <th className="px-4 py-2">Email</th>
+                  <th className="px-4 py-2">Phone</th>
+                  <th className="px-4 py-2">Profession</th>
+                  <th className="px-4 py-2">Age</th>
+                  <th className="px-4 py-2">Address</th>
+                  <th className="px-4 py-2">Latest Donation</th>
+                </tr>
+              </thead>
+              <tbody>
+                {(dashboard.donorDirectory || []).map((d: any) => (
+                  <tr key={d.donorId} className="border-t">
+                    <td className="px-4 py-2">{[d.firstName, d.lastName].filter(Boolean).join(' ') || '-'}</td>
+                    <td className="px-4 py-2">{d.email || '-'}</td>
+                    <td className="px-4 py-2">{d.phone || '-'}</td>
+                    <td className="px-4 py-2">{d.profession || '-'}</td>
+                    <td className="px-4 py-2">{d.age ?? '-'}</td>
+                    <td className="px-4 py-2 text-xs text-gray-600">
+                      {[d.address, d.city, d.state, d.pincode].filter(Boolean).join(', ') || '-'}
+                    </td>
+                    <td className="px-4 py-2 text-gray-400">
+                      {d.latestDonationAt ? new Date(d.latestDonationAt).toLocaleDateString('en-IN') : '-'}
+                    </td>
+                  </tr>
+                ))}
+                {(dashboard.donorDirectory || []).length === 0 && (
+                  <tr>
+                    <td colSpan={7} className="px-4 py-6 text-center text-gray-400">
+                      No donor profiles available yet
+                    </td>
+                  </tr>
+                )}
               </tbody>
             </table>
           </div>
@@ -384,4 +439,15 @@ function MiniTrend({ title, values }: { title: string; values: number[] }) {
       </div>
     </div>
   );
+}
+
+function calcAge(dateOfBirth?: string | null) {
+  if (!dateOfBirth) return '-';
+  const dob = new Date(dateOfBirth);
+  if (Number.isNaN(dob.getTime())) return '-';
+  const now = new Date();
+  let age = now.getFullYear() - dob.getFullYear();
+  const monthDiff = now.getMonth() - dob.getMonth();
+  if (monthDiff < 0 || (monthDiff === 0 && now.getDate() < dob.getDate())) age -= 1;
+  return age >= 0 ? String(age) : '-';
 }

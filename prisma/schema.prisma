@@ -84,6 +84,8 @@ model DonorProfile {
   userId      String         @unique
   firstName   String
   lastName    String
+  profession  String?
+  dateOfBirth DateTime?
   pan         String?
   kycStatus   DonorKycStatus @default(UNVERIFIED)
   address     String?

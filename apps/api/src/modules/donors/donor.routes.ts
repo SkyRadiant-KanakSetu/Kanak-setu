@@ -32,7 +32,8 @@ donorRouter.put(
   requireRole('DONOR'),
   async (req: Request, res: Response, next: NextFunction) => {
     try {
-      const { firstName, lastName, pan, address, city, state, pincode } = req.body;
+      const { firstName, lastName, profession, dateOfBirth, pan, address, city, state, pincode } =
+        req.body;
       const existing = await prisma.donorProfile.findUnique({
         where: { userId: req.auth!.userId },
         select: { kycStatus: true },
@@ -51,6 +52,8 @@ donorRouter.put(
         data: {
           firstName,
           lastName,
+          profession,
+          dateOfBirth: dateOfBirth ? new Date(dateOfBirth) : null,
           pan,
           address,
           city,
