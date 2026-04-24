@@ -53,7 +53,7 @@ async function askOpenAiAdminAssistant(query: string, adminContext: Record<strin
   const apiKey = process.env.OPENAI_API_KEY;
   if (!apiKey) return null;
 
-  const model = process.env.OPENAI_ADMIN_ASSISTANT_MODEL || 'gpt-4o-mini';
+  const model = process.env.OPENAI_ADMIN_ASSISTANT_MODEL || 'gpt-4o';
   const response = await fetch('https://api.openai.com/v1/chat/completions', {
     method: 'POST',
     headers: {
@@ -82,6 +82,90 @@ async function askOpenAiAdminAssistant(query: string, adminContext: Record<strin
   }
   const payload = (await response.json()) as any;
   return payload?.choices?.[0]?.message?.content?.trim() || null;
+}
+
+async function computeAssistantFacts(query: string) {
+  const q = query.toLowerCase();
+  const now = new Date();
+  const startOfToday = new Date(now);
+  startOfToday.setHours(0, 0, 0, 0);
+
+  const facts: Record<string, unknown> = {
+    generatedAt: now.toISOString(),
+  };
+
+  if (q.includes('today') || q.includes('donation') || q.includes('payment') || q.includes('amount')) {
+    const successfulStatuses = ['COMPLETED', 'BATCHED', 'ANCHORED'] as const;
+    const [todayDonationCount, todayDonationAmountAgg, todayPaymentFailedCount] = await Promise.all([
+      prisma.donation.count({
+        where: {
+          createdAt: { gte: startOfToday },
+          status: { in: successfulStatuses as any },
+        },
+      }),
+      prisma.donation.aggregate({
+        where: {
+          createdAt: { gte: startOfToday },
+          status: { in: successfulStatuses as any },
+        },
+        _sum: { amountPaise: true },
+      }),
+      prisma.donation.count({
+        where: {
+          createdAt: { gte: startOfToday },
+          status: { in: ['PAYMENT_FAILED', 'VENDOR_FAILED', 'DISPUTED'] },
+        },
+      }),
+    ]);
+
+    facts.today = {
+      successfulDonations: todayDonationCount,
+      successfulAmountPaise: Number(todayDonationAmountAgg._sum.amountPaise || 0),
+      successfulAmountRupees: Number(todayDonationAmountAgg._sum.amountPaise || 0) / 100,
+      failedOrDisputedDonations: todayPaymentFailedCount,
+    };
+  }
+
+  if (q.includes('anchor') || q.includes('merkle') || q.includes('blockchain') || q.includes('batch')) {
+    const [batchStatusCounts, latestBatches] = await Promise.all([
+      prisma.merkleBatch.groupBy({
+        by: ['status'],
+        _count: { status: true },
+      }),
+      prisma.merkleBatch.findMany({
+        orderBy: { createdAt: 'desc' },
+        take: 5,
+        include: { anchor: { select: { status: true, attempts: true, txHash: true, updatedAt: true } } },
+      }),
+    ]);
+
+    facts.blockchain = {
+      statusSummary: batchStatusCounts.map((row) => ({ status: row.status, count: row._count.status })),
+      latestBatches: latestBatches.map((b) => ({
+        batchNumber: b.batchNumber,
+        status: b.status,
+        leafCount: b.leafCount,
+        anchorStatus: b.anchor?.status || null,
+        attempts: b.anchor?.attempts ?? 0,
+        txHash: b.anchor?.txHash || null,
+      })),
+    };
+  }
+
+  if (q.includes('institution') || q.includes('review') || q.includes('kyc') || q.includes('upi')) {
+    const [submittedCount, activeCount, suspendedCount] = await Promise.all([
+      prisma.institutionProfile.count({ where: { status: { in: ['SUBMITTED', 'UNDER_REVIEW'] } } }),
+      prisma.institutionProfile.count({ where: { status: 'ACTIVE' } }),
+      prisma.institutionProfile.count({ where: { status: 'SUSPENDED' } }),
+    ]);
+    facts.institutions = {
+      pendingReview: submittedCount,
+      active: activeCount,
+      suspended: suspendedCount,
+    };
+  }
+
+  return facts;
 }
 
 // ── Dashboard KPIs ──
@@ -184,11 +268,13 @@ adminRouter.post('/assistant/query', requirePlatformStaff, async (req: Request, 
       prisma.merkleBatch.groupBy({ by: ['status'], _count: { status: true } }),
     ]);
 
+    const facts = await computeAssistantFacts(query);
     const context = {
       activeInstitutions,
       completedDonations,
       pendingReviewCount,
       anchorSummary: anchorSummary.map((row) => ({ status: row.status, count: row._count.status })),
+      facts,
       timestamp: new Date().toISOString(),
     };
 
