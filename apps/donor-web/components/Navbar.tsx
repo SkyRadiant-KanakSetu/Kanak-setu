@@ -9,9 +9,18 @@ export function Navbar() {
   return (
     <nav className="sticky top-0 z-50 border-b border-gold-200/70 bg-white/90 backdrop-blur-md">
       <div className="mx-auto flex max-w-6xl items-center justify-between px-4 py-3">
-        <Link href="/" className="flex items-center gap-2">
-          <Image src="/logo.png" alt="Kanak Setu" width={34} height={34} className="h-8 w-8 rounded-full" />
-          <span className="font-display text-xl font-bold text-gold-700">Kanak Setu</span>
+        <Link href="/" className="flex items-center gap-3">
+          <Image
+            src="/logo.png"
+            alt="Kanak Setu"
+            width={48}
+            height={48}
+            className="h-11 w-11 rounded-full border border-gold-200 bg-white p-0.5 shadow-sm"
+          />
+          <div className="leading-tight">
+            <p className="font-display text-xl font-bold text-gold-800">Kanak Setu</p>
+            <p className="text-[11px] font-medium uppercase tracking-wide text-gold-600">Digital Gold Donations</p>
+          </div>
         </Link>
         <div className="flex items-center gap-2 text-sm md:gap-5">
           <Link

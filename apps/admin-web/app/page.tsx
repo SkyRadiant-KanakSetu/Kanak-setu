@@ -1,5 +1,6 @@
 'use client';
 import { useState, useEffect } from 'react';
+import Image from 'next/image';
 import { authApi, admin, merkleApi, setTokens, clearTokens } from '@/lib/api';
 
 type Tab = 'dashboard' | 'institutions' | 'donations' | 'merkle' | 'webhooks' | 'audit';
@@ -34,6 +35,16 @@ export default function AdminPage() {
     return (
       <div className="flex min-h-screen items-center justify-center">
         <div className="w-full max-w-sm rounded-xl border bg-white p-8 shadow">
+          <div className="mb-4 flex flex-col items-center justify-center">
+            <Image
+              src="/logo.png"
+              alt="Kanak Setu"
+              width={76}
+              height={76}
+              className="h-16 w-16 rounded-full border border-zinc-200 bg-white p-0.5 shadow-sm"
+            />
+            <p className="mt-2 text-xs font-semibold uppercase tracking-wide text-zinc-500">Admin Console</p>
+          </div>
           <h1 className="text-xl font-bold">Admin Login</h1>
           {error && <p className="mt-2 text-sm text-red-600">{error}</p>}
           <form onSubmit={handleLogin} className="mt-4 space-y-3">
@@ -75,7 +86,21 @@ export default function AdminPage() {
   return (
     <div className="flex min-h-screen">
       <aside className="w-56 border-r bg-white p-4">
-        <div className="font-bold text-zinc-800 mb-6">🛡 Admin Panel</div>
+        <div className="mb-6 flex items-center gap-3 font-bold text-zinc-800">
+          <Image
+            src="/logo.png"
+            alt="Kanak Setu"
+            width={42}
+            height={42}
+            className="h-10 w-10 rounded-full border border-zinc-200 bg-white p-0.5 shadow-sm"
+          />
+          <span className="leading-tight">
+            <span className="block">Kanak Setu</span>
+            <span className="block text-[11px] font-semibold uppercase tracking-wide text-zinc-500">
+              Admin Panel
+            </span>
+          </span>
+        </div>
         {tabs.map((t) => (
           <button
             key={t.key}
