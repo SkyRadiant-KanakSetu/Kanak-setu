@@ -19,6 +19,8 @@ export default function InstitutionHome() {
   const [upiSaving, setUpiSaving] = useState(false);
   const [upiMessage, setUpiMessage] = useState('');
   const [activeTab, setActiveTab] = useState<InstitutionTab>('overview');
+  const [donationSearch, setDonationSearch] = useState('');
+  const [donorSearch, setDonorSearch] = useState('');
 
   useEffect(() => {
     if (typeof window !== 'undefined' && localStorage.getItem('accessToken')) {
@@ -126,6 +128,27 @@ export default function InstitutionHome() {
     );
   }
 
+  const recentDonations = dashboard?.recentDonations || [];
+  const filteredRecentDonations = recentDonations.filter((d: any) => {
+    const q = donationSearch.trim().toLowerCase();
+    if (!q) return true;
+    const donorName = [d.donor?.firstName, d.donor?.lastName].filter(Boolean).join(' ').toLowerCase();
+    return (
+      String(d.donationRef || '').toLowerCase().includes(q) ||
+      donorName.includes(q) ||
+      String(d.donor?.user?.phone || '').toLowerCase().includes(q) ||
+      String(d.status || '').toLowerCase().includes(q)
+    );
+  });
+  const donorDirectory = dashboard?.donorDirectory || [];
+  const filteredDonors = donorDirectory.filter((d: any) => {
+    const q = donorSearch.trim().toLowerCase();
+    if (!q) return true;
+    return [d.firstName, d.lastName, d.email, d.phone, d.profession, d.city, d.state]
+      .filter(Boolean)
+      .some((v) => String(v).toLowerCase().includes(q));
+  });
+
   return (
     <div className="mx-auto max-w-6xl px-4 py-8">
       <div className="flex items-center justify-between">
@@ -201,22 +224,33 @@ export default function InstitutionHome() {
             </span>
           </div>
 
-          <div className="mt-5 flex flex-wrap gap-2">
+          <div className="mt-5 rounded-2xl border border-gray-200 bg-gradient-to-r from-white via-gray-50 to-amber-50 p-2">
             {[
-              { key: 'overview', label: 'Overview' },
-              { key: 'donations', label: 'Recent Donations' },
-              { key: 'donors', label: 'Donor Directory' },
-              { key: 'ledger', label: 'Gold Ledger' },
-              { key: 'settings', label: 'Settings' },
+              { key: 'overview', label: 'Overview', count: dashboard.totalDonations || 0 },
+              { key: 'donations', label: 'Recent Donations', count: recentDonations.length || 0 },
+              { key: 'donors', label: 'Donor Directory', count: donorDirectory.length || 0 },
+              { key: 'ledger', label: 'Gold Ledger', count: ledger.length || 0 },
+              { key: 'settings', label: 'Settings', count: null },
             ].map((tab) => (
               <button
                 key={tab.key}
                 onClick={() => setActiveTab(tab.key as InstitutionTab)}
-                className={`rounded-lg px-3 py-1.5 text-xs font-medium ${
-                  activeTab === tab.key ? 'bg-amber-700 text-white' : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+                className={`mr-2 mb-2 rounded-xl px-3 py-2 text-xs font-semibold transition ${
+                  activeTab === tab.key
+                    ? 'bg-amber-700 text-white shadow-[0_8px_24px_rgba(180,120,20,0.28)]'
+                    : 'bg-white text-gray-700 hover:bg-gray-100'
                 }`}
               >
-                {tab.label}
+                <span>{tab.label}</span>
+                {tab.count !== null && (
+                  <span
+                    className={`ml-2 rounded-full px-2 py-0.5 text-[10px] ${
+                      activeTab === tab.key ? 'bg-white/20 text-white' : 'bg-gray-100 text-gray-600'
+                    }`}
+                  >
+                    {tab.count}
+                  </span>
+                )}
               </button>
             ))}
           </div>
@@ -224,31 +258,31 @@ export default function InstitutionHome() {
           {activeTab === 'overview' && (
             <>
               <div className="mt-6 grid gap-4 md:grid-cols-3">
-                <div className="rounded-xl border bg-white p-5">
+                <div className="rounded-2xl border bg-white p-5 shadow-sm">
                   <p className="text-sm text-gray-500">Total Donations</p>
                   <p className="mt-1 text-2xl font-bold">{dashboard.totalDonations}</p>
                 </div>
-                <div className="rounded-xl border bg-white p-5">
+                <div className="rounded-2xl border bg-white p-5 shadow-sm">
                   <p className="text-sm text-gray-500">Total Gold (mg)</p>
                   <p className="mt-1 text-2xl font-bold text-amber-700">
                     {parseFloat(dashboard.totalGoldMg || 0).toFixed(2)}
                   </p>
                 </div>
-                <div className="rounded-xl border bg-white p-5">
+                <div className="rounded-2xl border bg-white p-5 shadow-sm">
                   <p className="text-sm text-gray-500">Total Gold (grams)</p>
                   <p className="mt-1 text-2xl font-bold text-amber-700">
                     {(parseFloat(dashboard.totalGoldMg || 0) / 1000).toFixed(4)}
                   </p>
                 </div>
-                <div className="rounded-xl border bg-white p-5">
+                <div className="rounded-2xl border bg-white p-5 shadow-sm">
                   <p className="text-sm text-gray-500">Unique Donors</p>
                   <p className="mt-1 text-2xl font-bold">{dashboard.uniqueDonors ?? 0}</p>
                 </div>
-                <div className="rounded-xl border bg-white p-5">
+                <div className="rounded-2xl border bg-white p-5 shadow-sm">
                   <p className="text-sm text-gray-500">Repeat Donors</p>
                   <p className="mt-1 text-2xl font-bold">{dashboard.repeatDonors ?? 0}</p>
                 </div>
-                <div className="rounded-xl border bg-white p-5">
+                <div className="rounded-2xl border bg-white p-5 shadow-sm">
                   <p className="text-sm text-gray-500">Active Donors ({dashboard.rangeDays ?? 30}d)</p>
                   <p className="mt-1 text-2xl font-bold">{dashboard.activeDonorsInRange ?? 0}</p>
                 </div>
@@ -316,8 +350,16 @@ export default function InstitutionHome() {
 
           {activeTab === 'donations' && (
             <>
-              <h2 className="mt-10 font-semibold text-lg">Recent Donations</h2>
-              <div className="mt-3 rounded-xl border bg-white overflow-hidden">
+              <div className="mt-8 flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
+                <h2 className="font-semibold text-lg">Recent Donations</h2>
+                <input
+                  value={donationSearch}
+                  onChange={(e) => setDonationSearch(e.target.value)}
+                  placeholder="Search by ref, donor, phone, status..."
+                  className="w-full rounded-xl border px-3 py-2 text-sm md:w-96"
+                />
+              </div>
+              <div className="mt-3 rounded-2xl border bg-white overflow-hidden">
                 <table className="w-full text-sm">
                   <thead className="bg-gray-50 text-left text-xs text-gray-500">
                     <tr>
@@ -334,8 +376,8 @@ export default function InstitutionHome() {
                     </tr>
                   </thead>
                   <tbody>
-                    {(dashboard.recentDonations || []).map((d: any) => (
-                      <tr key={d.id} className="border-t">
+                    {filteredRecentDonations.map((d: any) => (
+                      <tr key={d.id} className="border-t hover:bg-amber-50/30">
                         <td className="px-4 py-2 font-mono text-xs">{d.donationRef?.slice(0, 12)}</td>
                         <td className="px-4 py-2">
                           {[d.donor?.firstName, d.donor?.lastName].filter(Boolean).join(' ') || '-'}
@@ -358,6 +400,13 @@ export default function InstitutionHome() {
                         </td>
                       </tr>
                     ))}
+                    {filteredRecentDonations.length === 0 && (
+                      <tr>
+                        <td colSpan={10} className="px-4 py-6 text-center text-gray-400">
+                          No donations match your search
+                        </td>
+                      </tr>
+                    )}
                   </tbody>
                 </table>
               </div>
@@ -366,8 +415,16 @@ export default function InstitutionHome() {
 
           {activeTab === 'donors' && (
             <>
-              <h2 className="mt-10 font-semibold text-lg">Donor Directory</h2>
-              <div className="mt-3 rounded-xl border bg-white overflow-hidden">
+              <div className="mt-8 flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
+                <h2 className="font-semibold text-lg">Donor Directory</h2>
+                <input
+                  value={donorSearch}
+                  onChange={(e) => setDonorSearch(e.target.value)}
+                  placeholder="Search donors by name, contact, profession..."
+                  className="w-full rounded-xl border px-3 py-2 text-sm md:w-96"
+                />
+              </div>
+              <div className="mt-3 rounded-2xl border bg-white overflow-hidden">
                 <table className="w-full text-sm">
                   <thead className="bg-gray-50 text-left text-xs text-gray-500">
                     <tr>
@@ -381,8 +438,8 @@ export default function InstitutionHome() {
                     </tr>
                   </thead>
                   <tbody>
-                    {(dashboard.donorDirectory || []).map((d: any) => (
-                      <tr key={d.donorId} className="border-t">
+                    {filteredDonors.map((d: any) => (
+                      <tr key={d.donorId} className="border-t hover:bg-indigo-50/20">
                         <td className="px-4 py-2">{[d.firstName, d.lastName].filter(Boolean).join(' ') || '-'}</td>
                         <td className="px-4 py-2">{d.email || '-'}</td>
                         <td className="px-4 py-2">{d.phone || '-'}</td>
@@ -396,10 +453,10 @@ export default function InstitutionHome() {
                         </td>
                       </tr>
                     ))}
-                    {(dashboard.donorDirectory || []).length === 0 && (
+                    {filteredDonors.length === 0 && (
                       <tr>
                         <td colSpan={7} className="px-4 py-6 text-center text-gray-400">
-                          No donor profiles available yet
+                          No donor profiles match your search
                         </td>
                       </tr>
                     )}
