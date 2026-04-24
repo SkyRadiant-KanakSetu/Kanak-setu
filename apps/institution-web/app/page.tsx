@@ -152,7 +152,7 @@ export default function InstitutionHome() {
   return (
     <div className="mx-auto max-w-6xl px-4 py-8">
       <div className="relative flex items-start justify-end">
-        <div className="absolute left-1/2 top-0 w-full -translate-x-1/2 text-center">
+        <div className="pointer-events-none absolute left-1/2 top-0 w-full -translate-x-1/2 text-center">
           <h1 className="font-serif text-2xl font-bold">
             {dashboard?.publicName || dashboard?.legalName || 'Institution Portal'}
           </h1>
