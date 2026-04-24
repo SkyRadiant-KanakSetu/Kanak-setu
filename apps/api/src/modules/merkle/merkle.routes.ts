@@ -23,7 +23,9 @@ merkleRouter.get(
           skip: (page - 1) * limit,
           take: limit,
           orderBy: { createdAt: 'desc' },
-          include: { anchor: { select: { txHash: true, blockNumber: true, status: true } } },
+          include: {
+            anchor: { select: { txHash: true, blockNumber: true, status: true, attempts: true, updatedAt: true } },
+          },
         }),
         prisma.merkleBatch.count(),
       ]);
@@ -69,9 +71,10 @@ merkleRouter.post(
   '/anchor-all',
   authenticate,
   requirePlatformStaff,
-  async (_req: Request, res: Response, next: NextFunction) => {
+  async (req: Request, res: Response, next: NextFunction) => {
     try {
-      const results = await anchorAllSealed();
+      const force = req.query.force === '1' || req.body?.force === true;
+      const results = await anchorAllSealed(force);
       success(res, results);
     } catch (e) {
       next(e);
@@ -82,13 +85,29 @@ merkleRouter.post(
 // ── Get proof for a donation (public) ──
 merkleRouter.get('/proof/:donationId', async (req: Request, res: Response, next: NextFunction) => {
   try {
+    console.log(
+      JSON.stringify({
+        module: 'merkle',
+        event: 'proof_fetch_requested',
+        donationId: req.params.donationId,
+        at: new Date().toISOString(),
+      })
+    );
     const leaf = await prisma.merkleLeaf.findUnique({
       where: { donationId: req.params.donationId },
       include: {
         batch: {
           include: {
             anchor: {
-              select: { txHash: true, network: true, contractAddr: true, blockNumber: true },
+              select: {
+                txHash: true,
+                network: true,
+                contractAddr: true,
+                blockNumber: true,
+                status: true,
+                attempts: true,
+                updatedAt: true,
+              },
             },
           },
         },
@@ -97,7 +116,18 @@ merkleRouter.get('/proof/:donationId', async (req: Request, res: Response, next:
         },
       },
     });
-    if (!leaf) throw new AppError(404, 'NOT_FOUND', 'Proof not found for this donation');
+    if (!leaf) {
+      const donation = await prisma.donation.findUnique({
+        where: { id: req.params.donationId },
+        select: { id: true, donationRef: true, status: true, createdAt: true },
+      });
+      if (!donation) throw new AppError(404, 'NOT_FOUND', 'Proof not found for this donation');
+      throw new AppError(
+        404,
+        'PROOF_NOT_READY',
+        `Proof is not available yet for donation status ${donation.status}`
+      );
+    }
 
     success(res, {
       donationRef: leaf.donation.donationRef,
@@ -107,15 +137,29 @@ merkleRouter.get('/proof/:donationId', async (req: Request, res: Response, next:
       merkleRoot: leaf.batch.merkleRoot,
       batchNumber: leaf.batch.batchNumber,
       batchStatus: leaf.batch.status,
+      sealedAt: leaf.batch.sealedAt,
+      anchoredAt: leaf.batch.anchoredAt,
       blockchain: leaf.batch.anchor
         ? {
             txHash: leaf.batch.anchor.txHash,
             network: leaf.batch.anchor.network,
             contract: leaf.batch.anchor.contractAddr,
             blockNumber: leaf.batch.anchor.blockNumber,
+            status: leaf.batch.anchor.status,
+            attempts: leaf.batch.anchor.attempts,
+            lastUpdatedAt: leaf.batch.anchor.updatedAt,
           }
         : null,
     });
+    console.log(
+      JSON.stringify({
+        module: 'merkle',
+        event: 'proof_fetch_succeeded',
+        donationId: req.params.donationId,
+        batchStatus: leaf.batch.status,
+        at: new Date().toISOString(),
+      })
+    );
   } catch (e) {
     next(e);
   }
@@ -126,6 +170,14 @@ merkleRouter.post('/verify', async (req: Request, res: Response, next: NextFunct
   try {
     const { leafHash, proof, merkleRoot } = req.body;
     const valid = verifyProof(leafHash, proof, merkleRoot);
+    console.log(
+      JSON.stringify({
+        module: 'merkle',
+        event: 'proof_verify',
+        valid,
+        at: new Date().toISOString(),
+      })
+    );
     success(res, { valid });
   } catch (e) {
     next(e);

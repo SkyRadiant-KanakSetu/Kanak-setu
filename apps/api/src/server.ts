@@ -5,12 +5,16 @@ getEnv();
 import { app } from './app';
 import { prisma } from './config/prisma';
 import { startCronJobs } from './jobs/scheduler';
+import { assertAnchorRuntimeReady } from './modules/merkle/anchor.service';
 
 const PORT = getEnv().PORT;
 
 async function main() {
   await prisma.$connect();
   console.log('✅ Database connected');
+
+  await assertAnchorRuntimeReady();
+  console.log('✅ Anchor runtime checks passed');
 
   startCronJobs();
   console.log('✅ Cron jobs started');

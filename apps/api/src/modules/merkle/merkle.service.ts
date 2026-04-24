@@ -1,10 +1,20 @@
 import { prisma } from '../../config/prisma';
 import { auditLog } from '../../utils/auditLog';
+import { AppError } from '../../middleware/errorHandler';
 import {
   donationLeafHashHex,
   merkleParentHash,
   type DonationLeafV1,
 } from '@kanak-setu/blockchain';
+
+const MERKLE_MAX_LEAVES_PER_BATCH = Math.max(
+  1,
+  parseInt(process.env.MERKLE_MAX_LEAVES_PER_BATCH || '1000', 10)
+);
+const MERKLE_MIN_LEAVES_TO_SEAL = Math.max(
+  1,
+  parseInt(process.env.MERKLE_MIN_LEAVES_TO_SEAL || '1', 10)
+);
 
 function leafFromDonation(d: {
   id: string;
@@ -104,6 +114,17 @@ export function verifyProof(
   return hash === root;
 }
 
+function logMerkle(event: string, metadata: Record<string, unknown> = {}) {
+  console.log(
+    JSON.stringify({
+      module: 'merkle',
+      event,
+      at: new Date().toISOString(),
+      ...metadata,
+    })
+  );
+}
+
 // ── SEAL CURRENT BATCH ──
 export async function sealCurrentBatch() {
   let batch = await prisma.merkleBatch.findFirst({ where: { status: 'COLLECTING' } });
@@ -111,15 +132,41 @@ export async function sealCurrentBatch() {
     batch = await prisma.merkleBatch.create({ data: { status: 'COLLECTING' } });
   }
 
+  const lock = await prisma.merkleBatch.updateMany({
+    where: { id: batch.id, status: 'COLLECTING' },
+    data: { status: 'SEALED' }, // temporary lock state before final root update
+  });
+  if (lock.count === 0) {
+    throw new AppError(409, 'BATCH_LOCKED', 'Another seal process is already in progress');
+  }
+
   const donations = await prisma.donation.findMany({
     where: { status: 'COMPLETED', merkleLeaf: null },
     orderBy: { createdAt: 'asc' },
-    take: 1000,
+    take: MERKLE_MAX_LEAVES_PER_BATCH,
   });
 
   if (donations.length === 0) {
+    await prisma.merkleBatch.update({
+      where: { id: batch.id },
+      data: { status: 'COLLECTING' },
+    });
     return { message: 'No donations to batch', batchId: batch.id };
   }
+
+  if (donations.length < MERKLE_MIN_LEAVES_TO_SEAL) {
+    await prisma.merkleBatch.update({
+      where: { id: batch.id },
+      data: { status: 'COLLECTING' },
+    });
+    return {
+      message: `Batch skipped: requires at least ${MERKLE_MIN_LEAVES_TO_SEAL} leaves`,
+      batchId: batch.id,
+      pendingLeaves: donations.length,
+    };
+  }
+
+  logMerkle('seal_started', { batchId: batch.id, leaves: donations.length });
 
   const leafHashes: string[] = [];
   for (let i = 0; i < donations.length; i++) {
@@ -155,11 +202,18 @@ export async function sealCurrentBatch() {
   await prisma.merkleBatch.create({ data: { status: 'COLLECTING' } });
 
   await auditLog({
-    action: 'CREATE',
+    action: 'STATUS_CHANGE',
     entity: 'MerkleBatch',
     entityId: batch.id,
-    after: { root, leafCount: donations.length, leafSchema: 'DonationLeafV1+keccak+sortedPair' },
+    after: {
+      status: 'SEALED',
+      root,
+      leafCount: donations.length,
+      leafSchema: 'DonationLeafV1+keccak+sortedPair',
+    },
   });
+
+  logMerkle('seal_completed', { batchId: batch.id, merkleRoot: root, leafCount: donations.length });
 
   return { batchId: batch.id, merkleRoot: root, leafCount: donations.length };
 }

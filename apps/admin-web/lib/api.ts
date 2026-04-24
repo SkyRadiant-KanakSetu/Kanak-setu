@@ -133,5 +133,5 @@ export const merkleApi = {
   batches: (page = 1) => api(`/merkle/batches?page=${page}`),
   seal: () => api('/merkle/seal', { method: 'POST' }),
   anchor: (batchId: string) => api(`/merkle/anchor/${batchId}`, { method: 'POST' }),
-  anchorAll: () => api('/merkle/anchor-all', { method: 'POST' }),
+  anchorAll: (force = false) => api(`/merkle/anchor-all${force ? '?force=1' : ''}`, { method: 'POST' }),
 };

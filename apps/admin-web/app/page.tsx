@@ -738,6 +738,17 @@ function MerkleTab() {
         >
           Anchor All Sealed
         </button>
+        <button
+          onClick={async () => {
+            setMsg('Anchoring (force mode)...');
+            const r = await merkleApi.anchorAll(true);
+            setMsg(JSON.stringify(r.data));
+            load();
+          }}
+          className="rounded bg-amber-600 px-4 py-2 text-sm text-white hover:bg-amber-700"
+        >
+          Force Anchor (override min leaves)
+        </button>
       </div>
       {msg && (
         <pre className="mt-3 rounded bg-gray-100 p-3 text-xs overflow-auto max-h-40">{msg}</pre>
@@ -748,6 +759,8 @@ function MerkleTab() {
             <tr>
               <th className="px-3 py-2">#</th>
               <th className="px-3 py-2">Status</th>
+              <th className="px-3 py-2">Anchor</th>
+              <th className="px-3 py-2">Attempts</th>
               <th className="px-3 py-2">Leaves</th>
               <th className="px-3 py-2">Root</th>
               <th className="px-3 py-2">Tx Hash</th>
@@ -765,6 +778,12 @@ function MerkleTab() {
                     {b.status}
                   </span>
                 </td>
+                <td className="px-3 py-2">
+                  <span className="rounded bg-gray-100 px-1.5 py-0.5 text-xs">
+                    {b.anchor?.status || 'PENDING'}
+                  </span>
+                </td>
+                <td className="px-3 py-2">{b.anchor?.attempts ?? 0}</td>
                 <td className="px-3 py-2">{b.leafCount}</td>
                 <td className="px-3 py-2 font-mono text-xs">{b.merkleRoot?.slice(0, 16)}...</td>
                 <td className="px-3 py-2 text-xs">

@@ -15,12 +15,14 @@ function VerifyContent() {
   const [certData, setCertData] = useState<any>(null);
   const [loading, setLoading] = useState(false);
   const [searchRef, setSearchRef] = useState(certRef || '');
+  const [info, setInfo] = useState('');
 
   useEffect(() => {
     if (donationId) {
       setLoading(true);
       merkle.proof(donationId).then((res) => {
         if (res.success) setProof(res.data);
+        else setInfo(res.error?.message || 'Proof not available yet for this donation');
         setLoading(false);
       });
     }
@@ -31,10 +33,22 @@ function VerifyContent() {
     const r = ref || searchRef;
     if (!r) return;
     setLoading(true);
+    setInfo('');
     const res = await verify.certificate(r);
     if (res.success) setCertData(res.data);
+    else setInfo(res.error?.message || 'Certificate not found');
     setLoading(false);
   };
+
+  async function copyValue(value: string) {
+    try {
+      await navigator.clipboard.writeText(value);
+      setInfo('Copied to clipboard');
+      window.setTimeout(() => setInfo(''), 1400);
+    } catch {
+      setInfo('Could not copy');
+    }
+  }
 
   return (
     <div className="mx-auto max-w-2xl px-4 py-12">
@@ -65,6 +79,7 @@ function VerifyContent() {
       )}
 
       {loading && <p className="mt-8 text-gray-400">Verifying...</p>}
+      {!loading && info && <p className="mt-4 text-sm text-gray-500">{info}</p>}
 
       {/* Blockchain proof view */}
       {proof && (
@@ -80,19 +95,47 @@ function VerifyContent() {
             <div>
               <span className="text-gray-400">Leaf Hash:</span>{' '}
               <code className="text-xs bg-gray-50 px-1 rounded">{proof.leafHash}</code>
+              <button
+                type="button"
+                onClick={() => copyValue(proof.leafHash)}
+                className="ml-2 rounded bg-gray-100 px-2 py-0.5 text-[11px] text-gray-700 hover:bg-gray-200"
+              >
+                Copy
+              </button>
             </div>
             <div>
               <span className="text-gray-400">Merkle Root:</span>{' '}
               <code className="text-xs bg-gray-50 px-1 rounded">{proof.merkleRoot}</code>
+              <button
+                type="button"
+                onClick={() => copyValue(proof.merkleRoot)}
+                className="ml-2 rounded bg-gray-100 px-2 py-0.5 text-[11px] text-gray-700 hover:bg-gray-200"
+              >
+                Copy
+              </button>
             </div>
             <div>
               <span className="text-gray-400">Batch #:</span> {proof.batchNumber} (
               {proof.batchStatus})
             </div>
+            {!proof.blockchain && (
+              <div className="rounded border border-amber-200 bg-amber-50 p-2 text-xs text-amber-800">
+                Proof is generated but this batch is not anchored on-chain yet.
+              </div>
+            )}
             {proof.blockchain && (
               <>
                 <div>
                   <span className="text-gray-400">Network:</span> {proof.blockchain.network}
+                </div>
+                <div>
+                  <span className="text-gray-400">Anchor status:</span>{' '}
+                  <span className="rounded bg-gray-100 px-1.5 py-0.5 text-xs">
+                    {proof.blockchain.status || proof.batchStatus}
+                  </span>
+                </div>
+                <div>
+                  <span className="text-gray-400">Attempts:</span> {proof.blockchain.attempts ?? 0}
                 </div>
                 <div>
                   <span className="text-gray-400">Tx Hash:</span>
@@ -104,6 +147,13 @@ function VerifyContent() {
                   >
                     {proof.blockchain.txHash}
                   </a>
+                  <button
+                    type="button"
+                    onClick={() => copyValue(proof.blockchain.txHash)}
+                    className="ml-2 rounded bg-gray-100 px-2 py-0.5 text-[11px] text-gray-700 hover:bg-gray-200"
+                  >
+                    Copy
+                  </button>
                 </div>
                 <div>
                   <span className="text-gray-400">Block:</span> {proof.blockchain.blockNumber}
