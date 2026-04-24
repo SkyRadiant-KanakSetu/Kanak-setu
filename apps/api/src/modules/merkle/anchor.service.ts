@@ -12,7 +12,16 @@ const ANCHOR_ABI = [
 const MAX_ANCHOR_ATTEMPTS = 10;
 const ANCHOR_RETRY_BASE_MS = Math.max(1000, parseInt(process.env.ANCHOR_RETRY_BASE_MS || '60000', 10));
 const MIN_LEAVES_TO_ANCHOR = Math.max(1, parseInt(process.env.MERKLE_MIN_LEAVES_TO_ANCHOR || '1', 10));
-const EXPECTED_CHAIN_ID = 80002;
+
+function getExpectedChainId() {
+  return Math.max(1, parseInt(process.env.CHAIN_ID || '80002', 10));
+}
+
+function chainLabel(chainId: number) {
+  if (chainId === 137) return 'polygon_mainnet';
+  if (chainId === 80002) return 'polygon_amoy';
+  return `chain_${chainId}`;
+}
 
 function logAnchor(event: string, metadata: Record<string, unknown> = {}) {
   console.log(
@@ -48,7 +57,7 @@ export async function getAnchorWalletBalance() {
 
   return {
     address: signer.address,
-    network: Number(network.chainId) === EXPECTED_CHAIN_ID ? 'polygon_amoy' : String(network.name || 'unknown'),
+    network: chainLabel(Number(network.chainId)),
     chainId: Number(network.chainId),
     balanceWei: balanceWei.toString(),
     balanceMatic: ethers.formatEther(balanceWei),
@@ -73,18 +82,19 @@ export async function assertAnchorRuntimeReady() {
   if (!process.env.ANCHOR_CONTRACT_ADDRESS) {
     throw new AppError(500, 'CONFIG', 'ANCHOR_CONTRACT_ADDRESS not configured');
   }
+  const expectedChainId = getExpectedChainId();
   const configuredChainId = parseInt(process.env.CHAIN_ID || '0', 10);
-  if (configuredChainId !== EXPECTED_CHAIN_ID) {
-    throw new AppError(500, 'CHAIN_ID_MISMATCH', `CHAIN_ID must be ${EXPECTED_CHAIN_ID} for Amoy`);
+  if (configuredChainId !== expectedChainId) {
+    throw new AppError(500, 'CHAIN_ID_MISMATCH', `CHAIN_ID must be ${expectedChainId}`);
   }
 
   const provider = getProvider();
   const network = await provider.getNetwork();
-  if (Number(network.chainId) !== EXPECTED_CHAIN_ID) {
+  if (Number(network.chainId) !== expectedChainId) {
     throw new AppError(
       500,
       'RPC_CHAIN_MISMATCH',
-      `RPC is chain ${network.chainId.toString()}, expected ${EXPECTED_CHAIN_ID}`
+      `RPC is chain ${network.chainId.toString()}, expected ${expectedChainId}`
     );
   }
 }
@@ -139,7 +149,7 @@ export async function anchorBatch(batchId: string) {
     anchor = await prisma.blockchainAnchor.create({
       data: {
         batchId,
-        network: process.env.CHAIN_ID === '137' ? 'polygon_mainnet' : 'polygon_amoy',
+        network: chainLabel(getExpectedChainId()) as any,
         merkleRoot: batch.merkleRoot,
         status: 'PENDING',
       },
