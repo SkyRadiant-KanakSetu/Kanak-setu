@@ -1,0 +1,42 @@
+name: Sky Radiant Agro CI
+
+on:
+  push:
+    paths:
+      - "sky-radiant-agro/**"
+      - ".github/workflows/sky-radiant-agro-ci.yml"
+  pull_request:
+    paths:
+      - "sky-radiant-agro/**"
+      - ".github/workflows/sky-radiant-agro-ci.yml"
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: sky-radiant-agro
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+          cache-dependency-path: sky-radiant-agro/package-lock.json
+
+      - name: Install dependencies
+        run: npm install
+
+      - name: Generate Prisma client
+        run: npm run db:generate
+        env:
+          DATABASE_URL: postgresql://postgres:postgres@localhost:5432/sky_radiant_agro_ci
+
+      - name: Build
+        run: npm run build
+
+      - name: Test
+        run: npm run test

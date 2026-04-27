@@ -1,0 +1,82 @@
+{
+  "info": {
+    "name": "Sky Radiant Agro API",
+    "_postman_id": "1f3d7fda-a0bf-4a7f-bdd9-01d99f4ad8ad",
+    "description": "Postman collection for Sky Radiant Agro standalone API",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "item": [
+    {
+      "name": "Health",
+      "request": {
+        "method": "GET",
+        "url": "{{baseUrl}}/health"
+      }
+    },
+    {
+      "name": "List Commodities",
+      "request": {
+        "method": "GET",
+        "header": [{ "key": "x-api-key", "value": "{{apiKey}}" }],
+        "url": "{{baseUrl}}/api/v1/commodities"
+      }
+    },
+    {
+      "name": "Create Commodity",
+      "request": {
+        "method": "POST",
+        "header": [
+          { "key": "Content-Type", "value": "application/json" },
+          { "key": "x-api-key", "value": "{{apiKey}}" }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"code\": \"TOMATO\",\n  \"name\": \"Tomato\",\n  \"category\": \"vegetable\",\n  \"defaultShelfLifeDays\": 4\n}"
+        },
+        "url": "{{baseUrl}}/api/v1/commodities"
+      }
+    },
+    {
+      "name": "Ingest Mandi Price",
+      "request": {
+        "method": "POST",
+        "header": [
+          { "key": "Content-Type", "value": "application/json" },
+          { "key": "x-api-key", "value": "{{apiKey}}" }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"commodityCode\": \"TOMATO\",\n  \"commodityName\": \"Tomato\",\n  \"marketName\": \"Azadpur\",\n  \"region\": \"Delhi\",\n  \"priceMin\": 10,\n  \"priceMax\": 13,\n  \"priceModal\": 11.5\n}"
+        },
+        "url": "{{baseUrl}}/api/v1/ingest/mandi-prices"
+      }
+    },
+    {
+      "name": "Generate Recommendation",
+      "request": {
+        "method": "POST",
+        "header": [
+          { "key": "Content-Type", "value": "application/json" },
+          { "key": "x-api-key", "value": "{{apiKey}}" }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"commodityCode\": \"TOMATO\",\n  \"sourceRegion\": \"Delhi\",\n  \"targetMarket\": \"Noida\",\n  \"quantityTons\": 5\n}"
+        },
+        "url": "{{baseUrl}}/api/v1/recommendations/generate"
+      }
+    },
+    {
+      "name": "List Recommendations",
+      "request": {
+        "method": "GET",
+        "header": [{ "key": "x-api-key", "value": "{{apiKey}}" }],
+        "url": "{{baseUrl}}/api/v1/recommendations"
+      }
+    }
+  ],
+  "variable": [
+    { "key": "baseUrl", "value": "http://localhost:4100" },
+    { "key": "apiKey", "value": "change-me-admin-key" }
+  ]
+}

@@ -1,0 +1,93 @@
+{
+  "version": "1.0.0",
+  "tools": [
+    {
+      "name": "get_mandi_prices",
+      "description": "Fetch latest and historical mandi prices for a commodity and region.",
+      "input": {
+        "type": "object",
+        "properties": {
+          "commodity": { "type": "string" },
+          "region": { "type": "string" },
+          "windowHours": { "type": "integer", "minimum": 1, "maximum": 720 }
+        },
+        "required": ["commodity", "region"]
+      }
+    },
+    {
+      "name": "get_weather_risk",
+      "description": "Get weather forecast and risk score for procurement zones.",
+      "input": {
+        "type": "object",
+        "properties": {
+          "region": { "type": "string" },
+          "days": { "type": "integer", "minimum": 1, "maximum": 14 }
+        },
+        "required": ["region"]
+      }
+    },
+    {
+      "name": "get_storage_options",
+      "description": "Return storage cost, availability, and commodity shelf-life impact.",
+      "input": {
+        "type": "object",
+        "properties": {
+          "commodity": { "type": "string" },
+          "region": { "type": "string" },
+          "quantityTons": { "type": "number", "minimum": 0.1 }
+        },
+        "required": ["commodity", "region", "quantityTons"]
+      }
+    },
+    {
+      "name": "get_quality_spec",
+      "description": "Get quality benchmarks for A-grade procurement.",
+      "input": {
+        "type": "object",
+        "properties": {
+          "commodity": { "type": "string" },
+          "grade": { "type": "string", "enum": ["A", "B", "C"] }
+        },
+        "required": ["commodity", "grade"]
+      }
+    },
+    {
+      "name": "get_logistics_quotes",
+      "description": "Fetch route-wise transport costs and transit constraints.",
+      "input": {
+        "type": "object",
+        "properties": {
+          "sourceRegion": { "type": "string" },
+          "targetMarket": { "type": "string" },
+          "commodity": { "type": "string" },
+          "quantityTons": { "type": "number", "minimum": 0.1 }
+        },
+        "required": ["sourceRegion", "targetMarket", "commodity", "quantityTons"]
+      }
+    },
+    {
+      "name": "get_global_benchmarks",
+      "description": "Fetch export/import benchmark prices and landed parity.",
+      "input": {
+        "type": "object",
+        "properties": {
+          "commodity": { "type": "string" },
+          "country": { "type": "string" }
+        },
+        "required": ["commodity"]
+      }
+    },
+    {
+      "name": "record_recommendation",
+      "description": "Persist recommendation for audit and performance tracking.",
+      "input": {
+        "type": "object",
+        "properties": {
+          "recommendationId": { "type": "string" },
+          "payload": { "type": "object" }
+        },
+        "required": ["recommendationId", "payload"]
+      }
+    }
+  ]
+}

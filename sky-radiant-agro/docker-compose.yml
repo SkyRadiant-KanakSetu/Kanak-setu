@@ -1,0 +1,31 @@
+version: "3.9"
+
+services:
+  postgres:
+    image: postgres:16
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
+      POSTGRES_DB: sky_radiant_agro
+    ports:
+      - "5433:5432"
+    volumes:
+      - agro_pg_data:/var/lib/postgresql/data
+
+  api:
+    build: .
+    restart: unless-stopped
+    depends_on:
+      - postgres
+    environment:
+      PORT: 4100
+      DATABASE_URL: postgresql://postgres:postgres@postgres:5432/sky_radiant_agro
+      API_KEYS: ADMIN:change-me-admin-key,OPS:change-me-ops-key,VIEWER:change-me-viewer-key
+      RATE_LIMIT_WINDOW_MS: 60000
+      RATE_LIMIT_MAX: 200
+    ports:
+      - "4100:4100"
+
+volumes:
+  agro_pg_data:

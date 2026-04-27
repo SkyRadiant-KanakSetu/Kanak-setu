@@ -1,0 +1,144 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Sky Radiant Agro Dashboard</title>
+    <style>
+      body { font-family: Arial, sans-serif; margin: 0; background: #f6f7fb; color: #111827; }
+      .wrap { max-width: 1100px; margin: 24px auto; padding: 0 16px; }
+      .card { background: #fff; border: 1px solid #e5e7eb; border-radius: 12px; padding: 14px; margin-bottom: 16px; }
+      .grid { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 12px; }
+      .muted { color: #6b7280; font-size: 12px; }
+      input, button, select { padding: 8px 10px; border-radius: 8px; border: 1px solid #d1d5db; }
+      button { background: #111827; color: white; cursor: pointer; }
+      table { width: 100%; border-collapse: collapse; }
+      th, td { border-bottom: 1px solid #e5e7eb; text-align: left; padding: 8px; font-size: 13px; }
+      .row { display: flex; gap: 8px; flex-wrap: wrap; }
+      .pill { display: inline-block; border-radius: 999px; padding: 2px 8px; font-size: 11px; }
+      .buy { background: #dcfce7; color: #166534; }
+      .sell { background: #fee2e2; color: #991b1b; }
+      .hold { background: #fef9c3; color: #854d0e; }
+    </style>
+  </head>
+  <body>
+    <div class="wrap">
+      <h1>Sky Radiant Agro Command Center</h1>
+      <p class="muted">Standalone intelligence dashboard</p>
+
+      <div class="card">
+        <div class="row">
+          <input id="apiKey" placeholder="x-api-key" style="min-width: 320px" />
+          <button onclick="loadAll()">Refresh</button>
+        </div>
+      </div>
+
+      <div class="grid">
+        <div class="card"><h3>Commodities</h3><div id="commoditiesCount">0</div></div>
+        <div class="card"><h3>Markets</h3><div id="marketsCount">0</div></div>
+        <div class="card"><h3>Recommendations</h3><div id="recommendationsCount">0</div></div>
+      </div>
+
+      <div class="card">
+        <h3>Generate Recommendation</h3>
+        <div class="row">
+          <input id="commodityCode" placeholder="Commodity code (e.g. TOMATO)" />
+          <input id="sourceRegion" placeholder="Source region (e.g. Delhi)" />
+          <input id="targetMarket" placeholder="Target market (e.g. Noida)" />
+          <input id="quantityTons" type="number" step="0.1" value="5" />
+          <button onclick="generateRecommendation()">Generate</button>
+        </div>
+        <p id="genMsg" class="muted"></p>
+      </div>
+
+      <div class="card">
+        <h3>Latest Recommendations</h3>
+        <table>
+          <thead>
+            <tr>
+              <th>Commodity</th>
+              <th>Action</th>
+              <th>Confidence</th>
+              <th>Source</th>
+              <th>Target</th>
+              <th>Created</th>
+            </tr>
+          </thead>
+          <tbody id="recommendationsBody"></tbody>
+        </table>
+      </div>
+    </div>
+
+    <script>
+      function headers() {
+        return {
+          'Content-Type': 'application/json',
+          'x-api-key': document.getElementById('apiKey').value.trim(),
+        };
+      }
+
+      async function fetchJson(url, opts = {}) {
+        const res = await fetch(url, opts);
+        const json = await res.json();
+        if (!res.ok || json.success === false) {
+          throw new Error(json?.error?.message || 'Request failed');
+        }
+        return json;
+      }
+
+      function actionPill(action) {
+        const cls = action === 'BUY' ? 'buy' : action === 'SELL' ? 'sell' : 'hold';
+        return `<span class="pill ${cls}">${action}</span>`;
+      }
+
+      async function loadAll() {
+        try {
+          const [commodities, markets, recommendations] = await Promise.all([
+            fetchJson('/api/v1/commodities', { headers: headers() }),
+            fetchJson('/api/v1/markets', { headers: headers() }),
+            fetchJson('/api/v1/recommendations?limit=20', { headers: headers() }),
+          ]);
+          document.getElementById('commoditiesCount').textContent = commodities.data.length;
+          document.getElementById('marketsCount').textContent = markets.data.length;
+          document.getElementById('recommendationsCount').textContent = recommendations.data.length;
+
+          const body = document.getElementById('recommendationsBody');
+          body.innerHTML = recommendations.data
+            .map((r) => {
+              return `<tr>
+                <td>${r.commodity?.code || '-'}</td>
+                <td>${actionPill(r.action)}</td>
+                <td>${Number(r.confidence).toFixed(3)}</td>
+                <td>${r.sourceRegion}</td>
+                <td>${r.targetMarket}</td>
+                <td>${new Date(r.createdAt).toLocaleString()}</td>
+              </tr>`;
+            })
+            .join('');
+        } catch (err) {
+          alert(err.message);
+        }
+      }
+
+      async function generateRecommendation() {
+        const payload = {
+          commodityCode: document.getElementById('commodityCode').value.trim().toUpperCase(),
+          sourceRegion: document.getElementById('sourceRegion').value.trim(),
+          targetMarket: document.getElementById('targetMarket').value.trim(),
+          quantityTons: Number(document.getElementById('quantityTons').value || 1),
+        };
+        try {
+          const json = await fetchJson('/api/v1/recommendations/generate', {
+            method: 'POST',
+            headers: headers(),
+            body: JSON.stringify(payload),
+          });
+          document.getElementById('genMsg').textContent = `Generated: ${json.data.id}`;
+          await loadAll();
+        } catch (err) {
+          document.getElementById('genMsg').textContent = err.message;
+        }
+      }
+    </script>
+  </body>
+</html>

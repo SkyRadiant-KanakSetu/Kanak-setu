@@ -1,0 +1,196 @@
+openapi: 3.0.3
+info:
+  title: Sky Radiant Agro API
+  version: 1.0.0
+  description: Agri-commodity intelligence and procurement support platform API.
+servers:
+  - url: http://localhost:4100
+components:
+  securitySchemes:
+    ApiKeyAuth:
+      type: apiKey
+      in: header
+      name: x-api-key
+security:
+  - ApiKeyAuth: []
+paths:
+  /health:
+    get:
+      summary: Service health check
+      security: []
+      responses:
+        '200':
+          description: OK
+  /api/v1/commodities:
+    get:
+      summary: List commodities
+      responses:
+        '200':
+          description: Commodity list
+    post:
+      summary: Create commodity
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [code, name]
+              properties:
+                code: { type: string }
+                name: { type: string }
+                category: { type: string }
+                defaultShelfLifeDays: { type: integer }
+      responses:
+        '201':
+          description: Created
+  /api/v1/markets:
+    get:
+      summary: List markets
+      responses:
+        '200':
+          description: Market list
+    post:
+      summary: Create market
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [name, region]
+              properties:
+                name: { type: string }
+                region: { type: string }
+                type: { type: string, enum: [MANDI, WHOLESALE, RETAIL, EXPORT_HUB] }
+      responses:
+        '201':
+          description: Created
+  /api/v1/ingest/mandi-prices:
+    post:
+      summary: Ingest mandi price point
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [commodityCode, marketName, region, priceMin, priceMax, priceModal]
+              properties:
+                commodityCode: { type: string }
+                commodityName: { type: string }
+                marketName: { type: string }
+                region: { type: string }
+                priceMin: { type: number }
+                priceMax: { type: number }
+                priceModal: { type: number }
+      responses:
+        '201':
+          description: Ingested
+  /api/v1/ingest/weather:
+    post:
+      summary: Ingest weather snapshot
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [region, forecastDate]
+              properties:
+                region: { type: string }
+                forecastDate: { type: string, format: date }
+                maxTempC: { type: number }
+                minTempC: { type: number }
+                humidityPct: { type: number }
+                rainfallMm: { type: number }
+      responses:
+        '201':
+          description: Ingested
+  /api/v1/intelligence/storage-plan:
+    get:
+      summary: Get storage plan recommendation
+      parameters:
+        - in: query
+          name: commodityCode
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Storage recommendation
+  /api/v1/recommendations/generate:
+    post:
+      summary: Generate buy/sell/hold recommendation
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [commodityCode, sourceRegion, targetMarket]
+              properties:
+                commodityCode: { type: string }
+                sourceRegion: { type: string }
+                targetMarket: { type: string }
+                quantityTons: { type: number }
+      responses:
+        '201':
+          description: Recommendation generated
+  /api/v1/recommendations:
+    get:
+      summary: List recommendations
+      responses:
+        '200':
+          description: Recommendation list
+  /api/v1/recommendations/{id}/outcome:
+    post:
+      summary: Record realized outcome
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                executed: { type: boolean }
+                executedQtyTons: { type: number }
+                realizedBuyAvg: { type: number }
+                realizedSellAvg: { type: number }
+                realizedMargin: { type: number }
+                spoilagePct: { type: number }
+                notes: { type: string }
+      responses:
+        '201':
+          description: Outcome recorded
+  /api/v1/seo/jobs:
+    get:
+      summary: List SEO jobs
+      responses:
+        '200':
+          description: SEO jobs list
+    post:
+      summary: Create SEO content job
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [topic, targetPersona, primaryKeyword]
+              properties:
+                topic: { type: string }
+                targetPersona: { type: string }
+                primaryKeyword: { type: string }
+                secondaryKeywords:
+                  type: array
+                  items: { type: string }
+      responses:
+        '201':
+          description: SEO job created

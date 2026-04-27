@@ -669,3 +669,191 @@ model CertificateTemplate {
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 }
+
+// ===================== AGRO INTELLIGENCE =====================
+
+model AgroCommodity {
+  id                   String   @id @default(cuid())
+  code                 String   @unique
+  name                 String
+  category             String // fruit, vegetable
+  defaultShelfLifeDays Int
+  createdAt            DateTime @default(now())
+
+  mandiPrices      AgroMandiPrice[]
+  qualitySpecs     AgroQualitySpec[]
+  storageProfiles  AgroStorageProfile[]
+  recommendations  AgroRecommendation[]
+}
+
+model AgroMarket {
+  id        String   @id @default(cuid())
+  name      String
+  region    String
+  type      AgroMarketType
+  createdAt DateTime @default(now())
+
+  mandiPrices AgroMandiPrice[]
+
+  @@index([region, type])
+}
+
+enum AgroMarketType {
+  MANDI
+  WHOLESALE
+  RETAIL
+  EXPORT_HUB
+}
+
+model AgroMandiPrice {
+  id          String   @id @default(cuid())
+  commodityId String
+  marketId    String
+  priceMin    Decimal  @db.Decimal(12, 2)
+  priceMax    Decimal  @db.Decimal(12, 2)
+  priceModal  Decimal  @db.Decimal(12, 2)
+  unit        String   @default("INR_PER_KG")
+  observedAt  DateTime
+  source      String
+  createdAt   DateTime @default(now())
+
+  commodity AgroCommodity @relation(fields: [commodityId], references: [id])
+  market    AgroMarket    @relation(fields: [marketId], references: [id])
+
+  @@index([commodityId, marketId, observedAt])
+}
+
+model AgroWeatherSnapshot {
+  id           String   @id @default(cuid())
+  region       String
+  forecastDate DateTime
+  maxTempC     Decimal? @db.Decimal(5, 2)
+  minTempC     Decimal? @db.Decimal(5, 2)
+  humidityPct  Decimal? @db.Decimal(5, 2)
+  rainfallMm   Decimal? @db.Decimal(8, 2)
+  riskLevel    AgroRiskLevel
+  source       String
+  createdAt    DateTime @default(now())
+
+  @@index([region, forecastDate])
+}
+
+enum AgroRiskLevel {
+  LOW
+  MEDIUM
+  HIGH
+}
+
+model AgroQualitySpec {
+  id          String   @id @default(cuid())
+  commodityId String
+  grade       String // A, B, C
+  parameter   String
+  minValue    String?
+  maxValue    String?
+  checklistNote String?
+  createdAt   DateTime @default(now())
+
+  commodity AgroCommodity @relation(fields: [commodityId], references: [id])
+
+  @@index([commodityId, grade])
+}
+
+model AgroStorageProfile {
+  id             String   @id @default(cuid())
+  commodityId    String
+  mode           AgroStorageMode
+  tempRange      String?
+  humidityRange  String?
+  maxDays        Int
+  spoilageRiskNote String?
+  createdAt      DateTime @default(now())
+
+  commodity AgroCommodity @relation(fields: [commodityId], references: [id])
+
+  @@index([commodityId, mode])
+}
+
+enum AgroStorageMode {
+  COLD
+  DRY
+}
+
+model AgroLogisticsQuote {
+  id                String   @id @default(cuid())
+  sourceRegion      String
+  destinationRegion String
+  vehicleType       String
+  estimatedCostInr  Decimal  @db.Decimal(12, 2)
+  transitHours      Int
+  coldChainSupported Boolean @default(false)
+  observedAt        DateTime
+  createdAt         DateTime @default(now())
+
+  @@index([sourceRegion, destinationRegion, observedAt])
+}
+
+model AgroRecommendation {
+  id                 String   @id @default(cuid())
+  commodityId        String
+  sourceRegion       String
+  targetMarket       String
+  action             AgroRecommendationAction
+  confidence         Decimal  @db.Decimal(4, 3)
+  expectedMarginMin  Decimal? @db.Decimal(12, 2)
+  expectedMarginMax  Decimal? @db.Decimal(12, 2)
+  riskFlags          Json
+  assumptions        Json
+  payload            Json
+  validUntil         DateTime
+  createdByAgent     String
+  createdAt          DateTime @default(now())
+
+  commodity AgroCommodity @relation(fields: [commodityId], references: [id])
+  outcomes  AgroRecommendationOutcome[]
+
+  @@index([commodityId, createdAt, validUntil])
+}
+
+enum AgroRecommendationAction {
+  BUY
+  SELL
+  HOLD
+}
+
+model AgroRecommendationOutcome {
+  id               String   @id @default(cuid())
+  recommendationId String
+  executed         Boolean  @default(false)
+  executedQtyTons  Decimal? @db.Decimal(12, 3)
+  realizedBuyAvg   Decimal? @db.Decimal(12, 2)
+  realizedSellAvg  Decimal? @db.Decimal(12, 2)
+  realizedMargin   Decimal? @db.Decimal(12, 2)
+  spoilagePct      Decimal? @db.Decimal(5, 2)
+  notes            String?
+  recordedAt       DateTime @default(now())
+
+  recommendation AgroRecommendation @relation(fields: [recommendationId], references: [id])
+
+  @@index([recommendationId, recordedAt])
+}
+
+model AgroSeoContentJob {
+  id                String   @id @default(cuid())
+  topic             String
+  targetPersona     String
+  primaryKeyword    String
+  secondaryKeywords Json
+  status            AgroSeoStatus @default(PLANNED)
+  url               String?
+  impressions       Int      @default(0)
+  clicks            Int      @default(0)
+  createdAt         DateTime @default(now())
+}
+
+enum AgroSeoStatus {
+  PLANNED
+  DRAFTED
+  PUBLISHED
+  MEASURED
+}

@@ -1,0 +1,176 @@
+generator client {
+  provider = "prisma-client-js"
+  output   = "../src/generated/prisma"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model Commodity {
+  id                   String   @id @default(cuid())
+  code                 String   @unique
+  name                 String
+  category             String
+  defaultShelfLifeDays Int
+  createdAt            DateTime @default(now())
+
+  mandiPrices     MandiPrice[]
+  recommendations Recommendation[]
+  qualitySpecs    QualitySpec[]
+  storageProfiles StorageProfile[]
+}
+
+model Market {
+  id        String     @id @default(cuid())
+  name      String
+  region    String
+  type      MarketType
+  createdAt DateTime   @default(now())
+
+  mandiPrices MandiPrice[]
+}
+
+enum MarketType {
+  MANDI
+  WHOLESALE
+  RETAIL
+  EXPORT_HUB
+}
+
+model MandiPrice {
+  id          String   @id @default(cuid())
+  commodityId String
+  marketId    String
+  priceMin    Decimal  @db.Decimal(12, 2)
+  priceMax    Decimal  @db.Decimal(12, 2)
+  priceModal  Decimal  @db.Decimal(12, 2)
+  observedAt  DateTime
+  source      String
+  createdAt   DateTime @default(now())
+
+  commodity Commodity @relation(fields: [commodityId], references: [id])
+  market    Market    @relation(fields: [marketId], references: [id])
+
+  @@index([commodityId, marketId, observedAt])
+}
+
+model Recommendation {
+  id                String    @id @default(cuid())
+  commodityId       String
+  sourceRegion      String
+  targetMarket      String
+  action            RecommendationAction
+  confidence        Decimal   @db.Decimal(4, 3)
+  expectedMarginMin Decimal?  @db.Decimal(12, 2)
+  expectedMarginMax Decimal?  @db.Decimal(12, 2)
+  riskFlags         Json
+  assumptions       Json
+  payload           Json
+  validUntil        DateTime
+  createdByAgent    String
+  createdAt         DateTime  @default(now())
+
+  commodity Commodity @relation(fields: [commodityId], references: [id])
+  outcomes  RecommendationOutcome[]
+
+  @@index([commodityId, createdAt, validUntil])
+}
+
+enum RecommendationAction {
+  BUY
+  SELL
+  HOLD
+}
+
+model WeatherSnapshot {
+  id           String    @id @default(cuid())
+  region       String
+  forecastDate DateTime
+  maxTempC     Decimal?  @db.Decimal(5, 2)
+  minTempC     Decimal?  @db.Decimal(5, 2)
+  humidityPct  Decimal?  @db.Decimal(5, 2)
+  rainfallMm   Decimal?  @db.Decimal(8, 2)
+  riskLevel    RiskLevel
+  source       String
+  createdAt    DateTime  @default(now())
+
+  @@index([region, forecastDate])
+}
+
+enum RiskLevel {
+  LOW
+  MEDIUM
+  HIGH
+}
+
+model QualitySpec {
+  id            String   @id @default(cuid())
+  commodityId   String
+  grade         String
+  parameter     String
+  minValue      String?
+  maxValue      String?
+  checklistNote String?
+  createdAt     DateTime @default(now())
+
+  commodity Commodity @relation(fields: [commodityId], references: [id])
+
+  @@index([commodityId, grade])
+}
+
+model StorageProfile {
+  id              String      @id @default(cuid())
+  commodityId     String
+  mode            StorageMode
+  tempRange       String?
+  humidityRange   String?
+  maxDays         Int
+  spoilageRiskNote String?
+  createdAt       DateTime    @default(now())
+
+  commodity Commodity @relation(fields: [commodityId], references: [id])
+
+  @@index([commodityId, mode])
+}
+
+enum StorageMode {
+  COLD
+  DRY
+}
+
+model RecommendationOutcome {
+  id               String    @id @default(cuid())
+  recommendationId String
+  executed         Boolean   @default(false)
+  executedQtyTons  Decimal?  @db.Decimal(12, 3)
+  realizedBuyAvg   Decimal?  @db.Decimal(12, 2)
+  realizedSellAvg  Decimal?  @db.Decimal(12, 2)
+  realizedMargin   Decimal?  @db.Decimal(12, 2)
+  spoilagePct      Decimal?  @db.Decimal(5, 2)
+  notes            String?
+  recordedAt       DateTime  @default(now())
+
+  recommendation Recommendation @relation(fields: [recommendationId], references: [id])
+}
+
+model SeoContentJob {
+  id                String    @id @default(cuid())
+  topic             String
+  targetPersona     String
+  primaryKeyword    String
+  secondaryKeywords Json
+  status            SeoStatus @default(PLANNED)
+  url               String?
+  impressions       Int       @default(0)
+  clicks            Int       @default(0)
+  createdAt         DateTime  @default(now())
+}
+
+enum SeoStatus {
+  PLANNED
+  DRAFTED
+  PUBLISHED
+  MEASURED
+}
