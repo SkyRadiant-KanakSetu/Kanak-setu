@@ -70,6 +70,8 @@
     </div>
 
     <script>
+      const commodityLookup = new Map();
+
       function headers() {
         return {
           'Content-Type': 'application/json',
@@ -91,6 +93,45 @@
         return `<span class="pill ${cls}">${action}</span>`;
       }
 
+      function normalizeCode(value) {
+        return String(value || '').trim().toUpperCase();
+      }
+
+      function syncCommodityOptions(rows) {
+        commodityLookup.clear();
+        const input = document.getElementById('commodityCode');
+        input.setAttribute('list', 'commodityOptions');
+
+        let datalist = document.getElementById('commodityOptions');
+        if (!datalist) {
+          datalist = document.createElement('datalist');
+          datalist.id = 'commodityOptions';
+          input.parentElement.appendChild(datalist);
+        }
+
+        const options = [];
+        rows.forEach((row) => {
+          const code = normalizeCode(row.code);
+          const name = String(row.name || '').trim();
+          if (!code || !name) return;
+          commodityLookup.set(code, code);
+          commodityLookup.set(name.toUpperCase(), code);
+          options.push(`<option value="${name} (${code})"></option>`);
+          options.push(`<option value="${code}"></option>`);
+        });
+        datalist.innerHTML = options.join('');
+      }
+
+      function resolveCommodityCode(value) {
+        const raw = String(value || '').trim();
+        if (!raw) return '';
+        const direct = commodityLookup.get(raw.toUpperCase());
+        if (direct) return direct;
+        const m = raw.match(/\(([^)]+)\)\s*$/);
+        if (m && m[1]) return normalizeCode(m[1]);
+        return normalizeCode(raw);
+      }
+
       async function loadAll() {
         try {
           const [commodities, markets, recommendations] = await Promise.all([
@@ -101,6 +142,7 @@
           document.getElementById('commoditiesCount').textContent = commodities.data.length;
           document.getElementById('marketsCount').textContent = markets.data.length;
           document.getElementById('recommendationsCount').textContent = recommendations.data.length;
+          syncCommodityOptions(commodities.data || []);
 
           const body = document.getElementById('recommendationsBody');
           body.innerHTML = recommendations.data
@@ -122,7 +164,7 @@
 
       async function generateRecommendation() {
         const payload = {
-          commodityCode: document.getElementById('commodityCode').value.trim().toUpperCase(),
+          commodityCode: resolveCommodityCode(document.getElementById('commodityCode').value),
           sourceRegion: document.getElementById('sourceRegion').value.trim(),
           targetMarket: document.getElementById('targetMarket').value.trim(),
           quantityTons: Number(document.getElementById('quantityTons').value || 1),
