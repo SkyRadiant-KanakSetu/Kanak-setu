@@ -5,10 +5,109 @@ import { authenticate, requireRole } from '../middleware/auth';
 export const agroRouter = Router();
 agroRouter.use(authenticate);
 
+type OgdRow = Record<string, unknown>;
+
+function str(row: OgdRow, keys: string[]) {
+  for (const k of keys) {
+    const v = row[k];
+    if (v != null && String(v).trim()) return String(v).trim();
+  }
+  return '';
+}
+
+function normalizeCommodityName(v: string) {
+  return String(v || '')
+    .replace(/\s+/g, ' ')
+    .trim();
+}
+
+function commodityCodeFromName(name: string) {
+  const up = normalizeCommodityName(name).toUpperCase();
+  if (!up) return '';
+  return up.replace(/[^A-Z0-9]+/g, '_').replace(/^_+|_+$/g, '').slice(0, 32);
+}
+
+async function fetchOgdCommodityCatalog(maxPages = 6, pageSize = 1000): Promise<Array<{ code: string; name: string }>> {
+  const key = String(process.env.DATA_GOV_IN_API_KEY || '').trim();
+  const resourceId = String(process.env.OGD_MANDI_RESOURCE_ID || process.env.DATA_GOV_IN_RESOURCE_ID || '').trim();
+  if (!key || !resourceId) return [];
+
+  const unique = new Map<string, { code: string; name: string }>();
+  const pages = Math.max(1, Math.min(20, maxPages));
+  const limit = Math.max(100, Math.min(1000, pageSize));
+
+  for (let page = 0; page < pages; page += 1) {
+    const url = new URL(`https://api.data.gov.in/resource/${resourceId}.json`);
+    url.searchParams.set('api-key', key);
+    url.searchParams.set('format', 'json');
+    url.searchParams.set('limit', String(limit));
+    url.searchParams.set('offset', String(page * limit));
+
+    const ac = new AbortController();
+    const timeout = setTimeout(() => ac.abort(), 15000);
+    let records: OgdRow[] = [];
+    try {
+      const resp = await fetch(url.toString(), { signal: ac.signal, headers: { accept: 'application/json' } });
+      if (!resp.ok) break;
+      const body = (await resp.json()) as { records?: OgdRow[] };
+      records = Array.isArray(body?.records) ? body.records : [];
+    } catch {
+      break;
+    } finally {
+      clearTimeout(timeout);
+    }
+
+    if (!records.length) break;
+    for (const rec of records) {
+      const raw = str(rec, ['commodity', 'Commodity', 'comm_name', 'Cmmodity']);
+      const name = normalizeCommodityName(raw);
+      if (!name) continue;
+      const code = commodityCodeFromName(name);
+      if (!code || unique.has(code)) continue;
+      unique.set(code, { code, name });
+    }
+
+    if (records.length < limit) break;
+  }
+
+  return [...unique.values()].sort((a, b) => a.name.localeCompare(b.name));
+}
+
 agroRouter.get('/commodities', async (_req, res, next) => {
   try {
     const rows = await prisma.commodity.findMany({ orderBy: { name: 'asc' } });
-    res.json({ success: true, data: rows });
+    type DbCommodity = (typeof rows)[number];
+    const byCode = new Map(rows.map((r: DbCommodity) => [String(r.code || '').toUpperCase(), true]));
+    const byName = new Set(rows.map((r: DbCommodity) => String(r.name || '').trim().toLowerCase()));
+
+    const ogdCatalog = await fetchOgdCommodityCatalog();
+    const ogdOnly = ogdCatalog
+      .filter((r) => !byCode.has(r.code) && !byName.has(r.name.toLowerCase()))
+      .map((r) => ({
+        id: `ogd:${r.code}`,
+        code: r.code,
+        name: r.name,
+        category: 'mandi',
+        defaultShelfLifeDays: 7,
+        createdAt: null,
+        source: 'data.gov.in',
+      }));
+
+    const data = [
+      ...rows.map((r: DbCommodity) => ({ ...r, source: 'db' as const })),
+      ...ogdOnly,
+    ].sort((a, b) => String(a.name).localeCompare(String(b.name)));
+
+    res.json({
+      success: true,
+      data,
+      meta: {
+        dbCount: rows.length,
+        ogdCount: ogdCatalog.length,
+        ogdOnlyCount: ogdOnly.length,
+        total: data.length,
+      },
+    });
   } catch (e) {
     next(e);
   }
