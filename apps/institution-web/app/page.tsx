@@ -228,8 +228,6 @@ export default function InstitutionHome() {
     );
   });
   const donorDirectory = dashboard?.donorDirectory || [];
-  const donationLabel = dashboard?.labels?.donationLabel || 'Donation';
-  const donorLabel = dashboard?.labels?.donorLabel || 'Donor';
   const showLocationColumn = filteredRecentDonations.some((d: any) => d.donor?.city || d.donor?.state);
   const showProfessionColumn = filteredRecentDonations.some((d: any) => d.donor?.profession);
   const showAgeColumn = filteredRecentDonations.some((d: any) => calcAge(d.donor?.dateOfBirth) !== '-');
@@ -338,8 +336,8 @@ export default function InstitutionHome() {
                     { key: 'ops', label: 'Ops Tasks', count: tasksList.length || 0 },
                   ]
                 : []),
-              { key: 'donations', label: `Recent ${donationLabel}s`, count: recentDonations.length || 0 },
-              { key: 'donors', label: `${donorLabel} Directory`, count: donorDirectory.length || 0 },
+              { key: 'donations', label: 'Recent Donations', count: recentDonations.length || 0 },
+              { key: 'donors', label: 'Donor Directory', count: donorDirectory.length || 0 },
               { key: 'ledger', label: 'Gold Ledger', count: ledger.length || 0 },
               { key: 'settings', label: 'Settings', count: null },
             ].map((tab) => (
@@ -486,11 +484,11 @@ export default function InstitutionHome() {
           {activeTab === 'donations' && (
             <>
               <div className="mt-8 flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
-                <h2 className="font-semibold text-lg">Recent {donationLabel}s</h2>
+                <h2 className="font-semibold text-lg">Recent Donations</h2>
                 <input
                   value={donationSearch}
                   onChange={(e) => setDonationSearch(e.target.value)}
-                  placeholder={`Search by ref, ${donorLabel.toLowerCase()}, phone, status...`}
+                  placeholder="Search by ref, donor, phone, status..."
                   className="w-full rounded-xl border px-3 py-2 text-sm md:w-96"
                 />
               </div>
@@ -499,7 +497,7 @@ export default function InstitutionHome() {
                   <thead className="bg-gray-50 text-left text-xs text-gray-500">
                     <tr>
                       <th className="px-4 py-2">Ref</th>
-                      <th className="px-4 py-2">{donorLabel}</th>
+                      <th className="px-4 py-2">Donor</th>
                       <th className="px-4 py-2">Phone</th>
                       {showLocationColumn && <th className="px-4 py-2">Location</th>}
                       {showProfessionColumn && <th className="px-4 py-2">Profession</th>}
@@ -551,11 +549,11 @@ export default function InstitutionHome() {
           {activeTab === 'donors' && (
             <>
               <div className="mt-8 flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
-                <h2 className="font-semibold text-lg">{donorLabel} Directory</h2>
+                <h2 className="font-semibold text-lg">Donor Directory</h2>
                 <input
                   value={donorSearch}
                   onChange={(e) => setDonorSearch(e.target.value)}
-                  placeholder={`Search ${donorLabel.toLowerCase()}s by name, contact, profession...`}
+                  placeholder="Search donors by name, contact, profession..."
                   className="w-full rounded-xl border px-3 py-2 text-sm md:w-96"
                 />
               </div>
