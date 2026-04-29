@@ -3,8 +3,22 @@ import { useState, useEffect } from 'react';
 import { auth, portal, setTokens, clearTokens } from '@/lib/api';
 import { DonationQr } from '@/components/DonationQr';
 import { InstitutionLayout } from '@/components/InstitutionLayout';
+import { OverviewPanel } from '@/components/portal/OverviewPanel';
+import { SpiritualFunctionsPanel } from '@/components/portal/SpiritualFunctionsPanel';
+import { DonorInsightsPanel } from '@/components/portal/DonorInsightsPanel';
+import { GeoReachPanel } from '@/components/portal/GeoReachPanel';
+import { OpsTasksPanel } from '@/components/portal/OpsTasksPanel';
 
-type InstitutionTab = 'overview' | 'donations' | 'donors' | 'ledger' | 'settings';
+type InstitutionTab =
+  | 'overview'
+  | 'functions'
+  | 'insights'
+  | 'geo'
+  | 'ops'
+  | 'donations'
+  | 'donors'
+  | 'ledger'
+  | 'settings';
 
 export default function InstitutionHome() {
   const showDevHints = process.env.NODE_ENV !== 'production';
@@ -22,6 +36,17 @@ export default function InstitutionHome() {
   const [activeTab, setActiveTab] = useState<InstitutionTab>('overview');
   const [donationSearch, setDonationSearch] = useState('');
   const [donorSearch, setDonorSearch] = useState('');
+  const [functionsList, setFunctionsList] = useState<any[]>([]);
+  const [tasksList, setTasksList] = useState<any[]>([]);
+  const [demographics, setDemographics] = useState<any>(null);
+  const [geoData, setGeoData] = useState<any>(null);
+  const [faithSettings, setFaithSettings] = useState<any>({
+    faithTradition: '',
+    terminologyDonationLabel: '',
+    terminologyDonorLabel: '',
+    sacredCalendarHighlights: null,
+  });
+  const [faithSaving, setFaithSaving] = useState(false);
 
   useEffect(() => {
     if (typeof window !== 'undefined' && localStorage.getItem('accessToken')) {
@@ -32,13 +57,33 @@ export default function InstitutionHome() {
 
   const loadDashboard = async () => {
     setPortalError('');
-    const [d, l] = await Promise.all([portal.dashboard(rangeDays), portal.ledger()]);
+    const [d, l, fn, t, dm, geo, fs] = await Promise.all([
+      portal.dashboard(rangeDays),
+      portal.ledger(),
+      portal.functions(),
+      portal.tasks(),
+      portal.demographics(),
+      portal.geoDistribution(),
+      portal.faithSettings(),
+    ]);
     if (d.success) {
       setDashboard(d.data);
       setUpiIdInput(d.data?.upiId || '');
     }
     else setPortalError(d.error?.message || 'Could not load dashboard');
     if (l.success) setLedger(l.data || []);
+    if (fn.success) setFunctionsList(fn.data || []);
+    if (t.success) setTasksList(t.data || []);
+    if (dm.success) setDemographics(dm.data || null);
+    if (geo.success) setGeoData(geo.data || null);
+    if (fs.success) {
+      setFaithSettings({
+        faithTradition: fs.data?.faithTradition || '',
+        terminologyDonationLabel: fs.data?.terminologyDonationLabel || '',
+        terminologyDonorLabel: fs.data?.terminologyDonorLabel || '',
+        sacredCalendarHighlights: fs.data?.sacredCalendarHighlights || null,
+      });
+    }
   };
 
   useEffect(() => {
@@ -88,6 +133,31 @@ export default function InstitutionHome() {
     setDashboard((prev: any) => (prev ? { ...prev, upiId: savedUpiId } : prev));
     setUpiMessage('UPI ID saved');
     setUpiSaving(false);
+  };
+
+  const handleCreateFunction = async (payload: any) => {
+    const res = await portal.createFunction(payload);
+    if (!res.success) return;
+    const list = await portal.functions();
+    if (list.success) setFunctionsList(list.data || []);
+  };
+
+  const handleCreateTask = async (payload: any) => {
+    const res = await portal.createTask(payload);
+    if (!res.success) return;
+    const list = await portal.tasks();
+    if (list.success) setTasksList(list.data || []);
+  };
+
+  const handleSaveFaithSettings = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setFaithSaving(true);
+    const res = await portal.updateFaithSettings(faithSettings);
+    if (!res.success) {
+      setFaithSaving(false);
+      return;
+    }
+    setFaithSaving(false);
   };
 
   if (!loggedIn) {
@@ -242,6 +312,10 @@ export default function InstitutionHome() {
           <div className="mt-5 rounded-2xl border border-gray-200 bg-gradient-to-r from-white via-gray-50 to-amber-50 p-2">
             {[
               { key: 'overview', label: 'Overview', count: dashboard.totalDonations || 0 },
+              { key: 'functions', label: 'Spiritual Functions', count: functionsList.length || 0 },
+              { key: 'insights', label: 'Donor Insights', count: demographics?.totalDonations || 0 },
+              { key: 'geo', label: 'Geo & Reach', count: geoData?.states?.length || 0 },
+              { key: 'ops', label: 'Ops Tasks', count: tasksList.length || 0 },
               { key: 'donations', label: 'Recent Donations', count: recentDonations.length || 0 },
               { key: 'donors', label: 'Donor Directory', count: donorDirectory.length || 0 },
               { key: 'ledger', label: 'Gold Ledger', count: ledger.length || 0 },
@@ -271,62 +345,19 @@ export default function InstitutionHome() {
           </div>
 
           {activeTab === 'overview' && (
-            <>
-              <div className="mt-6 grid gap-4 md:grid-cols-3">
-                <div className="rounded-2xl border bg-white p-5 shadow-sm">
-                  <p className="text-sm text-gray-500">Total Donations</p>
-                  <p className="mt-1 text-2xl font-bold">{dashboard.totalDonations}</p>
-                </div>
-                <div className="rounded-2xl border bg-white p-5 shadow-sm">
-                  <p className="text-sm text-gray-500">Total Gold (mg)</p>
-                  <p className="mt-1 text-2xl font-bold text-amber-700">
-                    {parseFloat(dashboard.totalGoldMg || 0).toFixed(2)}
-                  </p>
-                </div>
-                <div className="rounded-2xl border bg-white p-5 shadow-sm">
-                  <p className="text-sm text-gray-500">Total Gold (grams)</p>
-                  <p className="mt-1 text-2xl font-bold text-amber-700">
-                    {(parseFloat(dashboard.totalGoldMg || 0) / 1000).toFixed(4)}
-                  </p>
-                </div>
-                <div className="rounded-2xl border bg-white p-5 shadow-sm">
-                  <p className="text-sm text-gray-500">Unique Donors</p>
-                  <p className="mt-1 text-2xl font-bold">{dashboard.uniqueDonors ?? 0}</p>
-                </div>
-                <div className="rounded-2xl border bg-white p-5 shadow-sm">
-                  <p className="text-sm text-gray-500">Repeat Donors</p>
-                  <p className="mt-1 text-2xl font-bold">{dashboard.repeatDonors ?? 0}</p>
-                </div>
-                <div className="rounded-2xl border bg-white p-5 shadow-sm">
-                  <p className="text-sm text-gray-500">Active Donors ({dashboard.rangeDays ?? 30}d)</p>
-                  <p className="mt-1 text-2xl font-bold">{dashboard.activeDonorsInRange ?? 0}</p>
-                </div>
-              </div>
-              <div className="mt-4 flex gap-2">
-                {[7, 30, 90].map((d) => (
-                  <button
-                    key={d}
-                    onClick={() => setRangeDays(d as 7 | 30 | 90)}
-                    className={`rounded px-3 py-1 text-xs ${rangeDays === d ? 'bg-amber-700 text-white' : 'bg-gray-100 hover:bg-gray-200'}`}
-                  >
-                    {d}d
-                  </button>
-                ))}
-              </div>
-              <div className="mt-4 rounded-xl border bg-white p-4">
-                <p className="text-xs text-gray-500">Donor trend ({dashboard.rangeDays}d)</p>
-                <div className="mt-3 grid grid-cols-1 gap-4 md:grid-cols-2">
-                  <MiniTrend
-                    title="Donations / day"
-                    values={(dashboard.donorTrend || []).map((d: any) => d.donations)}
-                  />
-                  <MiniTrend
-                    title="Active donors / day"
-                    values={(dashboard.donorTrend || []).map((d: any) => d.activeDonors)}
-                  />
-                </div>
-              </div>
-            </>
+            <OverviewPanel dashboard={dashboard} rangeDays={rangeDays} setRangeDays={setRangeDays} />
+          )}
+
+          {activeTab === 'functions' && (
+            <SpiritualFunctionsPanel items={functionsList} onCreate={handleCreateFunction} />
+          )}
+
+          {activeTab === 'insights' && <DonorInsightsPanel demographics={demographics} />}
+
+          {activeTab === 'geo' && <GeoReachPanel geoData={geoData} />}
+
+          {activeTab === 'ops' && (
+            <OpsTasksPanel tasks={tasksList} functionsList={functionsList} onCreateTask={handleCreateTask} />
           )}
 
           {activeTab === 'settings' && (
@@ -353,6 +384,58 @@ export default function InstitutionHome() {
                   </button>
                 </form>
                 {upiMessage && <p className="mt-2 text-xs text-gray-600">{upiMessage}</p>}
+              </div>
+              <div className="mt-4 rounded-xl border bg-white p-4">
+                <h2 className="text-sm font-semibold text-gray-900">Faith Context Settings</h2>
+                <p className="mt-1 text-xs text-gray-500">
+                  Customize labels and sacred calendar highlights for your institution context.
+                </p>
+                <form onSubmit={handleSaveFaithSettings} className="mt-3 grid gap-2 md:grid-cols-2">
+                  <input
+                    value={faithSettings.faithTradition}
+                    onChange={(e) => setFaithSettings((s: any) => ({ ...s, faithTradition: e.target.value }))}
+                    placeholder="Faith tradition (e.g., Hindu, Sikh, Islamic, Christian)"
+                    className="rounded border px-3 py-2 text-sm"
+                  />
+                  <input
+                    value={faithSettings.terminologyDonationLabel}
+                    onChange={(e) =>
+                      setFaithSettings((s: any) => ({ ...s, terminologyDonationLabel: e.target.value }))
+                    }
+                    placeholder="Donation label (e.g., Seva, Offering, Charity)"
+                    className="rounded border px-3 py-2 text-sm"
+                  />
+                  <input
+                    value={faithSettings.terminologyDonorLabel}
+                    onChange={(e) =>
+                      setFaithSettings((s: any) => ({ ...s, terminologyDonorLabel: e.target.value }))
+                    }
+                    placeholder="Donor label (e.g., Devotee, Supporter)"
+                    className="rounded border px-3 py-2 text-sm"
+                  />
+                  <textarea
+                    value={JSON.stringify(faithSettings.sacredCalendarHighlights || {}, null, 0)}
+                    onChange={(e) => {
+                      try {
+                        const parsed = e.target.value ? JSON.parse(e.target.value) : null;
+                        setFaithSettings((s: any) => ({ ...s, sacredCalendarHighlights: parsed }));
+                      } catch {
+                        // ignore invalid json while typing
+                      }
+                    }}
+                    placeholder='Sacred calendar highlights JSON (e.g. {"festival":"Navratri","date":"2026-10-01"})'
+                    className="min-h-24 rounded border px-3 py-2 text-sm md:col-span-2"
+                  />
+                  <div className="md:col-span-2">
+                    <button
+                      type="submit"
+                      disabled={faithSaving}
+                      className="rounded bg-amber-700 px-4 py-2 text-sm font-medium text-white hover:bg-amber-800 disabled:opacity-60"
+                    >
+                      {faithSaving ? 'Saving...' : 'Save Faith Settings'}
+                    </button>
+                  </div>
+                </form>
               </div>
               <DonationQr
                 institutionId={dashboard.institutionId}

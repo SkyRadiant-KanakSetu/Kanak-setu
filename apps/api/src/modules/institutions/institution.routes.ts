@@ -440,6 +440,355 @@ institutionRouter.get(
   }
 );
 
+// ── PORTAL: Faith settings ──
+institutionRouter.get(
+  '/portal/settings-faith',
+  authenticate,
+  requireRole('INSTITUTION_ADMIN', 'INSTITUTION_STAFF'),
+  async (req: Request, res: Response, next: NextFunction) => {
+    try {
+      const profile = await prisma.institutionProfile.findUnique({
+        where: { userId: req.auth!.userId },
+        select: {
+          id: true,
+          faithTradition: true,
+          terminologyDonationLabel: true,
+          terminologyDonorLabel: true,
+          sacredCalendarHighlights: true,
+        },
+      });
+      if (!profile) throw new AppError(404, 'NOT_FOUND', 'No institution profile');
+      success(res, profile);
+    } catch (e) {
+      next(e);
+    }
+  }
+);
+
+institutionRouter.patch(
+  '/portal/settings-faith',
+  authenticate,
+  requireRole('INSTITUTION_ADMIN'),
+  async (req: Request, res: Response, next: NextFunction) => {
+    try {
+      const profile = await prisma.institutionProfile.findUnique({
+        where: { userId: req.auth!.userId },
+      });
+      if (!profile) throw new AppError(404, 'NOT_FOUND', 'No institution profile');
+      const updated = await prisma.institutionProfile.update({
+        where: { id: profile.id },
+        data: {
+          faithTradition: req.body.faithTradition || null,
+          terminologyDonationLabel: req.body.terminologyDonationLabel || null,
+          terminologyDonorLabel: req.body.terminologyDonorLabel || null,
+          sacredCalendarHighlights: req.body.sacredCalendarHighlights || null,
+        },
+        select: {
+          id: true,
+          faithTradition: true,
+          terminologyDonationLabel: true,
+          terminologyDonorLabel: true,
+          sacredCalendarHighlights: true,
+          updatedAt: true,
+        },
+      });
+      success(res, updated);
+    } catch (e) {
+      next(e);
+    }
+  }
+);
+
+// ── PORTAL: Spiritual functions ──
+institutionRouter.get(
+  '/portal/functions',
+  authenticate,
+  requireRole('INSTITUTION_ADMIN', 'INSTITUTION_STAFF'),
+  async (req: Request, res: Response, next: NextFunction) => {
+    try {
+      const profile = await prisma.institutionProfile.findUnique({
+        where: { userId: req.auth!.userId },
+      });
+      if (!profile) throw new AppError(404, 'NOT_FOUND', 'No institution profile');
+      const status = String(req.query.status || '').trim();
+      const list = await prisma.spiritualFunction.findMany({
+        where: {
+          institutionId: profile.id,
+          ...(status ? { status: status as any } : {}),
+        },
+        orderBy: [{ nextDate: 'asc' }, { createdAt: 'desc' }],
+      });
+      success(res, list);
+    } catch (e) {
+      next(e);
+    }
+  }
+);
+
+institutionRouter.post(
+  '/portal/functions',
+  authenticate,
+  requireRole('INSTITUTION_ADMIN'),
+  async (req: Request, res: Response, next: NextFunction) => {
+    try {
+      const profile = await prisma.institutionProfile.findUnique({
+        where: { userId: req.auth!.userId },
+      });
+      if (!profile) throw new AppError(404, 'NOT_FOUND', 'No institution profile');
+      if (!req.body?.name) throw new AppError(400, 'VALIDATION_ERROR', 'Function name is required');
+      const created = await prisma.spiritualFunction.create({
+        data: {
+          institutionId: profile.id,
+          name: String(req.body.name),
+          functionType: (req.body.functionType || 'OTHER') as any,
+          status: (req.body.status || 'ACTIVE') as any,
+          frequency: req.body.frequency || null,
+          nextDate: req.body.nextDate ? new Date(req.body.nextDate) : null,
+          description: req.body.description || null,
+          city: req.body.city || null,
+          state: req.body.state || null,
+          isPublic: req.body.isPublic ?? true,
+        },
+      });
+      success(res, created, undefined, 201);
+    } catch (e) {
+      next(e);
+    }
+  }
+);
+
+institutionRouter.patch(
+  '/portal/functions/:id',
+  authenticate,
+  requireRole('INSTITUTION_ADMIN'),
+  async (req: Request, res: Response, next: NextFunction) => {
+    try {
+      const profile = await prisma.institutionProfile.findUnique({
+        where: { userId: req.auth!.userId },
+      });
+      if (!profile) throw new AppError(404, 'NOT_FOUND', 'No institution profile');
+      const existing = await prisma.spiritualFunction.findFirst({
+        where: { id: req.params.id, institutionId: profile.id },
+      });
+      if (!existing) throw new AppError(404, 'NOT_FOUND', 'Function not found');
+      const updated = await prisma.spiritualFunction.update({
+        where: { id: existing.id },
+        data: {
+          name: req.body.name ?? existing.name,
+          functionType: (req.body.functionType ?? existing.functionType) as any,
+          status: (req.body.status ?? existing.status) as any,
+          frequency: req.body.frequency ?? existing.frequency,
+          nextDate: req.body.nextDate ? new Date(req.body.nextDate) : existing.nextDate,
+          description: req.body.description ?? existing.description,
+          city: req.body.city ?? existing.city,
+          state: req.body.state ?? existing.state,
+          isPublic: req.body.isPublic ?? existing.isPublic,
+        },
+      });
+      success(res, updated);
+    } catch (e) {
+      next(e);
+    }
+  }
+);
+
+// ── PORTAL: Operations tasks ──
+institutionRouter.get(
+  '/portal/tasks',
+  authenticate,
+  requireRole('INSTITUTION_ADMIN', 'INSTITUTION_STAFF'),
+  async (req: Request, res: Response, next: NextFunction) => {
+    try {
+      const profile = await prisma.institutionProfile.findUnique({
+        where: { userId: req.auth!.userId },
+      });
+      if (!profile) throw new AppError(404, 'NOT_FOUND', 'No institution profile');
+      const status = String(req.query.status || '').trim();
+      const items = await prisma.institutionTask.findMany({
+        where: {
+          institutionId: profile.id,
+          ...(status ? { status: status as any } : {}),
+        },
+        include: {
+          spiritualFunction: { select: { id: true, name: true, functionType: true } },
+        },
+        orderBy: [{ dueDate: 'asc' }, { createdAt: 'desc' }],
+      });
+      success(res, items);
+    } catch (e) {
+      next(e);
+    }
+  }
+);
+
+institutionRouter.post(
+  '/portal/tasks',
+  authenticate,
+  requireRole('INSTITUTION_ADMIN'),
+  async (req: Request, res: Response, next: NextFunction) => {
+    try {
+      const profile = await prisma.institutionProfile.findUnique({
+        where: { userId: req.auth!.userId },
+      });
+      if (!profile) throw new AppError(404, 'NOT_FOUND', 'No institution profile');
+      if (!req.body?.title) throw new AppError(400, 'VALIDATION_ERROR', 'Task title is required');
+      const created = await prisma.institutionTask.create({
+        data: {
+          institutionId: profile.id,
+          functionId: req.body.functionId || null,
+          title: String(req.body.title),
+          taskType: (req.body.taskType || 'OTHER') as any,
+          status: (req.body.status || 'TODO') as any,
+          dueDate: req.body.dueDate ? new Date(req.body.dueDate) : null,
+          assigneeName: req.body.assigneeName || null,
+          notes: req.body.notes || null,
+        },
+      });
+      success(res, created, undefined, 201);
+    } catch (e) {
+      next(e);
+    }
+  }
+);
+
+institutionRouter.patch(
+  '/portal/tasks/:id',
+  authenticate,
+  requireRole('INSTITUTION_ADMIN'),
+  async (req: Request, res: Response, next: NextFunction) => {
+    try {
+      const profile = await prisma.institutionProfile.findUnique({
+        where: { userId: req.auth!.userId },
+      });
+      if (!profile) throw new AppError(404, 'NOT_FOUND', 'No institution profile');
+      const existing = await prisma.institutionTask.findFirst({
+        where: { id: req.params.id, institutionId: profile.id },
+      });
+      if (!existing) throw new AppError(404, 'NOT_FOUND', 'Task not found');
+      const updated = await prisma.institutionTask.update({
+        where: { id: existing.id },
+        data: {
+          functionId: req.body.functionId ?? existing.functionId,
+          title: req.body.title ?? existing.title,
+          taskType: (req.body.taskType ?? existing.taskType) as any,
+          status: (req.body.status ?? existing.status) as any,
+          dueDate: req.body.dueDate ? new Date(req.body.dueDate) : existing.dueDate,
+          assigneeName: req.body.assigneeName ?? existing.assigneeName,
+          notes: req.body.notes ?? existing.notes,
+        },
+      });
+      success(res, updated);
+    } catch (e) {
+      next(e);
+    }
+  }
+);
+
+// ── PORTAL: Donor demographics / geo distribution ──
+institutionRouter.get(
+  '/portal/demographics',
+  authenticate,
+  requireRole('INSTITUTION_ADMIN', 'INSTITUTION_STAFF'),
+  async (req: Request, res: Response, next: NextFunction) => {
+    try {
+      const profile = await prisma.institutionProfile.findUnique({
+        where: { userId: req.auth!.userId },
+      });
+      if (!profile) throw new AppError(404, 'NOT_FOUND', 'No institution profile');
+      const rows = await prisma.donation.findMany({
+        where: {
+          institutionId: profile.id,
+          status: { in: ['COMPLETED', 'BATCHED', 'ANCHORED'] },
+        },
+        select: {
+          amountPaise: true,
+          donor: {
+            select: {
+              dateOfBirth: true,
+              profession: true,
+              city: true,
+              state: true,
+              user: { select: { phone: true, email: true } },
+            },
+          },
+        },
+      });
+      const ageBands = { under25: 0, from25to40: 0, from41to60: 0, above60: 0, unknown: 0 };
+      const profession: Record<string, number> = {};
+      let totalAmountPaise = 0;
+      for (const row of rows) {
+        totalAmountPaise += row.amountPaise || 0;
+        const age = calculateAgeFromDob(row.donor?.dateOfBirth);
+        if (age === null) ageBands.unknown += 1;
+        else if (age < 25) ageBands.under25 += 1;
+        else if (age <= 40) ageBands.from25to40 += 1;
+        else if (age <= 60) ageBands.from41to60 += 1;
+        else ageBands.above60 += 1;
+        const p = String(row.donor?.profession || 'Unknown').trim() || 'Unknown';
+        profession[p] = (profession[p] || 0) + 1;
+      }
+      const topProfessions = Object.entries(profession)
+        .sort((a, b) => b[1] - a[1])
+        .slice(0, 8)
+        .map(([label, count]) => ({ label, count }));
+      success(res, {
+        totalDonations: rows.length,
+        totalAmountPaise,
+        ageBands,
+        topProfessions,
+      });
+    } catch (e) {
+      next(e);
+    }
+  }
+);
+
+institutionRouter.get(
+  '/portal/geo-distribution',
+  authenticate,
+  requireRole('INSTITUTION_ADMIN', 'INSTITUTION_STAFF'),
+  async (req: Request, res: Response, next: NextFunction) => {
+    try {
+      const profile = await prisma.institutionProfile.findUnique({
+        where: { userId: req.auth!.userId },
+      });
+      if (!profile) throw new AppError(404, 'NOT_FOUND', 'No institution profile');
+      const rows = await prisma.donation.findMany({
+        where: {
+          institutionId: profile.id,
+          status: { in: ['COMPLETED', 'BATCHED', 'ANCHORED'] },
+        },
+        select: {
+          amountPaise: true,
+          donor: { select: { city: true, state: true } },
+        },
+      });
+      const bucket: Record<string, { state: string; city: string; donations: number; amountPaise: number }> = {};
+      for (const row of rows) {
+        const state = (row.donor?.state || 'Unknown').trim() || 'Unknown';
+        const city = (row.donor?.city || 'Unknown').trim() || 'Unknown';
+        const key = `${state}__${city}`;
+        if (!bucket[key]) bucket[key] = { state, city, donations: 0, amountPaise: 0 };
+        bucket[key].donations += 1;
+        bucket[key].amountPaise += row.amountPaise || 0;
+      }
+      const cities = Object.values(bucket).sort((a, b) => b.donations - a.donations);
+      const stateTotals: Record<string, { state: string; donations: number; amountPaise: number }> = {};
+      for (const city of cities) {
+        if (!stateTotals[city.state]) stateTotals[city.state] = { state: city.state, donations: 0, amountPaise: 0 };
+        stateTotals[city.state].donations += city.donations;
+        stateTotals[city.state].amountPaise += city.amountPaise;
+      }
+      success(res, {
+        states: Object.values(stateTotals).sort((a, b) => b.donations - a.donations),
+        cities: cities.slice(0, 100),
+      });
+    } catch (e) {
+      next(e);
+    }
+  }
+);
+
 // ── PORTAL: Ledger ──
 institutionRouter.get(
   '/portal/ledger',
