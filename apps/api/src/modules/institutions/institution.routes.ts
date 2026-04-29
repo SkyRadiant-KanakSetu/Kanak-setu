@@ -8,10 +8,16 @@ import { z } from 'zod';
 
 export const institutionRouter = Router();
 
-const ENABLE_PORTAL_REFINEMENTS = process.env.ENABLE_INSTITUTION_PORTAL_REFINEMENTS === '1';
-const ENABLE_FAITH_SETTINGS = process.env.ENABLE_FAITH_CONTEXT_SETTINGS === '1';
 const isoDateRegex = /^\d{4}-\d{2}-\d{2}$/;
 const isoDateTimeRegex = /^\d{4}-\d{2}-\d{2}T/;
+
+function isPortalRefinementsEnabled() {
+  return process.env.ENABLE_INSTITUTION_PORTAL_REFINEMENTS === '1';
+}
+
+function isFaithSettingsEnabled() {
+  return process.env.ENABLE_FAITH_CONTEXT_SETTINGS === '1';
+}
 
 const spiritualFunctionPayloadSchema = z.object({
   name: z.string().trim().min(2).max(120),
@@ -65,7 +71,7 @@ const faithSettingsPayloadSchema = z.object({
 });
 
 function assertPortalRefinementsEnabled() {
-  if (!ENABLE_PORTAL_REFINEMENTS) {
+  if (!isPortalRefinementsEnabled()) {
     throw new AppError(404, 'FEATURE_DISABLED', 'Institution portal refinements are not enabled');
   }
 }
@@ -355,6 +361,8 @@ institutionRouter.get(
       if (!profile) throw new AppError(404, 'NOT_FOUND', 'No institution profile');
       const includeDemographics = String(req.query.includeDemographics || '') === '1';
       const includeGeoDistribution = String(req.query.includeGeoDistribution || '') === '1';
+      const refinementsEnabled = isPortalRefinementsEnabled();
+      const faithSettingsEnabled = isFaithSettingsEnabled();
       const labels = getPortalLabels(profile);
 
       const [totalDonations, totalGoldMg, recentDonations, donorSnapshotDonations] = await Promise.all([
@@ -520,7 +528,7 @@ institutionRouter.get(
         donorTrend,
         donorDirectory,
         recentDonations,
-        ...(includeDemographics && ENABLE_PORTAL_REFINEMENTS
+        ...(includeDemographics && refinementsEnabled
           ? {
               demographics: {
                 uniqueDonors: donorCounts.length,
@@ -528,7 +536,7 @@ institutionRouter.get(
               },
             }
           : {}),
-        ...(includeGeoDistribution && ENABLE_PORTAL_REFINEMENTS
+        ...(includeGeoDistribution && refinementsEnabled
           ? {
               geo: donorDirectory.reduce(
                 (acc: Record<string, number>, donor: any) => {
@@ -540,6 +548,10 @@ institutionRouter.get(
               ),
             }
           : {}),
+        rolloutFlags: {
+          portalRefinements: refinementsEnabled,
+          faithContextSettings: faithSettingsEnabled,
+        },
       });
     } catch (e) {
       next(e);
@@ -554,7 +566,7 @@ institutionRouter.get(
   requireRole('INSTITUTION_ADMIN', 'INSTITUTION_STAFF'),
   async (req: Request, res: Response, next: NextFunction) => {
     try {
-      if (!ENABLE_FAITH_SETTINGS) {
+      if (!isFaithSettingsEnabled()) {
         throw new AppError(404, 'FEATURE_DISABLED', 'Faith context settings are not enabled');
       }
       const profile = await prisma.institutionProfile.findUnique({
@@ -587,7 +599,7 @@ institutionRouter.patch(
   requireRole('INSTITUTION_ADMIN'),
   async (req: Request, res: Response, next: NextFunction) => {
     try {
-      if (!ENABLE_FAITH_SETTINGS) {
+      if (!isFaithSettingsEnabled()) {
         throw new AppError(404, 'FEATURE_DISABLED', 'Faith context settings are not enabled');
       }
       const profile = await prisma.institutionProfile.findUnique({
@@ -644,6 +656,7 @@ institutionRouter.get(
   requireRole('INSTITUTION_ADMIN', 'INSTITUTION_STAFF'),
   async (req: Request, res: Response, next: NextFunction) => {
     try {
+      assertPortalRefinementsEnabled();
       const profile = await prisma.institutionProfile.findUnique({
         where: { userId: req.auth!.userId },
       });

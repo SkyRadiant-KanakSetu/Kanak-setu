@@ -228,6 +228,8 @@ export default function InstitutionHome() {
     );
   });
   const donorDirectory = dashboard?.donorDirectory || [];
+  const donationLabel = dashboard?.labels?.donationLabel || 'Donation';
+  const donorLabel = dashboard?.labels?.donorLabel || 'Donor';
   const showLocationColumn = filteredRecentDonations.some((d: any) => d.donor?.city || d.donor?.state);
   const showProfessionColumn = filteredRecentDonations.some((d: any) => d.donor?.profession);
   const showAgeColumn = filteredRecentDonations.some((d: any) => calcAge(d.donor?.dateOfBirth) !== '-');
@@ -336,8 +338,8 @@ export default function InstitutionHome() {
                     { key: 'ops', label: 'Ops Tasks', count: tasksList.length || 0 },
                   ]
                 : []),
-              { key: 'donations', label: 'Recent Donations', count: recentDonations.length || 0 },
-              { key: 'donors', label: 'Donor Directory', count: donorDirectory.length || 0 },
+              { key: 'donations', label: `Recent ${donationLabel}s`, count: recentDonations.length || 0 },
+              { key: 'donors', label: `${donorLabel} Directory`, count: donorDirectory.length || 0 },
               { key: 'ledger', label: 'Gold Ledger', count: ledger.length || 0 },
               { key: 'settings', label: 'Settings', count: null },
             ].map((tab) => (
@@ -409,7 +411,7 @@ export default function InstitutionHome() {
                 <div className="mt-4 rounded-xl border bg-white p-4">
                   <h2 className="text-sm font-semibold text-gray-900">Faith Context Settings</h2>
                   <p className="mt-1 text-xs text-gray-500">
-                    Customize labels and sacred calendar highlights for your institution context.
+                    Customize neutral, multi-faith labels and sacred calendar highlights for your institution context.
                   </p>
                   <form onSubmit={handleSaveFaithSettings} className="mt-3 grid gap-2 md:grid-cols-2">
                     <input
@@ -457,6 +459,18 @@ export default function InstitutionHome() {
                       </button>
                     </div>
                   </form>
+                  {!!(faithSettings.sacredCalendarHighlights || []).length && (
+                    <div className="mt-4 rounded border border-amber-100 bg-amber-50/40 p-3">
+                      <p className="text-xs font-semibold text-amber-900">Calendar Highlights Preview</p>
+                      <div className="mt-2 space-y-1 text-xs text-amber-900">
+                        {(faithSettings.sacredCalendarHighlights || []).slice(0, 5).map((item: any, idx: number) => (
+                          <p key={`${item?.title || 'event'}-${idx}`}>
+                            {(item?.date || 'Date TBD') as string} - {(item?.title || 'Untitled highlight') as string}
+                          </p>
+                        ))}
+                      </div>
+                    </div>
+                  )}
                   {faithError && <p className="mt-2 text-xs text-red-600">{faithError}</p>}
                 </div>
               )}
@@ -472,11 +486,11 @@ export default function InstitutionHome() {
           {activeTab === 'donations' && (
             <>
               <div className="mt-8 flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
-                <h2 className="font-semibold text-lg">Recent Donations</h2>
+                <h2 className="font-semibold text-lg">Recent {donationLabel}s</h2>
                 <input
                   value={donationSearch}
                   onChange={(e) => setDonationSearch(e.target.value)}
-                  placeholder="Search by ref, donor, phone, status..."
+                  placeholder={`Search by ref, ${donorLabel.toLowerCase()}, phone, status...`}
                   className="w-full rounded-xl border px-3 py-2 text-sm md:w-96"
                 />
               </div>
@@ -485,7 +499,7 @@ export default function InstitutionHome() {
                   <thead className="bg-gray-50 text-left text-xs text-gray-500">
                     <tr>
                       <th className="px-4 py-2">Ref</th>
-                      <th className="px-4 py-2">Donor</th>
+                      <th className="px-4 py-2">{donorLabel}</th>
                       <th className="px-4 py-2">Phone</th>
                       {showLocationColumn && <th className="px-4 py-2">Location</th>}
                       {showProfessionColumn && <th className="px-4 py-2">Profession</th>}
@@ -537,11 +551,11 @@ export default function InstitutionHome() {
           {activeTab === 'donors' && (
             <>
               <div className="mt-8 flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
-                <h2 className="font-semibold text-lg">Donor Directory</h2>
+                <h2 className="font-semibold text-lg">{donorLabel} Directory</h2>
                 <input
                   value={donorSearch}
                   onChange={(e) => setDonorSearch(e.target.value)}
-                  placeholder="Search donors by name, contact, profession..."
+                  placeholder={`Search ${donorLabel.toLowerCase()}s by name, contact, profession...`}
                   className="w-full rounded-xl border px-3 py-2 text-sm md:w-96"
                 />
               </div>

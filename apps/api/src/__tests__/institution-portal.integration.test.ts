@@ -15,6 +15,11 @@ async function clearTestData() {
       "PaymentEvent",
       "WebhookDelivery",
       "GoldLedgerEntry",
+      "SpiritualFunctionContribution",
+      "InstitutionTask",
+      "SpiritualFunction",
+      "InstitutionMetricsDaily",
+      "InstitutionBranch",
       "VendorEvent",
       "VendorOrder",
       "PaymentTransaction",
@@ -83,6 +88,8 @@ test('dashboard remains backward compatible with optional include flags', async 
   assert.equal(dashboardResp.status, 200);
   assert.equal(dashboardResp.body.data.rangeDays, 30);
   assert.equal(typeof dashboardResp.body.data.totalDonations, 'number');
+  assert.equal(typeof dashboardResp.body.data.rolloutFlags?.portalRefinements, 'boolean');
+  assert.equal(typeof dashboardResp.body.data.rolloutFlags?.faithContextSettings, 'boolean');
 });
 
 test('refinement and faith routes are gated off by default rollout flags', async () => {
@@ -114,6 +121,76 @@ test('refinement and faith routes are gated off by default rollout flags', async
     assert.equal(functionsResp.body.error?.code, 'FEATURE_DISABLED');
   } else {
     assert.ok(Array.isArray(functionsResp.body.data));
+  }
+});
+
+test('refinement routes work when rollout flags are enabled', async () => {
+  await clearTestData();
+  const prevRefinements = process.env.ENABLE_INSTITUTION_PORTAL_REFINEMENTS;
+  const prevFaith = process.env.ENABLE_FAITH_CONTEXT_SETTINGS;
+  process.env.ENABLE_INSTITUTION_PORTAL_REFINEMENTS = '1';
+  process.env.ENABLE_FAITH_CONTEXT_SETTINGS = '1';
+
+  try {
+    const accessToken = await createInstitutionAdmin();
+    const onboardResp = await request(app)
+      .post('/api/v1/institutions/portal/onboard')
+      .set('Authorization', `Bearer ${accessToken}`)
+      .send({
+        legalName: 'Rollout Temple Trust',
+        publicName: 'Rollout Temple',
+        type: 'TRUST',
+        publicPageSlug: `rollout-temple-${Date.now()}`,
+      });
+    assert.equal(onboardResp.status, 201);
+
+    const createFunctionResp = await request(app)
+      .post('/api/v1/institutions/portal/functions')
+      .set('Authorization', `Bearer ${accessToken}`)
+      .send({
+        name: 'Weekly Community Service',
+        functionType: 'COMMUNITY_SERVICE',
+        nextDate: '2026-05-01',
+      });
+    assert.equal(createFunctionResp.status, 201);
+    assert.equal(createFunctionResp.body.data.name, 'Weekly Community Service');
+
+    const demographicsResp = await request(app)
+      .get('/api/v1/institutions/portal/demographics')
+      .set('Authorization', `Bearer ${accessToken}`);
+    assert.equal(demographicsResp.status, 200);
+    assert.equal(typeof demographicsResp.body.data.totalDonations, 'number');
+
+    const geoResp = await request(app)
+      .get('/api/v1/institutions/portal/geo-distribution')
+      .set('Authorization', `Bearer ${accessToken}`);
+    assert.equal(geoResp.status, 200);
+    assert.ok(Array.isArray(geoResp.body.data.states));
+
+    const taskResp = await request(app)
+      .post('/api/v1/institutions/portal/tasks')
+      .set('Authorization', `Bearer ${accessToken}`)
+      .send({
+        title: 'Coordinate volunteers',
+        taskType: 'PRE_EVENT',
+      });
+    assert.equal(taskResp.status, 201);
+    assert.equal(taskResp.body.data.status, 'TODO');
+
+    const faithResp = await request(app)
+      .patch('/api/v1/institutions/portal/settings-faith')
+      .set('Authorization', `Bearer ${accessToken}`)
+      .send({
+        faithTradition: 'Multi-faith',
+        terminologyDonationLabel: 'Offering',
+        terminologyDonorLabel: 'Supporter',
+        sacredCalendarHighlights: [{ title: 'Service Week', date: '2026-05-15' }],
+      });
+    assert.equal(faithResp.status, 200);
+    assert.equal(faithResp.body.data.terminologyDonationLabel, 'Offering');
+  } finally {
+    process.env.ENABLE_INSTITUTION_PORTAL_REFINEMENTS = prevRefinements;
+    process.env.ENABLE_FAITH_CONTEXT_SETTINGS = prevFaith;
   }
 });
 
