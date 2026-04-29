@@ -1,7 +1,6 @@
 'use client';
 
 import { useMemo, useState, type ReactNode } from 'react';
-import { usePathname } from 'next/navigation';
 import { KsAvatar, KsAuthGuard, KsButton, KsNavItem } from '@kanak-setu/ui';
 
 const icon = (d: string) => (
@@ -14,22 +13,25 @@ export function AdminLayout({
   children,
   email,
   onSignOut,
+  activeTab,
+  onTabChange,
 }: {
   children: ReactNode;
   email?: string;
   onSignOut?: () => void;
+  activeTab: 'dashboard' | 'institutions' | 'donations' | 'merkle' | 'assistant' | 'webhooks' | 'audit';
+  onTabChange: (tab: 'dashboard' | 'institutions' | 'donations' | 'merkle' | 'assistant' | 'webhooks' | 'audit') => void;
 }) {
-  const pathname = usePathname();
   const [open, setOpen] = useState(false);
   const items = useMemo(
     () => [
-      { key: 'dashboard', label: 'Dashboard', href: '/', icon: icon('M3 12h8V3H3zM13 21h8v-8h-8zM13 3h8v6h-8zM3 21h8v-6H3z') },
-      { key: 'institutions', label: 'Institutions', href: '/#institutions', icon: icon('M4 20h16M6 20V9l6-4 6 4v11M9 12h6') },
-      { key: 'donations', label: 'Donations', href: '/#donations', icon: icon('M12 2v20M17 5H9a3 3 0 0 0 0 6h6a3 3 0 1 1 0 6H7') },
-      { key: 'blockchain', label: 'Blockchain', href: '/#merkle', icon: icon('M12 3 4 7v10l8 4 8-4V7z') },
-      { key: 'assistant', label: 'Master Agent', href: '/#assistant', icon: icon('M12 3a4 4 0 0 0-4 4v1H7a2 2 0 0 0-2 2v5h14v-5a2 2 0 0 0-2-2h-1V7a4 4 0 0 0-4-4z') },
-      { key: 'webhooks', label: 'Webhooks', href: '/#webhooks', icon: icon('M4 12a4 4 0 0 1 4-4h2M20 12a4 4 0 0 0-4-4h-2M9 12h6M4 12a4 4 0 0 0 4 4h2M20 12a4 4 0 0 1-4 4h-2') },
-      { key: 'audit', label: 'Audit Log', href: '/#audit', icon: icon('M7 3h10v18l-5-3-5 3z') },
+      { key: 'dashboard', label: 'Dashboard', icon: icon('M3 12h8V3H3zM13 21h8v-8h-8zM13 3h8v6h-8zM3 21h8v-6H3z') },
+      { key: 'institutions', label: 'Institutions', icon: icon('M4 20h16M6 20V9l6-4 6 4v11M9 12h6') },
+      { key: 'donations', label: 'Donations', icon: icon('M12 2v20M17 5H9a3 3 0 0 0 0 6h6a3 3 0 1 1 0 6H7') },
+      { key: 'merkle', label: 'Blockchain', icon: icon('M12 3 4 7v10l8 4 8-4V7z') },
+      { key: 'assistant', label: 'Master Agent', icon: icon('M12 3a4 4 0 0 0-4 4v1H7a2 2 0 0 0-2 2v5h14v-5a2 2 0 0 0-2-2h-1V7a4 4 0 0 0-4-4z') },
+      { key: 'webhooks', label: 'Webhooks', icon: icon('M4 12a4 4 0 0 1 4-4h2M20 12a4 4 0 0 0-4-4h-2M9 12h6M4 12a4 4 0 0 0 4 4h2M20 12a4 4 0 0 1-4 4h-2') },
+      { key: 'audit', label: 'Audit Log', icon: icon('M7 3h10v18l-5-3-5 3z') },
     ],
     []
   );
@@ -49,9 +51,11 @@ export function AdminLayout({
             key={item.key}
             icon={item.icon}
             label={item.label}
-            href={item.href}
-            active={pathname === '/' && item.key === 'dashboard'}
-            onClick={() => setOpen(false)}
+            active={item.key === activeTab}
+            onClick={() => {
+              onTabChange(item.key as 'dashboard' | 'institutions' | 'donations' | 'merkle' | 'assistant' | 'webhooks' | 'audit');
+              setOpen(false);
+            }}
           />
         ))}
       </nav>
