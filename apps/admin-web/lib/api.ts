@@ -29,6 +29,15 @@ export function clearTokens() {
   localStorage.removeItem('accessToken');
   localStorage.removeItem('refreshToken');
 }
+function handleHttpStatus(status: number) {
+  if (typeof window === 'undefined') return;
+  if (status === 401) {
+    localStorage.clear();
+    window.location.replace('/');
+    return;
+  }
+  if (status >= 500) window.alert('Server error. Please try again in a moment.');
+}
 
 async function api<T = any>(
   path: string,
@@ -40,6 +49,7 @@ async function api<T = any>(
   const url = `${API_BASE}${path}`;
   try {
     const res = await fetch(url, { ...opts, headers });
+    handleHttpStatus(res.status);
     const text = await res.text();
     if (!text) {
       return {

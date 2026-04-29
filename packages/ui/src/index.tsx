@@ -1,46 +1,59 @@
-import type { ReactNode } from 'react';
+import Link from 'next/link';
+import { useEffect, useMemo, useState, type ReactNode } from 'react';
 
-export function KsButton(props: {
-  children: ReactNode;
-  type?: 'button' | 'submit';
-  variant?: 'primary' | 'secondary';
-  disabled?: boolean;
-  onClick?: () => void;
-  className?: string;
-}) {
-  const {
-    children,
-    type = 'button',
-    variant = 'primary',
-    disabled,
-    onClick,
-    className = '',
-  } = props;
-  const base =
-    'inline-flex items-center justify-center rounded-md px-4 py-2 text-sm font-medium transition focus:outline-none focus:ring-2 focus:ring-offset-2 disabled:opacity-50';
-  const styles =
-    variant === 'primary'
-      ? 'bg-amber-600 text-white hover:bg-amber-700 focus:ring-amber-500'
-      : 'bg-slate-200 text-slate-900 hover:bg-slate-300 focus:ring-slate-400';
-
+const cn = (...v: Array<string | false | null | undefined>) => v.filter(Boolean).join(' ');
+export function KsFontLink() {
   return (
-    <button
-      type={type}
-      disabled={disabled}
-      onClick={onClick}
-      className={`${base} ${styles} ${className}`}
-    >
-      {children}
-    </button>
+    <>
+      <link rel="preconnect" href="https://fonts.googleapis.com" />
+      <link rel="preconnect" href="https://fonts.gstatic.com" crossOrigin="" />
+      <link
+        href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:wght@500;600;700&family=DM+Sans:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap"
+        rel="stylesheet"
+      />
+    </>
   );
 }
-
-export function KsCard(props: { title?: string; children: ReactNode; className?: string }) {
-  const { title, children, className = '' } = props;
-  return (
-    <div className={`rounded-lg border border-slate-200 bg-white p-6 shadow-sm ${className}`}>
-      {title ? <h2 className="mb-4 text-lg font-semibold text-slate-900">{title}</h2> : null}
-      {children}
-    </div>
-  );
+export function KsSpinner({ size = 'md' }: { size?: 'sm' | 'md' | 'lg' }) {
+  const s = size === 'sm' ? 'h-4 w-4' : size === 'lg' ? 'h-8 w-8' : 'h-5 w-5';
+  return <span className={cn('inline-block animate-spin rounded-full border-2 border-stone-300 border-t-amber-700', s)} />;
 }
+export function KsButton(props: any) { const { variant='primary', size='md', loading, icon, iconEnd, fullWidth, className='', children, ...rest } = props;
+  const vs: any = { primary:'bg-amber-700 text-white hover:bg-amber-800', secondary:'bg-stone-800 text-white hover:bg-stone-900', outline:'border border-stone-300 bg-white text-stone-800 hover:bg-stone-50', ghost:'text-stone-700 hover:bg-stone-100', danger:'bg-red-600 text-white hover:bg-red-700', link:'text-amber-600 hover:text-amber-700 underline-offset-4 hover:underline px-0' };
+  const ss: any = { xs:'h-8 px-2.5 text-xs', sm:'h-9 px-3 text-sm', md:'h-10 px-4 text-sm', lg:'h-11 px-5 text-base' };
+  return <button {...rest} className={cn('inline-flex items-center justify-center gap-2 rounded-lg font-medium transition disabled:opacity-50', fullWidth && 'w-full', ss[size], vs[variant], className)}>{loading ? <KsSpinner size="sm" /> : icon}{children}{iconEnd}</button>;
+}
+const statusVariant = (s?: string) => ({ ACTIVE:'success', ANCHORED:'success', PENDING:'warning', SUSPENDED:'danger', REJECTED:'danger', FAILED:'danger', COLLECTING:'info', UNDER_REVIEW:'info' } as any)[String(s || '').toUpperCase()] || 'default';
+export function KsBadge({ variant, status, dot, className='', children }: any) {
+  const v = variant || statusVariant(status);
+  const m: any = { default:'bg-stone-100 text-stone-700', info:'bg-blue-50 text-blue-700', success:'bg-emerald-50 text-emerald-700', warning:'bg-amber-50 text-amber-800', danger:'bg-red-50 text-red-700' };
+  return <span className={cn('inline-flex items-center gap-1.5 rounded-full px-2.5 py-1 text-xs font-medium', m[v], className)}>{dot && <span className="h-1.5 w-1.5 rounded-full bg-current" />}{children || status || '—'}</span>;
+}
+export function KsCard({ title, subtitle, action, footer, noPadding, variant='default', className='', children }: any) {
+  const v: any = { default:'bg-white', gold:'bg-amber-50/60 border-amber-200', flat:'bg-stone-50', elevated:'bg-white shadow-ks-md' };
+  return <section className={cn('rounded-xl border border-stone-200 shadow-sm', v[variant], className)}><div className={cn(!noPadding && 'p-5')}>{(title || subtitle || action) && <div className="mb-4 flex items-start justify-between gap-3"><div>{title && <h3 className="font-semibold text-stone-900">{title}</h3>}{subtitle && <p className="text-sm text-stone-500">{subtitle}</p>}</div>{action}</div>}{children}</div>{footer && <div className="border-t border-stone-200 p-4">{footer}</div>}</section>;
+}
+export function KsStat({ label, value, trend, trendLabel, icon, variant='default' }: any) {
+  return <KsCard variant={variant === 'gold' ? 'gold' : 'default'}><div className="flex items-center justify-between"><p className="text-sm text-stone-500">{label}</p>{icon}</div><p className="mt-2 text-2xl font-semibold text-stone-900">{value}</p>{trend !== undefined && <p className={cn('mt-2 text-xs', trend >= 0 ? 'text-emerald-700' : 'text-red-700')}>{trend >= 0 ? '+' : ''}{trend}% {trendLabel}</p>}</KsCard>;
+}
+const inputBase = 'w-full rounded-lg border border-stone-300 bg-white px-3 py-2 text-sm outline-none focus:border-amber-500';
+export function KsInput({ label, hint, error, prefix, suffix, size='md', className='', ...props }: any) { return <label className="block">{label && <span className="mb-1 block text-sm font-medium text-stone-700">{label}</span>}<div className={cn('flex items-center rounded-lg border border-stone-300 bg-white focus-within:border-amber-500', size === 'sm' && 'h-9', size === 'lg' && 'h-11')}><span className="px-3 text-stone-400">{prefix}</span><input {...props} className={cn('flex-1 bg-transparent px-3 py-2 text-sm outline-none', className)} /><span className="px-3 text-stone-400">{suffix}</span></div>{error ? <p className="mt-1 text-xs text-red-600">{error}</p> : hint ? <p className="mt-1 text-xs text-stone-500">{hint}</p> : null}</label>; }
+export function KsTextarea({ label, hint, error, className='', ...props }: any) { return <label className="block">{label && <span className="mb-1 block text-sm font-medium text-stone-700">{label}</span>}<textarea {...props} className={cn(inputBase, 'min-h-24', className)} />{error ? <p className="mt-1 text-xs text-red-600">{error}</p> : hint ? <p className="mt-1 text-xs text-stone-500">{hint}</p> : null}</label>; }
+export function KsSelect({ label, hint, error, options = [], placeholder, ...props }: any) { return <label className="block">{label && <span className="mb-1 block text-sm font-medium text-stone-700">{label}</span>}<select {...props} className={inputBase}><option value="">{placeholder || 'Select'}</option>{options.map((o: any) => <option key={o.value} value={o.value}>{o.label}</option>)}</select>{error ? <p className="mt-1 text-xs text-red-600">{error}</p> : hint ? <p className="mt-1 text-xs text-stone-500">{hint}</p> : null}</label>; }
+export const KsSearch = (p: any) => <KsInput {...p} prefix={<svg viewBox="0 0 24 24" className="h-4 w-4"><path fill="currentColor" d="m21 20.3-4.7-4.7a7 7 0 1 0-.7.7l4.7 4.7zM5 10a5 5 0 1 1 10 0A5 5 0 0 1 5 10z"/></svg>} />;
+export const KsCheckbox = ({ label, hint, ...props }: any) => <label className="inline-flex items-start gap-2 text-sm text-stone-700"><input type="checkbox" className="mt-1 rounded border-stone-300 text-amber-700" {...props} /><span>{label}{hint && <span className="block text-xs text-stone-500">{hint}</span>}</span></label>;
+export function KsTable<T>({ columns, rows, emptyMessage='No records', loading, onRowClick }: any) { return <div className="overflow-x-auto rounded-xl border border-stone-200 bg-white"><table className="w-full text-sm"><thead className="bg-stone-50 text-left text-xs text-stone-500"><tr>{columns.map((c: any) => <th key={c.key} className={cn('px-4 py-3', c.align === 'right' && 'text-right')} style={{ width: c.width }}>{c.header}</th>)}</tr></thead><tbody>{loading ? <tr><td colSpan={columns.length} className="px-4 py-8 text-center"><KsSpinner /></td></tr> : rows.length ? rows.map((r: T, i: number) => <tr key={i} onClick={() => onRowClick?.(r)} className={cn('border-t border-stone-200 hover:bg-amber-50/50', onRowClick && 'cursor-pointer')}>{columns.map((c: any) => <td key={c.key} className={cn('px-4 py-3', c.align === 'right' && 'text-right')}>{c.render ? c.render(r) : (r as any)[c.key]}</td>)}</tr>) : <tr><td colSpan={columns.length} className="px-4 py-8 text-center text-stone-400">{emptyMessage}</td></tr>}</tbody></table></div>; }
+export const KsTabs = ({ tabs, active, onChange, variant='pill' }: any) => <div className="flex flex-wrap gap-2">{tabs.map((t: any) => <button key={t.value} onClick={() => onChange(t.value)} className={cn('rounded-lg border px-3 py-1.5 text-sm', variant === 'underline' ? active === t.value ? 'border-b-2 border-amber-700 text-amber-800' : 'border-transparent text-stone-500' : active === t.value ? 'border-amber-200 bg-amber-50 text-amber-800' : 'border-stone-200 bg-white text-stone-600')}>{t.label}{t.count !== undefined && <span className="ml-1.5 text-xs">({t.count})</span>}</button>)}</div>;
+export const KsAlert = ({ variant='info', title, children, onDismiss }: any) => <div className={cn('rounded-lg border p-3 text-sm', variant === 'success' && 'border-emerald-200 bg-emerald-50 text-emerald-800', variant === 'warning' && 'border-amber-200 bg-amber-50 text-amber-900', variant === 'error' && 'border-red-200 bg-red-50 text-red-800', variant === 'info' && 'border-blue-200 bg-blue-50 text-blue-800')}><div className="flex items-start justify-between gap-2"><div>{title && <p className="font-semibold">{title}</p>}{children}</div>{onDismiss && <button onClick={onDismiss}>×</button>}</div></div>;
+export function KsModal({ open, onClose, title, subtitle, footer, size='md', children }: any) { if (!open) return null; const w: any = { sm:'max-w-sm', md:'max-w-md', lg:'max-w-2xl', xl:'max-w-4xl' }; return <div className="fixed inset-0 z-50 flex items-center justify-center bg-stone-900/40 p-4" onClick={onClose}><div className={cn('w-full rounded-xl border border-stone-200 bg-white shadow-ks-lg', w[size])} onClick={(e) => e.stopPropagation()}><div className="p-5">{title && <h3 className="text-lg font-semibold">{title}</h3>}{subtitle && <p className="text-sm text-stone-500">{subtitle}</p>}<div className="mt-4">{children}</div></div>{footer && <div className="border-t border-stone-200 p-4">{footer}</div>}</div></div>; }
+export const KsEmpty = ({ icon, title, description, action }: any) => <div className="rounded-xl border border-dashed border-stone-300 bg-stone-50 p-8 text-center">{icon}<h3 className="mt-2 font-semibold text-stone-800">{title}</h3><p className="mt-1 text-sm text-stone-500">{description}</p><div className="mt-4">{action}</div></div>;
+export const KsSkeleton = ({ className='' }: any) => <div className={cn('animate-pulse rounded bg-stone-200', className)} />;
+export const KsSkeletonCard = () => <div className="rounded-xl border border-stone-200 bg-white p-5"><KsSkeleton className="h-4 w-24" /><KsSkeleton className="mt-3 h-8 w-32" /></div>;
+export function KsAvatar({ name='', src, className='' }: any) { const initials = name.split(' ').filter(Boolean).map((x: string) => x[0]).join('').slice(0, 2).toUpperCase() || 'KS'; const hue = useMemo(() => name.split('').reduce((a: number, c: string) => a + c.charCodeAt(0), 0) % 360, [name]); return src ? <img src={src} alt={name} className={cn('h-9 w-9 rounded-full object-cover', className)} /> : <span className={cn('inline-flex h-9 w-9 items-center justify-center rounded-full text-xs font-semibold text-white', className)} style={{ backgroundColor: `hsl(${hue} 50% 45%)` }}>{initials}</span>; }
+export const KsNavItem = ({ icon, label, href, active, badge, onClick }: any) => { const content = <span className={cn('flex items-center justify-between rounded-lg border px-3 py-2 text-sm', active ? 'border-amber-200/70 bg-amber-50 text-amber-800' : 'border-transparent text-stone-600 hover:bg-stone-100')}><span className="flex items-center gap-2">{icon}<span>{label}</span></span>{badge !== undefined && <KsBadge>{badge}</KsBadge>}</span>; return href ? <Link href={href} onClick={onClick}>{content}</Link> : <button onClick={onClick} className="w-full text-left">{content}</button>; };
+export const KsPageHeader = ({ title, subtitle, breadcrumb = [], actions }: any) => <div className="mb-5 flex flex-wrap items-start justify-between gap-3"><div>{breadcrumb.length > 0 && <p className="text-xs text-stone-500">{breadcrumb.join(' / ')}</p>}<h1 className="font-display text-3xl font-semibold text-stone-900">{title}</h1>{subtitle && <p className="text-sm text-stone-500">{subtitle}</p>}</div><div className="flex gap-2">{actions}</div></div>;
+export const KsDivider = ({ label }: any) => <div className="my-4 flex items-center gap-3 text-xs text-stone-400"><hr className="flex-1 border-stone-200" />{label && <span>{label}</span>}<hr className="flex-1 border-stone-200" /></div>;
+export function KsCopyButton({ value }: { value: string }) { const [copied, setCopied] = useState(false); return <KsButton size="xs" variant="outline" onClick={async () => { await navigator.clipboard.writeText(value); setCopied(true); setTimeout(() => setCopied(false), 1200); }}>{copied ? '✓ Copied' : 'Copy'}</KsButton>; }
+export const KsHash = ({ value, href, withCopy = true }: any) => <div className="inline-flex items-center gap-2"><code className="rounded bg-stone-100 px-2 py-1 font-mono text-xs">{String(value || '').slice(0, 10)}...{String(value || '').slice(-6)}</code>{href && <a href={href} target="_blank" rel="noreferrer" className="text-xs text-amber-600">View</a>}{withCopy && value && <KsCopyButton value={value} />}</div>;
+export const KsGoldAmount = ({ mg }: any) => { const n = Number(mg || 0); return <span className="font-semibold text-amber-700">{n >= 1000 ? `${(n / 1000).toFixed(3)} g` : `${n.toFixed(2)} mg`}</span>; };
+export function KsAuthGuard({ children, storageKey = 'accessToken', loginPath = '/' }: any) { const [ok, setOk] = useState(false); useEffect(() => { const has = typeof window !== 'undefined' && localStorage.getItem(storageKey); if (!has) { window.location.replace(loginPath); return; } setOk(true); }, [loginPath, storageKey]); if (!ok) return <div className="flex min-h-[40vh] items-center justify-center"><KsSpinner /></div>; return children; }

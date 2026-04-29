@@ -40,6 +40,15 @@ export function clearTokens() {
   localStorage.removeItem('accessToken');
   localStorage.removeItem('refreshToken');
 }
+function handleHttpStatus(status: number) {
+  if (typeof window === 'undefined') return;
+  if (status === 401) {
+    localStorage.clear();
+    window.location.replace('/');
+    return;
+  }
+  if (status >= 500) window.alert('Server error. Please try again shortly.');
+}
 
 export function getRefreshToken(): string | null {
   return localStorage.getItem('refreshToken');
@@ -79,6 +88,7 @@ export async function api<T = any>(
 
   try {
     let res = await fetch(`${API_BASE}${path}`, { ...options, headers });
+    handleHttpStatus(res.status);
 
     // Auto-refresh on 401
     if (res.status === 401 && token) {
@@ -86,6 +96,7 @@ export async function api<T = any>(
       if (refreshed) {
         headers['Authorization'] = `Bearer ${getToken()}`;
         res = await fetch(`${API_BASE}${path}`, { ...options, headers });
+        handleHttpStatus(res.status);
       }
     }
 
