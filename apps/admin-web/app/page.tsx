@@ -19,6 +19,22 @@ function getExplorerTxBaseUrl(network?: string): string {
   return EXPLORER_TX_BASE_URL || 'https://polygonscan.com/tx';
 }
 
+const hashToTab = (hash: string): Tab => {
+  const key = hash.replace(/^#/, '').toLowerCase();
+  if (key === 'institutions') return 'institutions';
+  if (key === 'donations') return 'donations';
+  if (key === 'merkle' || key === 'blockchain') return 'merkle';
+  if (key === 'assistant') return 'assistant';
+  if (key === 'webhooks') return 'webhooks';
+  if (key === 'audit') return 'audit';
+  return 'dashboard';
+};
+
+const tabToHash = (tab: Tab): string => {
+  if (tab === 'dashboard') return '';
+  return tab === 'merkle' ? '#merkle' : `#${tab}`;
+};
+
 export default function AdminPage() {
   const showDevHints = process.env.NODE_ENV !== 'production';
   const [loggedIn, setLoggedIn] = useState(false);
@@ -30,6 +46,22 @@ export default function AdminPage() {
   useEffect(() => {
     if (typeof window !== 'undefined' && localStorage.getItem('accessToken')) setLoggedIn(true);
   }, []);
+
+  useEffect(() => {
+    if (typeof window === 'undefined') return;
+    const applyHash = () => setTab(hashToTab(window.location.hash));
+    applyHash();
+    window.addEventListener('hashchange', applyHash);
+    return () => window.removeEventListener('hashchange', applyHash);
+  }, []);
+
+  useEffect(() => {
+    if (typeof window === 'undefined') return;
+    const hash = tabToHash(tab);
+    if (window.location.hash !== hash) {
+      window.history.replaceState(null, '', `${window.location.pathname}${hash}`);
+    }
+  }, [tab]);
 
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -110,6 +142,8 @@ export default function AdminPage() {
   return (
     <AdminLayout
       email={email}
+      activeTab={tab}
+      onTabChange={setTab}
       onSignOut={() => {
         clearTokens();
         setLoggedIn(false);
