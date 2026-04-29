@@ -1,0 +1,26 @@
+Copy into your deployed repo (SKY-RADIANT-AGRO / sky-radiant-agro-platform):
+
+1) Add files (same as kanak-setu workspace):
+   - src/lib/commodity.ts
+   - src/lib/ogdMandi.ts
+
+2) In src/routes/agro.routes.ts (your full version with global-scan + bootstrap):
+   - import { ensureCommodityByCode } from '../lib/commodity';
+   - import { tryIngestOgdMandiForCommodity } from '../lib/ogdMandi';
+
+3) Replace prisma.commodity.findUnique for commodity in:
+   - GET /intelligence/global-scan  -> await ensureCommodityByCode(commodityCode)
+   - POST /recommendations/generate -> await ensureCommodityByCode(commodityCode)
+
+4) In generate, BEFORE ensureMandiBootstrapData (or instead of synthetic when user wants real):
+   - If no prices: await tryIngestOgdMandiForCommodity({ commodityId, commodityDisplayName: commodity.name, sourceRegion, targetRegion })
+   - Re-query prices
+   - Call ensureMandiBootstrapData ONLY if process.env.USE_SYNTHETIC_MANDI === '1'
+   - If still no prices: 404 with message about DATA_GOV_IN_* or manual ingest
+
+5) .env on server:
+   DATA_GOV_IN_API_KEY=<from https://data.gov.in >
+   DATA_GOV_IN_RESOURCE_ID=<resource uuid from "Current daily price" mandi dataset API page>
+   USE_SYNTHETIC_MANDI=0
+
+Reference implementation of generate() is in kanak-setu/sky-radiant-agro/src/routes/agro.routes.ts (simplified, no global-scan).
