@@ -1,5 +1,6 @@
 'use client';
 import Link from 'next/link';
+import { DonorHeroBadge } from '@/components/DonorComponents';
 
 export default function Home() {
   const highlights = [
@@ -31,9 +32,7 @@ export default function Home() {
         <div className="pointer-events-none absolute -right-16 -top-16 h-48 w-48 rounded-full bg-gold-200/50 blur-3xl" />
         <div className="pointer-events-none absolute -bottom-16 -left-16 h-48 w-48 rounded-full bg-amber-200/40 blur-3xl" />
         <div className="relative">
-          <span className="inline-flex rounded-full border border-gold-200 bg-white/90 px-3 py-1 text-xs font-semibold uppercase tracking-wide text-gold-700">
-            Trusted Digital Gold Donations
-          </span>
+          <DonorHeroBadge />
           <h1 className="mt-5 font-display text-4xl font-bold leading-tight text-gray-900 md:text-6xl">
             India&apos;s Most Transparent
             <br />

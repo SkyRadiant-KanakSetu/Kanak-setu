@@ -2,6 +2,7 @@ import './globals.css';
 import { AuthProvider } from '@/lib/auth';
 import { Navbar } from '@/components/Navbar';
 import Image from 'next/image';
+import { KsFontLink } from '@kanak-setu/ui';
 
 export const metadata = {
   title: 'Kanak Setu — Digital Gold Donation',
@@ -28,7 +29,10 @@ export const metadata = {
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
     <html lang="en">
-      <body>
+      <head>
+        <KsFontLink />
+      </head>
+      <body className="bg-[#fdf8f0] font-sans text-stone-900">
         <AuthProvider>
           <Navbar />
           <main className="min-h-screen">{children}</main>

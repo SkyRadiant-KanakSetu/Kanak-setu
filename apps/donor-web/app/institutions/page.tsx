@@ -79,6 +79,8 @@ export default function InstitutionsPage() {
       ) : (
         <div className="mt-8 grid gap-6 md:grid-cols-2 lg:grid-cols-3">
           {filtered.map((inst) => {
+            const cleanDescription = (inst.description || '').trim().replace(/^[,.\s]+$/, '');
+            const locationText = inst.city && inst.state ? `${inst.city}, ${inst.state}` : '';
             const donateHref = inst.publicPageSlug
               ? `/give/${encodeURIComponent(inst.publicPageSlug)}`
               : `/donate?institution=${inst.id}&name=${encodeURIComponent(inst.publicName)}`;
@@ -103,12 +105,10 @@ export default function InstitutionsPage() {
                   </span>
                 )}
               </div>
-              {inst.description && (
-                <p className="mt-3 text-sm text-gray-500 line-clamp-2">{inst.description}</p>
-              )}
-              <p className="mt-3 text-xs text-gray-400">
-                {inst.city}, {inst.state}
+              <p className={`mt-3 text-sm line-clamp-2 ${cleanDescription ? 'text-gray-500' : 'italic text-gray-400'}`}>
+                {cleanDescription || 'No description provided'}
               </p>
+              {locationText && <p className="mt-3 text-xs text-gray-400">{locationText}</p>}
               <div className="mt-4 text-sm font-medium text-gold-600 group-hover:text-gold-800">
                 Donate Gold →
               </div>

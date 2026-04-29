@@ -1,5 +1,6 @@
 import './globals.css';
 import Image from 'next/image';
+import { KsFontLink } from '@kanak-setu/ui';
 
 export const metadata = {
   title: 'Kanak Setu — Institution Portal',
@@ -23,7 +24,10 @@ export const metadata = {
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
     <html lang="en">
-      <body>
+      <head>
+        <KsFontLink />
+      </head>
+      <body className="bg-[#fdf8f0] font-sans text-stone-900">
         <nav className="sticky top-0 z-50 border-b bg-white/90 backdrop-blur">
           <div className="mx-auto flex max-w-6xl items-center justify-between px-4 py-3">
             <span className="flex items-center gap-3 font-serif text-lg font-bold text-amber-800">

@@ -2,10 +2,16 @@
 import { useState, useEffect } from 'react';
 import Image from 'next/image';
 import { authApi, admin, merkleApi, setTokens, clearTokens } from '@/lib/api';
+import { AdminLayout } from '@/components/AdminLayout';
+import { KsAlert } from '@kanak-setu/ui';
 
 type Tab = 'dashboard' | 'institutions' | 'donations' | 'merkle' | 'assistant' | 'webhooks' | 'audit';
 const EXPLORER_TX_BASE_URL =
   process.env.NEXT_PUBLIC_BLOCK_EXPLORER_TX_BASE_URL || '';
+function shouldForceRelogin(message?: string) {
+  const m = (message || '').toLowerCase();
+  return m.includes('token') && (m.includes('expired') || m.includes('invalid') || m.includes('unauthorized'));
+}
 
 function getExplorerTxBaseUrl(network?: string): string {
   if (network === 'polygon_mainnet') return 'https://polygonscan.com/tx';
@@ -30,6 +36,11 @@ export default function AdminPage() {
     setError('');
     const res = await authApi.login(email, password);
     if (!res.success) {
+      if (shouldForceRelogin(res.error?.message)) {
+        localStorage.clear();
+        window.location.replace('/');
+        return;
+      }
       setError(res.error?.message || 'Failed');
       return;
     }
@@ -52,7 +63,13 @@ export default function AdminPage() {
             <p className="mt-2 text-xs font-semibold uppercase tracking-wide text-zinc-500">Admin Console</p>
           </div>
           <h1 className="text-xl font-bold">Admin Login</h1>
-          {error && <p className="mt-2 text-sm text-red-600">{error}</p>}
+          {error && (
+            <div className="mt-2">
+              <KsAlert variant="error" title="Login failed">
+                {error}
+              </KsAlert>
+            </div>
+          )}
           <form onSubmit={handleLogin} className="mt-4 space-y-3">
             <input
               type="email"
@@ -91,43 +108,25 @@ export default function AdminPage() {
   ];
 
   return (
-    <div className="flex min-h-screen">
-      <aside className="w-56 border-r bg-white p-4">
-        <div className="mb-6 flex items-center gap-3 font-bold text-zinc-800">
-          <Image
-            src="/logo.png"
-            alt="Kanak Setu"
-            width={42}
-            height={42}
-            className="h-11 w-11 rounded-full border border-amber-300/70 p-0.5 shadow-[0_6px_18px_rgba(180,120,20,0.22)] saturate-150"
-          />
-          <span className="leading-tight">
-            <span className="block">Kanak Setu</span>
-            <span className="block text-[11px] font-semibold uppercase tracking-wide text-zinc-500">
-              Admin Panel
-            </span>
-          </span>
-        </div>
+    <AdminLayout
+      email={email}
+      onSignOut={() => {
+        clearTokens();
+        setLoggedIn(false);
+      }}
+    >
+      <div className="mb-4 flex flex-wrap gap-2">
         {tabs.map((t) => (
           <button
             key={t.key}
             onClick={() => setTab(t.key)}
-            className={`block w-full rounded-lg px-3 py-2 text-left text-sm mb-1 ${tab === t.key ? 'bg-zinc-100 font-medium' : 'hover:bg-zinc-50 text-gray-600'}`}
+            className={`rounded-lg px-3 py-1.5 text-sm ${tab === t.key ? 'bg-amber-50 text-amber-800 border border-amber-200/70' : 'bg-white border border-stone-200 text-stone-600'}`}
           >
-            {t.label}
+            {t.label.replace(/[^\w\s]/g, '').trim()}
           </button>
         ))}
-        <button
-          onClick={() => {
-            clearTokens();
-            setLoggedIn(false);
-          }}
-          className="mt-8 text-xs text-gray-400 hover:text-red-500"
-        >
-          Logout
-        </button>
-      </aside>
-      <main className="flex-1 p-6 overflow-auto">
+      </div>
+      <main className="overflow-auto">
         {tab === 'dashboard' && <DashboardTab />}
         {tab === 'institutions' && <InstitutionsTab />}
         {tab === 'donations' && <DonationsTab />}
@@ -136,7 +135,7 @@ export default function AdminPage() {
         {tab === 'webhooks' && <WebhooksTab />}
         {tab === 'audit' && <AuditTab />}
       </main>
-    </div>
+    </AdminLayout>
   );
 }
 
@@ -235,6 +234,11 @@ function DashboardTab() {
         setData(r.data);
         return;
       }
+      if (shouldForceRelogin(r.error?.message)) {
+        localStorage.clear();
+        window.location.replace('/');
+        return;
+      }
       setLoadError(r.error?.message || 'Failed to load dashboard');
     });
   }, [rangeDays]);
@@ -243,7 +247,11 @@ function DashboardTab() {
     return (
       <div>
         <h2 className="text-lg font-bold">Dashboard</h2>
-        <p className="mt-4 text-sm text-red-600">{loadError}</p>
+        <div className="mt-4">
+          <KsAlert variant="error" title="Dashboard unavailable">
+            {loadError}
+          </KsAlert>
+        </div>
         <p className="mt-2 text-xs text-gray-500">
           If you just logged in, confirm you are using a platform admin account (for example admin@kanaksetu.in),
           not an institution or donor login.
@@ -489,7 +497,7 @@ function InstitutionsTab() {
   return (
     <div>
       <h2 className="text-lg font-bold">Institutions</h2>
-      <form onSubmit={createInstitution} className="mt-4 rounded-xl border bg-white p-4">
+      <form onSubmit={createInstitution} autoComplete="off" className="mt-4 rounded-xl border bg-white p-4">
         <p className="text-sm font-semibold">Onboard institution</p>
         {createError && <p className="mt-2 text-xs text-red-600">{createError}</p>}
         {createOk && <p className="mt-2 text-xs text-green-700">{createOk}</p>}
@@ -521,6 +529,7 @@ function InstitutionsTab() {
           </select>
           <input
             type="email"
+            name="institution_contact_email"
             value={newInstitution.email}
             onChange={(e) => setNewInstitution((f) => ({ ...f, email: e.target.value }))}
             placeholder="Institution admin email *"
@@ -529,6 +538,7 @@ function InstitutionsTab() {
           />
           <input
             type="password"
+            name="institution_temporary_password"
             value={newInstitution.password}
             onChange={(e) => setNewInstitution((f) => ({ ...f, password: e.target.value }))}
             placeholder="Temporary password *"

@@ -3,6 +3,7 @@ import { useState, useEffect, useMemo, Suspense } from 'react';
 import { useSearchParams, useRouter } from 'next/navigation';
 import { useAuth } from '@/lib/auth';
 import { donations, institutions } from '@/lib/api';
+import { DonationStepIndicator } from '@/components/DonorComponents';
 
 function DonateForm() {
   const searchParams = useSearchParams();
@@ -93,8 +94,8 @@ function DonateForm() {
       router.push(`/auth?returnTo=${encodeURIComponent(returnTo)}`);
       return;
     }
-    if (amountPaise < 100) {
-      setError('Minimum ₹1');
+    if (amountPaise < 10000) {
+      setError('Minimum donation is ₹100');
       return;
     }
 
@@ -117,8 +118,8 @@ function DonateForm() {
   };
 
   const goToPaymentStep = () => {
-    if (amountPaise < 100) {
-      setError('Minimum ₹1');
+    if (amountPaise < 10000) {
+      setError('Minimum donation is ₹100');
       return;
     }
     setError('');
@@ -145,9 +146,7 @@ function DonateForm() {
   if (step === 'awaiting_confirmation') {
     return (
       <div className="mx-auto max-w-lg px-4 py-16 text-center">
-        <div className="mb-5 inline-flex rounded-full border border-gold-200 bg-gold-50 px-3 py-1 text-xs font-semibold uppercase tracking-wide text-gold-700">
-          Step 3 of 3: Confirm UTR
-        </div>
+        <DonationStepIndicator step={3} />
         <h1 className="mt-2 font-display text-2xl font-bold text-gray-900">Complete UPI Payment</h1>
         <p className="mt-2 text-gray-600">
           Pay via UPI for <strong>{effectiveInstitutionName}</strong>, then enter your UPI reference/UTR to generate
@@ -224,9 +223,7 @@ function DonateForm() {
   if (step === 'payment') {
     return (
       <div className="mx-auto max-w-lg px-4 py-12">
-        <div className="mb-5 inline-flex rounded-full border border-gold-200 bg-gold-50 px-3 py-1 text-xs font-semibold uppercase tracking-wide text-gold-700">
-          Step 2 of 3: Pay via UPI
-        </div>
+        <DonationStepIndicator step={2} />
         <h1 className="font-display text-2xl font-bold text-gray-900">Pay using UPI QR</h1>
         <p className="mt-1 text-gray-600">
           Institution: <strong className="text-gold-700">{effectiveInstitutionName}</strong>
@@ -277,9 +274,7 @@ function DonateForm() {
 
   return (
     <div className="mx-auto max-w-lg px-4 py-12">
-      <div className="mb-5 inline-flex rounded-full border border-gold-200 bg-gold-50 px-3 py-1 text-xs font-semibold uppercase tracking-wide text-gold-700">
-        Step 1 of 3: Enter amount
-      </div>
+      <DonationStepIndicator step={1} />
       <h1 className="font-display text-2xl font-bold text-gray-900">Donate Gold</h1>
       <p className="mt-1 text-gray-500">
         To: <strong className="text-gold-700">{effectiveInstitutionName}</strong>
@@ -334,7 +329,7 @@ function DonateForm() {
 
         <button
           onClick={goToPaymentStep}
-          disabled={amountPaise < 100}
+          disabled={amountPaise < 10000}
           className="w-full rounded-xl bg-gold-600 py-3.5 text-lg font-semibold text-white shadow-lg transition hover:bg-gold-700 disabled:opacity-50"
         >
           Continue to UPI QR

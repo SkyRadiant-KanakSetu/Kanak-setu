@@ -2,6 +2,7 @@
 import { useState, useEffect } from 'react';
 import { auth, portal, setTokens, clearTokens } from '@/lib/api';
 import { DonationQr } from '@/components/DonationQr';
+import { InstitutionLayout } from '@/components/InstitutionLayout';
 
 type InstitutionTab = 'overview' | 'donations' | 'donors' | 'ledger' | 'settings';
 
@@ -141,6 +142,9 @@ export default function InstitutionHome() {
     );
   });
   const donorDirectory = dashboard?.donorDirectory || [];
+  const showLocationColumn = filteredRecentDonations.some((d: any) => d.donor?.city || d.donor?.state);
+  const showProfessionColumn = filteredRecentDonations.some((d: any) => d.donor?.profession);
+  const showAgeColumn = filteredRecentDonations.some((d: any) => calcAge(d.donor?.dateOfBirth) !== '-');
   const filteredDonors = donorDirectory.filter((d: any) => {
     const q = donorSearch.trim().toLowerCase();
     if (!q) return true;
@@ -150,7 +154,11 @@ export default function InstitutionHome() {
   });
 
   return (
-    <div className="mx-auto max-w-6xl px-4 py-8">
+    <InstitutionLayout
+      institutionName={dashboard?.publicName || dashboard?.legalName || 'Institution'}
+      onSignOut={handleLogout}
+    >
+    <div className="mx-auto max-w-6xl px-4 py-2">
       <div className="relative flex items-start justify-end">
         <div className="pointer-events-none absolute left-1/2 top-0 w-full -translate-x-1/2 text-center">
           <h1 className="font-serif text-2xl font-bold">
@@ -373,9 +381,9 @@ export default function InstitutionHome() {
                       <th className="px-4 py-2">Ref</th>
                       <th className="px-4 py-2">Donor</th>
                       <th className="px-4 py-2">Phone</th>
-                      <th className="px-4 py-2">Location</th>
-                      <th className="px-4 py-2">Profession</th>
-                      <th className="px-4 py-2">Age</th>
+                      {showLocationColumn && <th className="px-4 py-2">Location</th>}
+                      {showProfessionColumn && <th className="px-4 py-2">Profession</th>}
+                      {showAgeColumn && <th className="px-4 py-2">Age</th>}
                       <th className="px-4 py-2">Amount</th>
                       <th className="px-4 py-2">Gold (mg)</th>
                       <th className="px-4 py-2">Status</th>
@@ -390,11 +398,11 @@ export default function InstitutionHome() {
                           {[d.donor?.firstName, d.donor?.lastName].filter(Boolean).join(' ') || '-'}
                         </td>
                         <td className="px-4 py-2">{d.donor?.user?.phone || '-'}</td>
-                        <td className="px-4 py-2">
-                          {[d.donor?.city, d.donor?.state].filter(Boolean).join(', ') || '-'}
-                        </td>
-                        <td className="px-4 py-2">{d.donor?.profession || '-'}</td>
-                        <td className="px-4 py-2">{calcAge(d.donor?.dateOfBirth)}</td>
+                        {showLocationColumn && (
+                          <td className="px-4 py-2">{[d.donor?.city, d.donor?.state].filter(Boolean).join(', ') || '-'}</td>
+                        )}
+                        {showProfessionColumn && <td className="px-4 py-2">{d.donor?.profession || '-'}</td>}
+                        {showAgeColumn && <td className="px-4 py-2">{calcAge(d.donor?.dateOfBirth)}</td>}
                         <td className="px-4 py-2">₹{(d.amountPaise / 100).toFixed(2)}</td>
                         <td className="px-4 py-2">
                           {d.goldQuantityMg ? parseFloat(d.goldQuantityMg).toFixed(2) : '-'}
@@ -409,7 +417,7 @@ export default function InstitutionHome() {
                     ))}
                     {filteredRecentDonations.length === 0 && (
                       <tr>
-                        <td colSpan={10} className="px-4 py-6 text-center text-gray-400">
+                        <td colSpan={7 + (showLocationColumn ? 1 : 0) + (showProfessionColumn ? 1 : 0) + (showAgeColumn ? 1 : 0)} className="px-4 py-6 text-center text-gray-400">
                           No donations match your search
                         </td>
                       </tr>
@@ -520,6 +528,7 @@ export default function InstitutionHome() {
         </>
       )}
     </div>
+    </InstitutionLayout>
   );
 }
 

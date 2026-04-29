@@ -2,6 +2,7 @@
 import { useState, useEffect, Suspense } from 'react';
 import { useSearchParams } from 'next/navigation';
 import { merkle, verify } from '@/lib/api';
+import { KsBadge, KsHash } from '@kanak-setu/ui';
 
 const EXPLORER_TX_BASE_URL =
   process.env.NEXT_PUBLIC_BLOCK_EXPLORER_TX_BASE_URL || 'https://amoy.polygonscan.com/tx';
@@ -39,16 +40,6 @@ function VerifyContent() {
     else setInfo(res.error?.message || 'Certificate not found');
     setLoading(false);
   };
-
-  async function copyValue(value: string) {
-    try {
-      await navigator.clipboard.writeText(value);
-      setInfo('Copied to clipboard');
-      window.setTimeout(() => setInfo(''), 1400);
-    } catch {
-      setInfo('Could not copy');
-    }
-  }
 
   return (
     <div className="mx-auto max-w-2xl px-4 py-12">
@@ -101,26 +92,11 @@ function VerifyContent() {
               </strong>
             </div>
             <div>
-              <span className="text-gray-400">Leaf Hash:</span>{' '}
-              <code className="text-xs bg-gray-50 px-1 rounded">{proof.leafHash}</code>
-              <button
-                type="button"
-                onClick={() => copyValue(proof.leafHash)}
-                className="ml-2 rounded bg-gray-100 px-2 py-0.5 text-[11px] text-gray-700 hover:bg-gray-200"
-              >
-                Copy
-              </button>
+                <span className="text-gray-400">Leaf Hash:</span> <KsHash value={proof.leafHash} />
             </div>
             <div>
               <span className="text-gray-400">Merkle Root:</span>{' '}
-              <code className="text-xs bg-gray-50 px-1 rounded">{proof.merkleRoot}</code>
-              <button
-                type="button"
-                onClick={() => copyValue(proof.merkleRoot)}
-                className="ml-2 rounded bg-gray-100 px-2 py-0.5 text-[11px] text-gray-700 hover:bg-gray-200"
-              >
-                Copy
-              </button>
+              <KsHash value={proof.merkleRoot} />
             </div>
             <div>
               <span className="text-gray-400">Batch #:</span> {proof.batchNumber} (
@@ -138,30 +114,14 @@ function VerifyContent() {
                 </div>
                 <div>
                   <span className="text-gray-400">Anchor status:</span>{' '}
-                  <span className="rounded bg-gray-100 px-1.5 py-0.5 text-xs">
-                    {proof.blockchain.status || proof.batchStatus}
-                  </span>
+                  <KsBadge status={proof.blockchain.status || proof.batchStatus} />
                 </div>
                 <div>
                   <span className="text-gray-400">Attempts:</span> {proof.blockchain.attempts ?? 0}
                 </div>
                 <div>
-                  <span className="text-gray-400">Tx Hash:</span>
-                  <a
-                    href={`${EXPLORER_TX_BASE_URL}/${proof.blockchain.txHash}`}
-                    target="_blank"
-                    rel="noopener"
-                    className="ml-1 text-blue-600 hover:underline text-xs break-all"
-                  >
-                    {proof.blockchain.txHash}
-                  </a>
-                  <button
-                    type="button"
-                    onClick={() => copyValue(proof.blockchain.txHash)}
-                    className="ml-2 rounded bg-gray-100 px-2 py-0.5 text-[11px] text-gray-700 hover:bg-gray-200"
-                  >
-                    Copy
-                  </button>
+                  <span className="text-gray-400">Tx Hash:</span>{' '}
+                  <KsHash value={proof.blockchain.txHash} href={`${EXPLORER_TX_BASE_URL}/${proof.blockchain.txHash}`} />
                 </div>
                 <div>
                   <span className="text-gray-400">Block:</span> {proof.blockchain.blockNumber}
