@@ -4,8 +4,90 @@ import { prisma } from '../../config/prisma';
 import { success, paginated } from '../../utils/response';
 import { AppError } from '../../middleware/errorHandler';
 import { auditLog } from '../../utils/auditLog';
+import { z } from 'zod';
 
 export const institutionRouter = Router();
+
+const ENABLE_PORTAL_REFINEMENTS = process.env.ENABLE_INSTITUTION_PORTAL_REFINEMENTS === '1';
+const ENABLE_FAITH_SETTINGS = process.env.ENABLE_FAITH_CONTEXT_SETTINGS === '1';
+const isoDateRegex = /^\d{4}-\d{2}-\d{2}$/;
+const isoDateTimeRegex = /^\d{4}-\d{2}-\d{2}T/;
+
+const spiritualFunctionPayloadSchema = z.object({
+  name: z.string().trim().min(2).max(120),
+  functionType: z
+    .enum(['PUJA', 'SEVA', 'FESTIVAL', 'COMMUNITY_SERVICE', 'EDUCATION', 'HEALTH', 'OTHER'])
+    .optional(),
+  status: z.enum(['ACTIVE', 'PAUSED', 'COMPLETED']).optional(),
+  frequency: z.string().trim().max(80).optional().nullable(),
+  nextDate: z
+    .string()
+    .refine((value) => isoDateRegex.test(value) || isoDateTimeRegex.test(value), 'Invalid nextDate format')
+    .optional()
+    .nullable(),
+  description: z.string().trim().max(500).optional().nullable(),
+  city: z.string().trim().max(120).optional().nullable(),
+  state: z.string().trim().max(120).optional().nullable(),
+  isPublic: z.boolean().optional(),
+});
+
+const institutionTaskPayloadSchema = z.object({
+  functionId: z.string().cuid().optional().nullable(),
+  title: z.string().trim().min(2).max(140),
+  taskType: z
+    .enum(['PRE_EVENT', 'EVENT_DAY', 'POST_EVENT', 'DONOR_FOLLOWUP', 'COMPLIANCE', 'OTHER'])
+    .optional(),
+  status: z.enum(['TODO', 'IN_PROGRESS', 'DONE', 'CANCELLED']).optional(),
+  dueDate: z
+    .string()
+    .refine((value) => isoDateRegex.test(value) || isoDateTimeRegex.test(value), 'Invalid dueDate format')
+    .optional()
+    .nullable(),
+  assigneeName: z.string().trim().max(120).optional().nullable(),
+  notes: z.string().trim().max(1000).optional().nullable(),
+});
+
+const faithSettingsPayloadSchema = z.object({
+  faithTradition: z.string().trim().max(80).optional().nullable(),
+  terminologyDonationLabel: z.string().trim().min(2).max(40).optional().nullable(),
+  terminologyDonorLabel: z.string().trim().min(2).max(40).optional().nullable(),
+  sacredCalendarHighlights: z
+    .array(
+      z.object({
+        title: z.string().trim().min(2).max(100),
+        date: z.string().regex(/^\d{4}-\d{2}-\d{2}$/),
+        note: z.string().trim().max(240).optional(),
+      })
+    )
+    .max(20)
+    .optional()
+    .nullable(),
+});
+
+function assertPortalRefinementsEnabled() {
+  if (!ENABLE_PORTAL_REFINEMENTS) {
+    throw new AppError(404, 'FEATURE_DISABLED', 'Institution portal refinements are not enabled');
+  }
+}
+
+function parseOptionalIsoDate(input?: string | null) {
+  if (!input) return null;
+  const value = new Date(input);
+  if (Number.isNaN(value.getTime())) {
+    throw new AppError(400, 'VALIDATION_ERROR', 'Invalid date format. Use ISO date format.');
+  }
+  return value;
+}
+
+function getPortalLabels(profile: {
+  terminologyDonationLabel: string | null;
+  terminologyDonorLabel: string | null;
+}) {
+  return {
+    donationLabel: (profile.terminologyDonationLabel || 'Donation').trim() || 'Donation',
+    donorLabel: (profile.terminologyDonorLabel || 'Donor').trim() || 'Donor',
+  };
+}
 
 function calculateAgeFromDob(dateOfBirth: Date | null | undefined) {
   if (!dateOfBirth) return null;
@@ -186,6 +268,7 @@ institutionRouter.post(
   requireRole('INSTITUTION_ADMIN'),
   async (req: Request, res: Response, next: NextFunction) => {
     try {
+      assertPortalRefinementsEnabled();
       const profile = await prisma.institutionProfile.findUnique({
         where: { userId: req.auth!.userId },
       });
@@ -270,6 +353,9 @@ institutionRouter.get(
         where: { userId: req.auth!.userId },
       });
       if (!profile) throw new AppError(404, 'NOT_FOUND', 'No institution profile');
+      const includeDemographics = String(req.query.includeDemographics || '') === '1';
+      const includeGeoDistribution = String(req.query.includeGeoDistribution || '') === '1';
+      const labels = getPortalLabels(profile);
 
       const [totalDonations, totalGoldMg, recentDonations, donorSnapshotDonations] = await Promise.all([
         prisma.donation.count({
@@ -423,6 +509,7 @@ institutionRouter.get(
         publicName: profile.publicName,
         publicPageSlug: profile.publicPageSlug,
         upiId: profile.upiId,
+        labels,
         status: profile.status,
         totalDonations,
         totalGoldMg: totalGoldMg._sum.goldQuantityMg || 0,
@@ -433,6 +520,26 @@ institutionRouter.get(
         donorTrend,
         donorDirectory,
         recentDonations,
+        ...(includeDemographics && ENABLE_PORTAL_REFINEMENTS
+          ? {
+              demographics: {
+                uniqueDonors: donorCounts.length,
+                repeatDonors: donorCounts.filter((row) => row._count.donorId >= 2).length,
+              },
+            }
+          : {}),
+        ...(includeGeoDistribution && ENABLE_PORTAL_REFINEMENTS
+          ? {
+              geo: donorDirectory.reduce(
+                (acc: Record<string, number>, donor: any) => {
+                  const state = String(donor.state || 'Unknown').trim() || 'Unknown';
+                  acc[state] = (acc[state] || 0) + 1;
+                  return acc;
+                },
+                {}
+              ),
+            }
+          : {}),
       });
     } catch (e) {
       next(e);
@@ -447,6 +554,9 @@ institutionRouter.get(
   requireRole('INSTITUTION_ADMIN', 'INSTITUTION_STAFF'),
   async (req: Request, res: Response, next: NextFunction) => {
     try {
+      if (!ENABLE_FAITH_SETTINGS) {
+        throw new AppError(404, 'FEATURE_DISABLED', 'Faith context settings are not enabled');
+      }
       const profile = await prisma.institutionProfile.findUnique({
         where: { userId: req.auth!.userId },
         select: {
@@ -458,7 +568,13 @@ institutionRouter.get(
         },
       });
       if (!profile) throw new AppError(404, 'NOT_FOUND', 'No institution profile');
-      success(res, profile);
+      success(res, {
+        ...profile,
+        terminologyDonationLabel:
+          (profile.terminologyDonationLabel || 'Donation').trim() || 'Donation',
+        terminologyDonorLabel: (profile.terminologyDonorLabel || 'Donor').trim() || 'Donor',
+        sacredCalendarHighlights: profile.sacredCalendarHighlights || [],
+      });
     } catch (e) {
       next(e);
     }
@@ -471,17 +587,25 @@ institutionRouter.patch(
   requireRole('INSTITUTION_ADMIN'),
   async (req: Request, res: Response, next: NextFunction) => {
     try {
+      if (!ENABLE_FAITH_SETTINGS) {
+        throw new AppError(404, 'FEATURE_DISABLED', 'Faith context settings are not enabled');
+      }
       const profile = await prisma.institutionProfile.findUnique({
         where: { userId: req.auth!.userId },
       });
       if (!profile) throw new AppError(404, 'NOT_FOUND', 'No institution profile');
+      const parsed = faithSettingsPayloadSchema.safeParse(req.body || {});
+      if (!parsed.success) {
+        throw new AppError(400, 'VALIDATION_ERROR', parsed.error.issues[0]?.message || 'Invalid payload');
+      }
+      const payload = parsed.data;
       const updated = await prisma.institutionProfile.update({
         where: { id: profile.id },
         data: {
-          faithTradition: req.body.faithTradition || null,
-          terminologyDonationLabel: req.body.terminologyDonationLabel || null,
-          terminologyDonorLabel: req.body.terminologyDonorLabel || null,
-          sacredCalendarHighlights: req.body.sacredCalendarHighlights || null,
+          faithTradition: payload.faithTradition || null,
+          terminologyDonationLabel: payload.terminologyDonationLabel || null,
+          terminologyDonorLabel: payload.terminologyDonorLabel || null,
+          sacredCalendarHighlights: payload.sacredCalendarHighlights || [],
         },
         select: {
           id: true,
@@ -491,6 +615,20 @@ institutionRouter.patch(
           sacredCalendarHighlights: true,
           updatedAt: true,
         },
+      });
+      await auditLog({
+        userId: req.auth!.userId,
+        action: 'UPDATE',
+        entity: 'InstitutionProfileFaithSettings',
+        entityId: profile.id,
+        before: {
+          faithTradition: profile.faithTradition,
+          terminologyDonationLabel: profile.terminologyDonationLabel,
+          terminologyDonorLabel: profile.terminologyDonorLabel,
+          sacredCalendarHighlights: profile.sacredCalendarHighlights,
+        },
+        after: updated,
+        req,
       });
       success(res, updated);
     } catch (e) {
@@ -531,24 +669,37 @@ institutionRouter.post(
   requireRole('INSTITUTION_ADMIN'),
   async (req: Request, res: Response, next: NextFunction) => {
     try {
+      assertPortalRefinementsEnabled();
       const profile = await prisma.institutionProfile.findUnique({
         where: { userId: req.auth!.userId },
       });
       if (!profile) throw new AppError(404, 'NOT_FOUND', 'No institution profile');
-      if (!req.body?.name) throw new AppError(400, 'VALIDATION_ERROR', 'Function name is required');
+      const parsed = spiritualFunctionPayloadSchema.safeParse(req.body || {});
+      if (!parsed.success) {
+        throw new AppError(400, 'VALIDATION_ERROR', parsed.error.issues[0]?.message || 'Invalid payload');
+      }
+      const payload = parsed.data;
       const created = await prisma.spiritualFunction.create({
         data: {
           institutionId: profile.id,
-          name: String(req.body.name),
-          functionType: (req.body.functionType || 'OTHER') as any,
-          status: (req.body.status || 'ACTIVE') as any,
-          frequency: req.body.frequency || null,
-          nextDate: req.body.nextDate ? new Date(req.body.nextDate) : null,
-          description: req.body.description || null,
-          city: req.body.city || null,
-          state: req.body.state || null,
-          isPublic: req.body.isPublic ?? true,
+          name: payload.name,
+          functionType: payload.functionType || 'OTHER',
+          status: payload.status || 'ACTIVE',
+          frequency: payload.frequency || null,
+          nextDate: parseOptionalIsoDate(payload.nextDate),
+          description: payload.description || null,
+          city: payload.city || null,
+          state: payload.state || null,
+          isPublic: payload.isPublic ?? true,
         },
+      });
+      await auditLog({
+        userId: req.auth!.userId,
+        action: 'CREATE',
+        entity: 'SpiritualFunction',
+        entityId: created.id,
+        after: created,
+        req,
       });
       success(res, created, undefined, 201);
     } catch (e) {
@@ -563,6 +714,7 @@ institutionRouter.patch(
   requireRole('INSTITUTION_ADMIN'),
   async (req: Request, res: Response, next: NextFunction) => {
     try {
+      assertPortalRefinementsEnabled();
       const profile = await prisma.institutionProfile.findUnique({
         where: { userId: req.auth!.userId },
       });
@@ -571,19 +723,34 @@ institutionRouter.patch(
         where: { id: req.params.id, institutionId: profile.id },
       });
       if (!existing) throw new AppError(404, 'NOT_FOUND', 'Function not found');
+      const parsed = spiritualFunctionPayloadSchema.partial().safeParse(req.body || {});
+      if (!parsed.success) {
+        throw new AppError(400, 'VALIDATION_ERROR', parsed.error.issues[0]?.message || 'Invalid payload');
+      }
+      const payload = parsed.data;
       const updated = await prisma.spiritualFunction.update({
         where: { id: existing.id },
         data: {
-          name: req.body.name ?? existing.name,
-          functionType: (req.body.functionType ?? existing.functionType) as any,
-          status: (req.body.status ?? existing.status) as any,
-          frequency: req.body.frequency ?? existing.frequency,
-          nextDate: req.body.nextDate ? new Date(req.body.nextDate) : existing.nextDate,
-          description: req.body.description ?? existing.description,
-          city: req.body.city ?? existing.city,
-          state: req.body.state ?? existing.state,
-          isPublic: req.body.isPublic ?? existing.isPublic,
+          name: payload.name ?? existing.name,
+          functionType: payload.functionType ?? existing.functionType,
+          status: payload.status ?? existing.status,
+          frequency: payload.frequency ?? existing.frequency,
+          nextDate:
+            payload.nextDate !== undefined ? parseOptionalIsoDate(payload.nextDate) : existing.nextDate,
+          description: payload.description ?? existing.description,
+          city: payload.city ?? existing.city,
+          state: payload.state ?? existing.state,
+          isPublic: payload.isPublic ?? existing.isPublic,
         },
+      });
+      await auditLog({
+        userId: req.auth!.userId,
+        action: 'UPDATE',
+        entity: 'SpiritualFunction',
+        entityId: existing.id,
+        before: existing,
+        after: updated,
+        req,
       });
       success(res, updated);
     } catch (e) {
@@ -599,6 +766,7 @@ institutionRouter.get(
   requireRole('INSTITUTION_ADMIN', 'INSTITUTION_STAFF'),
   async (req: Request, res: Response, next: NextFunction) => {
     try {
+      assertPortalRefinementsEnabled();
       const profile = await prisma.institutionProfile.findUnique({
         where: { userId: req.auth!.userId },
       });
@@ -627,22 +795,35 @@ institutionRouter.post(
   requireRole('INSTITUTION_ADMIN'),
   async (req: Request, res: Response, next: NextFunction) => {
     try {
+      assertPortalRefinementsEnabled();
       const profile = await prisma.institutionProfile.findUnique({
         where: { userId: req.auth!.userId },
       });
       if (!profile) throw new AppError(404, 'NOT_FOUND', 'No institution profile');
-      if (!req.body?.title) throw new AppError(400, 'VALIDATION_ERROR', 'Task title is required');
+      const parsed = institutionTaskPayloadSchema.safeParse(req.body || {});
+      if (!parsed.success) {
+        throw new AppError(400, 'VALIDATION_ERROR', parsed.error.issues[0]?.message || 'Invalid payload');
+      }
+      const payload = parsed.data;
       const created = await prisma.institutionTask.create({
         data: {
           institutionId: profile.id,
-          functionId: req.body.functionId || null,
-          title: String(req.body.title),
-          taskType: (req.body.taskType || 'OTHER') as any,
-          status: (req.body.status || 'TODO') as any,
-          dueDate: req.body.dueDate ? new Date(req.body.dueDate) : null,
-          assigneeName: req.body.assigneeName || null,
-          notes: req.body.notes || null,
+          functionId: payload.functionId || null,
+          title: payload.title,
+          taskType: payload.taskType || 'OTHER',
+          status: payload.status || 'TODO',
+          dueDate: parseOptionalIsoDate(payload.dueDate),
+          assigneeName: payload.assigneeName || null,
+          notes: payload.notes || null,
         },
+      });
+      await auditLog({
+        userId: req.auth!.userId,
+        action: 'CREATE',
+        entity: 'InstitutionTask',
+        entityId: created.id,
+        after: created,
+        req,
       });
       success(res, created, undefined, 201);
     } catch (e) {
@@ -657,6 +838,7 @@ institutionRouter.patch(
   requireRole('INSTITUTION_ADMIN'),
   async (req: Request, res: Response, next: NextFunction) => {
     try {
+      assertPortalRefinementsEnabled();
       const profile = await prisma.institutionProfile.findUnique({
         where: { userId: req.auth!.userId },
       });
@@ -665,17 +847,32 @@ institutionRouter.patch(
         where: { id: req.params.id, institutionId: profile.id },
       });
       if (!existing) throw new AppError(404, 'NOT_FOUND', 'Task not found');
+      const parsed = institutionTaskPayloadSchema.partial().safeParse(req.body || {});
+      if (!parsed.success) {
+        throw new AppError(400, 'VALIDATION_ERROR', parsed.error.issues[0]?.message || 'Invalid payload');
+      }
+      const payload = parsed.data;
       const updated = await prisma.institutionTask.update({
         where: { id: existing.id },
         data: {
-          functionId: req.body.functionId ?? existing.functionId,
-          title: req.body.title ?? existing.title,
-          taskType: (req.body.taskType ?? existing.taskType) as any,
-          status: (req.body.status ?? existing.status) as any,
-          dueDate: req.body.dueDate ? new Date(req.body.dueDate) : existing.dueDate,
-          assigneeName: req.body.assigneeName ?? existing.assigneeName,
-          notes: req.body.notes ?? existing.notes,
+          functionId: payload.functionId ?? existing.functionId,
+          title: payload.title ?? existing.title,
+          taskType: payload.taskType ?? existing.taskType,
+          status: payload.status ?? existing.status,
+          dueDate:
+            payload.dueDate !== undefined ? parseOptionalIsoDate(payload.dueDate) : existing.dueDate,
+          assigneeName: payload.assigneeName ?? existing.assigneeName,
+          notes: payload.notes ?? existing.notes,
         },
+      });
+      await auditLog({
+        userId: req.auth!.userId,
+        action: 'UPDATE',
+        entity: 'InstitutionTask',
+        entityId: existing.id,
+        before: existing,
+        after: updated,
+        req,
       });
       success(res, updated);
     } catch (e) {
@@ -691,6 +888,7 @@ institutionRouter.get(
   requireRole('INSTITUTION_ADMIN', 'INSTITUTION_STAFF'),
   async (req: Request, res: Response, next: NextFunction) => {
     try {
+      assertPortalRefinementsEnabled();
       const profile = await prisma.institutionProfile.findUnique({
         where: { userId: req.auth!.userId },
       });
@@ -749,6 +947,7 @@ institutionRouter.get(
   requireRole('INSTITUTION_ADMIN', 'INSTITUTION_STAFF'),
   async (req: Request, res: Response, next: NextFunction) => {
     try {
+      assertPortalRefinementsEnabled();
       const profile = await prisma.institutionProfile.findUnique({
         where: { userId: req.auth!.userId },
       });

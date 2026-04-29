@@ -1,6 +1,6 @@
 'use client';
 import { useState, useEffect } from 'react';
-import { auth, portal, setTokens, clearTokens } from '@/lib/api';
+import { auth, portal, portalFeatureFlags, setTokens, clearTokens } from '@/lib/api';
 import { DonationQr } from '@/components/DonationQr';
 import { InstitutionLayout } from '@/components/InstitutionLayout';
 import { OverviewPanel } from '@/components/portal/OverviewPanel';
@@ -47,6 +47,7 @@ export default function InstitutionHome() {
     sacredCalendarHighlights: null,
   });
   const [faithSaving, setFaithSaving] = useState(false);
+  const [faithError, setFaithError] = useState('');
 
   useEffect(() => {
     if (typeof window !== 'undefined' && localStorage.getItem('accessToken')) {
@@ -58,13 +59,26 @@ export default function InstitutionHome() {
   const loadDashboard = async () => {
     setPortalError('');
     const [d, l, fn, t, dm, geo, fs] = await Promise.all([
-      portal.dashboard(rangeDays),
+      portal.dashboard(rangeDays, {
+        includeDemographics: portalFeatureFlags.refinements,
+        includeGeoDistribution: portalFeatureFlags.refinements,
+      }),
       portal.ledger(),
-      portal.functions(),
-      portal.tasks(),
-      portal.demographics(),
-      portal.geoDistribution(),
-      portal.faithSettings(),
+      portalFeatureFlags.refinements ? portal.functions() : Promise.resolve({ success: true, data: [] }),
+      portalFeatureFlags.refinements ? portal.tasks() : Promise.resolve({ success: true, data: [] }),
+      portalFeatureFlags.refinements ? portal.demographics() : Promise.resolve({ success: true, data: null }),
+      portalFeatureFlags.refinements ? portal.geoDistribution() : Promise.resolve({ success: true, data: null }),
+      portalFeatureFlags.faithContext
+        ? portal.faithSettings()
+        : Promise.resolve({
+            success: true,
+            data: {
+              faithTradition: '',
+              terminologyDonationLabel: 'Donation',
+              terminologyDonorLabel: 'Donor',
+              sacredCalendarHighlights: [],
+            },
+          }),
     ]);
     if (d.success) {
       setDashboard(d.data);
@@ -151,9 +165,11 @@ export default function InstitutionHome() {
 
   const handleSaveFaithSettings = async (e: React.FormEvent) => {
     e.preventDefault();
+    setFaithError('');
     setFaithSaving(true);
     const res = await portal.updateFaithSettings(faithSettings);
     if (!res.success) {
+      setFaithError(res.error?.message || 'Could not save faith settings');
       setFaithSaving(false);
       return;
     }
@@ -312,10 +328,14 @@ export default function InstitutionHome() {
           <div className="mt-5 rounded-2xl border border-gray-200 bg-gradient-to-r from-white via-gray-50 to-amber-50 p-2">
             {[
               { key: 'overview', label: 'Overview', count: dashboard.totalDonations || 0 },
-              { key: 'functions', label: 'Spiritual Functions', count: functionsList.length || 0 },
-              { key: 'insights', label: 'Donor Insights', count: demographics?.totalDonations || 0 },
-              { key: 'geo', label: 'Geo & Reach', count: geoData?.states?.length || 0 },
-              { key: 'ops', label: 'Ops Tasks', count: tasksList.length || 0 },
+              ...(portalFeatureFlags.refinements
+                ? [
+                    { key: 'functions', label: 'Spiritual Functions', count: functionsList.length || 0 },
+                    { key: 'insights', label: 'Donor Insights', count: demographics?.totalDonations || 0 },
+                    { key: 'geo', label: 'Geo & Reach', count: geoData?.states?.length || 0 },
+                    { key: 'ops', label: 'Ops Tasks', count: tasksList.length || 0 },
+                  ]
+                : []),
               { key: 'donations', label: 'Recent Donations', count: recentDonations.length || 0 },
               { key: 'donors', label: 'Donor Directory', count: donorDirectory.length || 0 },
               { key: 'ledger', label: 'Gold Ledger', count: ledger.length || 0 },
@@ -385,58 +405,61 @@ export default function InstitutionHome() {
                 </form>
                 {upiMessage && <p className="mt-2 text-xs text-gray-600">{upiMessage}</p>}
               </div>
-              <div className="mt-4 rounded-xl border bg-white p-4">
-                <h2 className="text-sm font-semibold text-gray-900">Faith Context Settings</h2>
-                <p className="mt-1 text-xs text-gray-500">
-                  Customize labels and sacred calendar highlights for your institution context.
-                </p>
-                <form onSubmit={handleSaveFaithSettings} className="mt-3 grid gap-2 md:grid-cols-2">
-                  <input
-                    value={faithSettings.faithTradition}
-                    onChange={(e) => setFaithSettings((s: any) => ({ ...s, faithTradition: e.target.value }))}
-                    placeholder="Faith tradition (e.g., Hindu, Sikh, Islamic, Christian)"
-                    className="rounded border px-3 py-2 text-sm"
-                  />
-                  <input
-                    value={faithSettings.terminologyDonationLabel}
-                    onChange={(e) =>
-                      setFaithSettings((s: any) => ({ ...s, terminologyDonationLabel: e.target.value }))
-                    }
-                    placeholder="Donation label (e.g., Seva, Offering, Charity)"
-                    className="rounded border px-3 py-2 text-sm"
-                  />
-                  <input
-                    value={faithSettings.terminologyDonorLabel}
-                    onChange={(e) =>
-                      setFaithSettings((s: any) => ({ ...s, terminologyDonorLabel: e.target.value }))
-                    }
-                    placeholder="Donor label (e.g., Devotee, Supporter)"
-                    className="rounded border px-3 py-2 text-sm"
-                  />
-                  <textarea
-                    value={JSON.stringify(faithSettings.sacredCalendarHighlights || {}, null, 0)}
-                    onChange={(e) => {
-                      try {
-                        const parsed = e.target.value ? JSON.parse(e.target.value) : null;
-                        setFaithSettings((s: any) => ({ ...s, sacredCalendarHighlights: parsed }));
-                      } catch {
-                        // ignore invalid json while typing
+              {portalFeatureFlags.faithContext && (
+                <div className="mt-4 rounded-xl border bg-white p-4">
+                  <h2 className="text-sm font-semibold text-gray-900">Faith Context Settings</h2>
+                  <p className="mt-1 text-xs text-gray-500">
+                    Customize labels and sacred calendar highlights for your institution context.
+                  </p>
+                  <form onSubmit={handleSaveFaithSettings} className="mt-3 grid gap-2 md:grid-cols-2">
+                    <input
+                      value={faithSettings.faithTradition}
+                      onChange={(e) => setFaithSettings((s: any) => ({ ...s, faithTradition: e.target.value }))}
+                      placeholder="Faith tradition (e.g., Hindu, Sikh, Islamic, Christian)"
+                      className="rounded border px-3 py-2 text-sm"
+                    />
+                    <input
+                      value={faithSettings.terminologyDonationLabel}
+                      onChange={(e) =>
+                        setFaithSettings((s: any) => ({ ...s, terminologyDonationLabel: e.target.value }))
                       }
-                    }}
-                    placeholder='Sacred calendar highlights JSON (e.g. {"festival":"Navratri","date":"2026-10-01"})'
-                    className="min-h-24 rounded border px-3 py-2 text-sm md:col-span-2"
-                  />
-                  <div className="md:col-span-2">
-                    <button
-                      type="submit"
-                      disabled={faithSaving}
-                      className="rounded bg-amber-700 px-4 py-2 text-sm font-medium text-white hover:bg-amber-800 disabled:opacity-60"
-                    >
-                      {faithSaving ? 'Saving...' : 'Save Faith Settings'}
-                    </button>
-                  </div>
-                </form>
-              </div>
+                      placeholder="Donation label (e.g., Seva, Offering, Charity)"
+                      className="rounded border px-3 py-2 text-sm"
+                    />
+                    <input
+                      value={faithSettings.terminologyDonorLabel}
+                      onChange={(e) =>
+                        setFaithSettings((s: any) => ({ ...s, terminologyDonorLabel: e.target.value }))
+                      }
+                      placeholder="Donor label (e.g., Devotee, Supporter)"
+                      className="rounded border px-3 py-2 text-sm"
+                    />
+                    <textarea
+                      value={JSON.stringify(faithSettings.sacredCalendarHighlights || [], null, 0)}
+                      onChange={(e) => {
+                        try {
+                          const parsed = e.target.value ? JSON.parse(e.target.value) : [];
+                          setFaithSettings((s: any) => ({ ...s, sacredCalendarHighlights: parsed }));
+                        } catch {
+                          // ignore invalid json while typing
+                        }
+                      }}
+                      placeholder='Sacred calendar highlights JSON (e.g. [{"title":"Spring service week","date":"2026-10-01"}])'
+                      className="min-h-24 rounded border px-3 py-2 text-sm md:col-span-2"
+                    />
+                    <div className="md:col-span-2">
+                      <button
+                        type="submit"
+                        disabled={faithSaving}
+                        className="rounded bg-amber-700 px-4 py-2 text-sm font-medium text-white hover:bg-amber-800 disabled:opacity-60"
+                      >
+                        {faithSaving ? 'Saving...' : 'Save Faith Settings'}
+                      </button>
+                    </div>
+                  </form>
+                  {faithError && <p className="mt-2 text-xs text-red-600">{faithError}</p>}
+                </div>
+              )}
               <DonationQr
                 institutionId={dashboard.institutionId}
                 publicName={dashboard.publicName}

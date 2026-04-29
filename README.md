@@ -221,6 +221,24 @@ DONATION_ID=<donation_id> CERT_REF=<verification_ref> npm run smoke:all
 npm run smoke:ci
 ```
 
+## Integration Tests (API)
+
+Integration tests now include an automatic schema sync step before execution.
+
+```bash
+# Runs setup + API integration tests
+npm run test:integration -w apps/api
+```
+
+Under the hood:
+
+- `test:integration:setup` runs `tsx src/__tests__/setupPrisma.ts`
+- setup loads env through `apps/api/src/loadEnv.ts`
+- then executes `prisma db push --skip-generate` against `prisma/schema.prisma`
+- then tests run in single-concurrency mode for DB stability
+
+If setup fails with `DATABASE_URL` missing, ensure `infra/.env` (or `infra/prod/.env.production`) is present and valid.
+
 ## License
 
 Proprietary — All rights reserved.

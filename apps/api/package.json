@@ -7,7 +7,8 @@
     "build": "tsc",
     "start": "node dist/server.js",
     "lint": "eslint src",
-    "test:integration": "tsx --test src/__tests__/**/*.test.ts"
+    "test:integration:setup": "tsx src/__tests__/setupPrisma.ts",
+    "test:integration": "npm run test:integration:setup && tsx --test --test-concurrency=1 src/__tests__/**/*.test.ts"
   },
   "dependencies": {
     "@kanak-setu/blockchain": "*",

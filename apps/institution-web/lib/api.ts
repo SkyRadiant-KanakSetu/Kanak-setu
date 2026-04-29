@@ -18,6 +18,10 @@ function resolveApiBase() {
 }
 
 const API_BASE = resolveApiBase();
+export const portalFeatureFlags = {
+  refinements: process.env.NEXT_PUBLIC_ENABLE_INSTITUTION_PORTAL_REFINEMENTS === '1',
+  faithContext: process.env.NEXT_PUBLIC_ENABLE_FAITH_CONTEXT_SETTINGS === '1',
+};
 
 function token() {
   return typeof window !== 'undefined' ? localStorage.getItem('accessToken') : null;
@@ -105,7 +109,10 @@ export const portal = {
   submit: () => api('/institutions/portal/submit', { method: 'POST' }),
   updateUpi: (upiId: string) =>
     api('/institutions/portal/upi', { method: 'PATCH', body: JSON.stringify({ upiId }) }),
-  dashboard: (rangeDays = 30) => api(`/institutions/portal/dashboard?rangeDays=${rangeDays}`),
+  dashboard: (rangeDays = 30, options?: { includeDemographics?: boolean; includeGeoDistribution?: boolean }) =>
+    api(
+      `/institutions/portal/dashboard?rangeDays=${rangeDays}${options?.includeDemographics ? '&includeDemographics=1' : ''}${options?.includeGeoDistribution ? '&includeGeoDistribution=1' : ''}`
+    ),
   ledger: (page = 1) => api(`/institutions/portal/ledger?page=${page}`),
   addBank: (data: any) =>
     api('/institutions/portal/bank', { method: 'POST', body: JSON.stringify(data) }),

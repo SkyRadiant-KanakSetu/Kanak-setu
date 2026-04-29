@@ -118,7 +118,7 @@ export async function anchorBatch(batchId: string) {
   }
   await assertAnchorRuntimeReady();
 
-  let batch = await prisma.merkleBatch.findUnique({
+  const batch = await prisma.merkleBatch.findUnique({
     where: { id: batchId },
     include: { anchor: true },
   });
