@@ -152,12 +152,20 @@ model InstitutionProfile {
   signatoryEmail    String?
   publicPageSlug    String?           @unique
   upiId             String?
+  faithTradition    String?
+  terminologyDonationLabel String?
+  terminologyDonorLabel String?
+  sacredCalendarHighlights Json?
   createdAt         DateTime          @default(now())
   updatedAt         DateTime          @updatedAt
 
   user              User                @relation(fields: [userId], references: [id])
   documents         InstitutionDoc[]
   bankDetails       InstitutionBank[]
+  branches          InstitutionBranch[]
+  spiritualFunctions SpiritualFunction[]
+  institutionTasks  InstitutionTask[]
+  metricsDaily      InstitutionMetricsDaily[]
   campaigns         Campaign[]
   donations         Donation[]
   ledgerEntries     GoldLedgerEntry[]
@@ -263,11 +271,135 @@ model Donation {
   vendorOrder  VendorOrder?
   certificates Certificate[]
   merkleLeaf   MerkleLeaf?
+  spiritualContributions SpiritualFunctionContribution[]
 
   @@index([status])
   @@index([donorId])
   @@index([institutionId])
   @@index([createdAt])
+}
+
+model InstitutionBranch {
+  id            String   @id @default(cuid())
+  institutionId String
+  name          String
+  city          String?
+  state         String?
+  latitude      Decimal? @db.Decimal(10, 6)
+  longitude     Decimal? @db.Decimal(10, 6)
+  isPrimary     Boolean  @default(false)
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  institution InstitutionProfile @relation(fields: [institutionId], references: [id])
+
+  @@index([institutionId])
+}
+
+model SpiritualFunction {
+  id              String                @id @default(cuid())
+  institutionId   String
+  name            String
+  functionType    SpiritualFunctionType
+  status          SpiritualFunctionStatus @default(ACTIVE)
+  frequency       String?
+  nextDate        DateTime?
+  description     String?
+  city            String?
+  state           String?
+  isPublic        Boolean               @default(true)
+  createdAt       DateTime              @default(now())
+  updatedAt       DateTime              @updatedAt
+
+  institution  InstitutionProfile @relation(fields: [institutionId], references: [id])
+  tasks        InstitutionTask[]
+  contributions SpiritualFunctionContribution[]
+
+  @@index([institutionId, status])
+}
+
+enum SpiritualFunctionType {
+  PUJA
+  SEVA
+  FESTIVAL
+  COMMUNITY_SERVICE
+  EDUCATION
+  HEALTH
+  OTHER
+}
+
+enum SpiritualFunctionStatus {
+  ACTIVE
+  PAUSED
+  COMPLETED
+}
+
+model SpiritualFunctionContribution {
+  id                  String   @id @default(cuid())
+  functionId          String
+  donationId          String
+  attributedAmountPaise Int
+  createdAt           DateTime @default(now())
+
+  spiritualFunction SpiritualFunction @relation(fields: [functionId], references: [id])
+  donation         Donation          @relation(fields: [donationId], references: [id])
+
+  @@index([functionId])
+  @@index([donationId])
+  @@unique([functionId, donationId])
+}
+
+model InstitutionTask {
+  id              String              @id @default(cuid())
+  institutionId   String
+  functionId      String?
+  title           String
+  taskType        InstitutionTaskType
+  status          InstitutionTaskStatus @default(TODO)
+  dueDate         DateTime?
+  assigneeName    String?
+  notes           String?
+  createdAt       DateTime            @default(now())
+  updatedAt       DateTime            @updatedAt
+
+  institution InstitutionProfile @relation(fields: [institutionId], references: [id])
+  spiritualFunction SpiritualFunction? @relation(fields: [functionId], references: [id])
+
+  @@index([institutionId, status])
+}
+
+enum InstitutionTaskType {
+  PRE_EVENT
+  EVENT_DAY
+  POST_EVENT
+  DONOR_FOLLOWUP
+  COMPLIANCE
+  OTHER
+}
+
+enum InstitutionTaskStatus {
+  TODO
+  IN_PROGRESS
+  DONE
+  CANCELLED
+}
+
+model InstitutionMetricsDaily {
+  id                   String   @id @default(cuid())
+  institutionId        String
+  metricDate           DateTime
+  totalDonations       Int      @default(0)
+  totalAmountPaise     Int      @default(0)
+  activeDonors         Int      @default(0)
+  repeatDonors         Int      @default(0)
+  metadata             Json?
+  createdAt            DateTime @default(now())
+  updatedAt            DateTime @updatedAt
+
+  institution InstitutionProfile @relation(fields: [institutionId], references: [id])
+
+  @@index([institutionId, metricDate])
+  @@unique([institutionId, metricDate])
 }
 
 enum DonationStatus {

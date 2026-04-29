@@ -111,4 +111,21 @@ export const portal = {
     api('/institutions/portal/bank', { method: 'POST', body: JSON.stringify(data) }),
   requestRedemption: (data: any) =>
     api('/institutions/portal/redemptions', { method: 'POST', body: JSON.stringify(data) }),
+  faithSettings: () => api('/institutions/portal/settings-faith'),
+  updateFaithSettings: (data: any) =>
+    api('/institutions/portal/settings-faith', { method: 'PATCH', body: JSON.stringify(data) }),
+  functions: (status?: string) =>
+    api(`/institutions/portal/functions${status ? `?status=${encodeURIComponent(status)}` : ''}`),
+  createFunction: (data: any) =>
+    api('/institutions/portal/functions', { method: 'POST', body: JSON.stringify(data) }),
+  updateFunction: (id: string, data: any) =>
+    api(`/institutions/portal/functions/${id}`, { method: 'PATCH', body: JSON.stringify(data) }),
+  demographics: () => api('/institutions/portal/demographics'),
+  geoDistribution: () => api('/institutions/portal/geo-distribution'),
+  tasks: (status?: string) =>
+    api(`/institutions/portal/tasks${status ? `?status=${encodeURIComponent(status)}` : ''}`),
+  createTask: (data: any) =>
+    api('/institutions/portal/tasks', { method: 'POST', body: JSON.stringify(data) }),
+  updateTask: (id: string, data: any) =>
+    api(`/institutions/portal/tasks/${id}`, { method: 'PATCH', body: JSON.stringify(data) }),
 };
