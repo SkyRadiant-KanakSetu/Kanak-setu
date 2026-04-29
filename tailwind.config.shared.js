@@ -48,4 +48,4 @@ const sharedConfig = {
   },
 };
 
-export default sharedConfig;
+module.exports = sharedConfig;

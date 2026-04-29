@@ -69,13 +69,14 @@ export function createKanakSetuClient(opts: SdkOptions) {
       headers,
       body: init?.json !== undefined ? JSON.stringify(init.json) : undefined,
     });
-    if (typeof window !== 'undefined') {
+    const g = globalThis as any;
+    if (g?.location) {
       if (res.status === 401) {
-        localStorage.clear();
-        window.location.replace('/');
+        g?.localStorage?.clear?.();
+        g.location.replace('/');
         throw new KanakSetuApiError('Unauthorized', 401);
       }
-      if (res.status >= 500) window.alert('Server error. Please try again later.');
+      if (res.status >= 500) g?.alert?.('Server error. Please try again later.');
     }
 
     const text = await res.text();
