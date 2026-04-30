@@ -44,6 +44,6 @@ jobs:
             cd /opt/kanak-setu
             git fetch origin
             git checkout "${BRANCH}"
-            git pull origin "${BRANCH}"
-            chmod +x scripts/prod/deploy-vps.sh
-            APP_DIR=/opt/kanak-setu BRANCH="${BRANCH}" bash scripts/prod/deploy-vps.sh
+            git reset --hard "origin/${BRANCH}"
+            chmod +x scripts/prod/deploy-safe.sh
+            APP_DIR=/opt/kanak-setu BRANCH="${BRANCH}" bash scripts/prod/deploy-safe.sh

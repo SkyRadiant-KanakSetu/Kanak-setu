@@ -1,0 +1,22 @@
+name: Ops Guards
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+
+jobs:
+  shell-syntax:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Validate production scripts syntax
+        shell: bash
+        run: |
+          set -euo pipefail
+          bash -n scripts/prod/deploy-vps.sh
+          bash -n scripts/prod/deploy-safe.sh
+          bash -n scripts/prod/post-deploy-verify.sh
+          bash -n scripts/dev/pull-prod-logo-from-vps.sh
