@@ -24,4 +24,4 @@ jobs:
         run: npm ci
 
       - name: Production dependency audit (fail on critical)
-        run: npm run audit:prod
+        run: FAIL_ON_HIGH=1 npm run audit:prod

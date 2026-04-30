@@ -79,8 +79,9 @@ Then future deploys use `migrate deploy` only. If drift exists, diff the DB agai
 ## Dependency security posture
 
 - Run production-only audit from repo root: `npm run audit:prod`.
-- Policy: fail deployment pipelines on **critical** vulnerabilities; track and plan remediation for highs that require major-framework upgrades.
-- Current known high is tied to `next@14.2.35`; address in a planned Next major upgrade window with regression testing across donor, institution, and admin apps.
+- CI policy: `FAIL_ON_HIGH=1 npm run audit:prod` (fails for high/critical).
+- Current production state target: **0 critical, 0 high**.
+- Remaining known moderate is `next -> postcss` transitive advisory in current Next line; monitor upstream Next release notes and upgrade when patched in supported channel.
 
 ## Release checklist (minimal)
 
