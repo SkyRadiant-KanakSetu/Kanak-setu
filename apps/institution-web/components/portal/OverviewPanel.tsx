@@ -1,7 +1,8 @@
 'use client';
+import type { InstitutionDashboard } from '@/lib/api';
 
 type Props = {
-  dashboard: any;
+  dashboard: InstitutionDashboard;
   rangeDays: 7 | 30 | 90;
   setRangeDays: (v: 7 | 30 | 90) => void;
 };

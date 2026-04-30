@@ -1,11 +1,17 @@
 'use client';
 
 import { useState } from 'react';
+import type { OpsTask, SpiritualFunction } from '@/lib/api';
 
 type Props = {
-  tasks: any[];
-  functionsList: any[];
-  onCreateTask: (payload: any) => Promise<void>;
+  tasks: OpsTask[];
+  functionsList: SpiritualFunction[];
+  onCreateTask: (payload: {
+    title: string;
+    taskType: string;
+    functionId?: string;
+    dueDate?: string;
+  }) => Promise<void>;
 };
 
 export function OpsTasksPanel({ tasks, functionsList, onCreateTask }: Props) {

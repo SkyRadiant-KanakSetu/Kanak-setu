@@ -1,7 +1,8 @@
 'use client';
+import type { GeoDistribution } from '@/lib/api';
 
 type Props = {
-  geoData: any;
+  geoData: GeoDistribution | null;
 };
 
 export function GeoReachPanel({ geoData }: Props) {
@@ -11,7 +12,7 @@ export function GeoReachPanel({ geoData }: Props) {
       <div className="rounded-xl border bg-white p-4">
         <p className="text-sm font-semibold text-gray-900">Top States</p>
         <div className="mt-3 space-y-2">
-          {(geoData.states || []).slice(0, 8).map((s: any) => (
+          {(geoData.states || []).slice(0, 8).map((s) => (
             <div key={s.state} className="flex items-center justify-between rounded border px-3 py-2 text-sm">
               <span>{s.state}</span>
               <span className="font-semibold">{s.donations}</span>
@@ -22,7 +23,7 @@ export function GeoReachPanel({ geoData }: Props) {
       <div className="rounded-xl border bg-white p-4">
         <p className="text-sm font-semibold text-gray-900">Top Cities</p>
         <div className="mt-3 space-y-2">
-          {(geoData.cities || []).slice(0, 8).map((c: any) => (
+          {(geoData.cities || []).slice(0, 8).map((c) => (
             <div key={`${c.state}-${c.city}`} className="flex items-center justify-between rounded border px-3 py-2 text-sm">
               <span>
                 {c.city}, {c.state}

@@ -1,10 +1,11 @@
 'use client';
 
 import { useState } from 'react';
+import type { SpiritualFunction } from '@/lib/api';
 
 type Props = {
-  items: any[];
-  onCreate: (payload: any) => Promise<void>;
+  items: SpiritualFunction[];
+  onCreate: (payload: { name: string; functionType: string; nextDate?: string }) => Promise<void>;
 };
 
 export function SpiritualFunctionsPanel({ items, onCreate }: Props) {

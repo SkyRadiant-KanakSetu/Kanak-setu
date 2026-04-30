@@ -1,6 +1,17 @@
 'use client';
 import { useState, useEffect } from 'react';
 import { auth, portal, portalFeatureFlags, setTokens, clearTokens } from '@/lib/api';
+import type {
+  Demographics,
+  DonationRow,
+  DonorDirectoryRow,
+  FaithSettings,
+  GeoDistribution,
+  InstitutionDashboard,
+  LedgerEntry,
+  OpsTask,
+  SpiritualFunction,
+} from '@/lib/api';
 import { DonationQr } from '@/components/DonationQr';
 import { InstitutionLayout } from '@/components/InstitutionLayout';
 import { OverviewPanel } from '@/components/portal/OverviewPanel';
@@ -26,8 +37,8 @@ export default function InstitutionHome() {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [error, setError] = useState('');
-  const [dashboard, setDashboard] = useState<any>(null);
-  const [ledger, setLedger] = useState<any[]>([]);
+  const [dashboard, setDashboard] = useState<InstitutionDashboard | null>(null);
+  const [ledger, setLedger] = useState<LedgerEntry[]>([]);
   const [portalError, setPortalError] = useState('');
   const [rangeDays, setRangeDays] = useState<7 | 30 | 90>(30);
   const [upiIdInput, setUpiIdInput] = useState('');
@@ -36,11 +47,11 @@ export default function InstitutionHome() {
   const [activeTab, setActiveTab] = useState<InstitutionTab>('overview');
   const [donationSearch, setDonationSearch] = useState('');
   const [donorSearch, setDonorSearch] = useState('');
-  const [functionsList, setFunctionsList] = useState<any[]>([]);
-  const [tasksList, setTasksList] = useState<any[]>([]);
-  const [demographics, setDemographics] = useState<any>(null);
-  const [geoData, setGeoData] = useState<any>(null);
-  const [faithSettings, setFaithSettings] = useState<any>({
+  const [functionsList, setFunctionsList] = useState<SpiritualFunction[]>([]);
+  const [tasksList, setTasksList] = useState<OpsTask[]>([]);
+  const [demographics, setDemographics] = useState<Demographics | null>(null);
+  const [geoData, setGeoData] = useState<GeoDistribution | null>(null);
+  const [faithSettings, setFaithSettings] = useState<FaithSettings>({
     faithTradition: '',
     terminologyDonationLabel: '',
     terminologyDonorLabel: '',
@@ -81,7 +92,7 @@ export default function InstitutionHome() {
           }),
     ]);
     if (d.success) {
-      setDashboard(d.data);
+      setDashboard(d.data || null);
       setUpiIdInput(d.data?.upiId || '');
     }
     else setPortalError(d.error?.message || 'Could not load dashboard');
@@ -120,6 +131,10 @@ export default function InstitutionHome() {
       setError(res.error?.message || 'Login failed');
       return;
     }
+    if (!res.data?.accessToken || !res.data?.refreshToken) {
+      setError('Login response missing tokens');
+      return;
+    }
     setTokens(res.data.accessToken, res.data.refreshToken);
     setLoggedIn(true);
     loadDashboard();
@@ -143,19 +158,24 @@ export default function InstitutionHome() {
     }
     const savedUpiId = res.data?.upiId || '';
     setUpiIdInput(savedUpiId);
-    setDashboard((prev: any) => (prev ? { ...prev, upiId: savedUpiId } : prev));
+    setDashboard((prev) => (prev ? { ...prev, upiId: savedUpiId } : prev));
     setUpiMessage('UPI ID saved');
     setUpiSaving(false);
   };
 
-  const handleCreateFunction = async (payload: any) => {
+  const handleCreateFunction = async (payload: { name: string; functionType: string; nextDate?: string }) => {
     const res = await portal.createFunction(payload);
     if (!res.success) return;
     const list = await portal.functions();
     if (list.success) setFunctionsList(list.data || []);
   };
 
-  const handleCreateTask = async (payload: any) => {
+  const handleCreateTask = async (payload: {
+    title: string;
+    taskType: string;
+    functionId?: string;
+    dueDate?: string;
+  }) => {
     const res = await portal.createTask(payload);
     if (!res.success) return;
     const list = await portal.tasks();
@@ -215,7 +235,7 @@ export default function InstitutionHome() {
   }
 
   const recentDonations = dashboard?.recentDonations || [];
-  const filteredRecentDonations = recentDonations.filter((d: any) => {
+  const filteredRecentDonations = recentDonations.filter((d: DonationRow) => {
     const q = donationSearch.trim().toLowerCase();
     if (!q) return true;
     const donorName = [d.donor?.firstName, d.donor?.lastName].filter(Boolean).join(' ').toLowerCase();
@@ -227,10 +247,10 @@ export default function InstitutionHome() {
     );
   });
   const donorDirectory = dashboard?.donorDirectory || [];
-  const showLocationColumn = filteredRecentDonations.some((d: any) => d.donor?.city || d.donor?.state);
-  const showProfessionColumn = filteredRecentDonations.some((d: any) => d.donor?.profession);
-  const showAgeColumn = filteredRecentDonations.some((d: any) => calcAge(d.donor?.dateOfBirth) !== '-');
-  const filteredDonors = donorDirectory.filter((d: any) => {
+  const showLocationColumn = filteredRecentDonations.some((d: DonationRow) => d.donor?.city || d.donor?.state);
+  const showProfessionColumn = filteredRecentDonations.some((d: DonationRow) => d.donor?.profession);
+  const showAgeColumn = filteredRecentDonations.some((d: DonationRow) => calcAge(d.donor?.dateOfBirth) !== '-');
+  const filteredDonors = donorDirectory.filter((d: DonorDirectoryRow) => {
     const q = donorSearch.trim().toLowerCase();
     if (!q) return true;
     return [d.firstName, d.lastName, d.email, d.phone, d.profession, d.city, d.state]
@@ -413,14 +433,14 @@ export default function InstitutionHome() {
                   <form onSubmit={handleSaveFaithSettings} className="mt-3 grid gap-2 md:grid-cols-2">
                     <input
                       value={faithSettings.faithTradition}
-                      onChange={(e) => setFaithSettings((s: any) => ({ ...s, faithTradition: e.target.value }))}
+                      onChange={(e) => setFaithSettings((s) => ({ ...s, faithTradition: e.target.value }))}
                       placeholder="Faith tradition (e.g., Hindu, Sikh, Islamic, Christian)"
                       className="rounded border px-3 py-2 text-sm"
                     />
                     <input
                       value={faithSettings.terminologyDonationLabel}
                       onChange={(e) =>
-                        setFaithSettings((s: any) => ({ ...s, terminologyDonationLabel: e.target.value }))
+                        setFaithSettings((s) => ({ ...s, terminologyDonationLabel: e.target.value }))
                       }
                       placeholder="Donation label (e.g., Seva, Offering, Charity)"
                       className="rounded border px-3 py-2 text-sm"
@@ -428,7 +448,7 @@ export default function InstitutionHome() {
                     <input
                       value={faithSettings.terminologyDonorLabel}
                       onChange={(e) =>
-                        setFaithSettings((s: any) => ({ ...s, terminologyDonorLabel: e.target.value }))
+                        setFaithSettings((s) => ({ ...s, terminologyDonorLabel: e.target.value }))
                       }
                       placeholder="Donor label (e.g., Devotee, Supporter)"
                       className="rounded border px-3 py-2 text-sm"
@@ -438,7 +458,7 @@ export default function InstitutionHome() {
                       onChange={(e) => {
                         try {
                           const parsed = e.target.value ? JSON.parse(e.target.value) : [];
-                          setFaithSettings((s: any) => ({ ...s, sacredCalendarHighlights: parsed }));
+                          setFaithSettings((s) => ({ ...s, sacredCalendarHighlights: parsed }));
                         } catch {
                           // ignore invalid json while typing
                         }
@@ -460,7 +480,7 @@ export default function InstitutionHome() {
                     <div className="mt-4 rounded border border-amber-100 bg-amber-50/40 p-3">
                       <p className="text-xs font-semibold text-amber-900">Calendar Highlights Preview</p>
                       <div className="mt-2 space-y-1 text-xs text-amber-900">
-                        {(faithSettings.sacredCalendarHighlights || []).slice(0, 5).map((item: any, idx: number) => (
+                        {(faithSettings.sacredCalendarHighlights || []).slice(0, 5).map((item, idx: number) => (
                           <p key={`${item?.title || 'event'}-${idx}`}>
                             {(item?.date || 'Date TBD') as string} - {(item?.title || 'Untitled highlight') as string}
                           </p>
@@ -473,9 +493,9 @@ export default function InstitutionHome() {
               )}
               <DonationQr
                 institutionId={dashboard.institutionId}
-                publicName={dashboard.publicName}
-                publicPageSlug={dashboard.publicPageSlug}
-                status={dashboard.status}
+                publicName={dashboard.publicName || dashboard.legalName || 'Institution'}
+                publicPageSlug={dashboard.publicPageSlug || null}
+                status={dashboard.status || 'DRAFT'}
               />
             </>
           )}
@@ -508,7 +528,7 @@ export default function InstitutionHome() {
                     </tr>
                   </thead>
                   <tbody>
-                    {filteredRecentDonations.map((d: any) => (
+                    {filteredRecentDonations.map((d: DonationRow) => (
                       <tr key={d.id} className="border-t hover:bg-amber-50/30">
                         <td className="px-4 py-2 font-mono text-xs">{d.donationRef?.slice(0, 12)}</td>
                         <td className="px-4 py-2">
@@ -570,7 +590,7 @@ export default function InstitutionHome() {
                     </tr>
                   </thead>
                   <tbody>
-                    {filteredDonors.map((d: any) => (
+                    {filteredDonors.map((d: DonorDirectoryRow) => (
                       <tr key={d.donorId} className="border-t hover:bg-indigo-50/20">
                         <td className="px-4 py-2">{[d.firstName, d.lastName].filter(Boolean).join(' ') || '-'}</td>
                         <td className="px-4 py-2">{d.email || '-'}</td>
@@ -613,7 +633,7 @@ export default function InstitutionHome() {
                     </tr>
                   </thead>
                   <tbody>
-                    {ledger.map((e: any) => (
+                    {ledger.map((e: LedgerEntry) => (
                       <tr key={e.id} className="border-t">
                         <td className="px-4 py-2">
                           <span
@@ -646,26 +666,6 @@ export default function InstitutionHome() {
       )}
     </div>
     </InstitutionLayout>
-  );
-}
-
-function MiniTrend({ title, values }: { title: string; values: number[] }) {
-  const max = Math.max(1, ...values);
-  const sample = values.slice(-20);
-  return (
-    <div>
-      <p className="text-xs text-gray-500">{title}</p>
-      <div className="mt-2 flex h-16 items-end gap-1">
-        {sample.map((v, i) => (
-          <div
-            key={`${title}-${i}`}
-            className="w-2 rounded-sm bg-amber-600/80"
-            style={{ height: `${Math.max(8, (v / max) * 100)}%` }}
-            title={String(v)}
-          />
-        ))}
-      </div>
-    </div>
   );
 }
 

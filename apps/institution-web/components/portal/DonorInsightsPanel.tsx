@@ -1,7 +1,8 @@
 'use client';
+import type { Demographics } from '@/lib/api';
 
 type Props = {
-  demographics: any;
+  demographics: Demographics | null;
 };
 
 export function DonorInsightsPanel({ demographics }: Props) {
@@ -30,7 +31,7 @@ export function DonorInsightsPanel({ demographics }: Props) {
       <div className="rounded-xl border bg-white p-4">
         <p className="text-sm font-semibold text-gray-900">Top Professions</p>
         <div className="mt-3 grid gap-2 md:grid-cols-2">
-          {(demographics.topProfessions || []).map((p: any) => (
+          {(demographics.topProfessions || []).map((p) => (
             <div key={p.label} className="flex items-center justify-between rounded border px-3 py-2 text-sm">
               <span>{p.label}</span>
               <span className="font-semibold">{p.count}</span>

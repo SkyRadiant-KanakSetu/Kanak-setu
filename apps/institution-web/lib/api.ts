@@ -23,6 +23,102 @@ export const portalFeatureFlags = {
   faithContext: process.env.NEXT_PUBLIC_ENABLE_FAITH_CONTEXT_SETTINGS === '1',
 };
 
+export type ApiError = { code?: string; message?: string };
+export type ApiResponse<T> = { success: boolean; data?: T; error?: ApiError; meta?: Record<string, unknown> };
+
+export type InstitutionDashboard = {
+  institutionId: string;
+  legalName?: string;
+  publicName?: string;
+  publicPageSlug?: string;
+  status?: string;
+  upiId?: string;
+  totalDonations?: number;
+  totalGoldMg?: number | string;
+  uniqueDonors?: number;
+  repeatDonors?: number;
+  activeDonorsInRange?: number;
+  rangeDays?: number;
+  recentDonations?: DonationRow[];
+  donorDirectory?: DonorDirectoryRow[];
+};
+
+export type DonationRow = {
+  id: string;
+  donationRef?: string;
+  amountPaise: number;
+  goldQuantityMg?: string | null;
+  status?: string;
+  createdAt: string;
+  donor?: {
+    firstName?: string;
+    lastName?: string;
+    profession?: string;
+    city?: string;
+    state?: string;
+    dateOfBirth?: string | null;
+    user?: { phone?: string };
+  };
+};
+
+export type DonorDirectoryRow = {
+  donorId: string;
+  firstName?: string;
+  lastName?: string;
+  email?: string;
+  phone?: string;
+  profession?: string;
+  age?: number;
+  address?: string;
+  city?: string;
+  state?: string;
+  pincode?: string;
+  latestDonationAt?: string | null;
+};
+
+export type LedgerEntry = {
+  id: string;
+  entryType: 'CREDIT' | 'DEBIT' | string;
+  goldQuantityMg: string;
+  balanceAfterMg: string;
+  description?: string;
+  createdAt: string;
+};
+
+export type SpiritualFunction = {
+  id: string;
+  name: string;
+  functionType: string;
+  nextDate?: string | null;
+  status?: string;
+};
+
+export type OpsTask = {
+  id: string;
+  title: string;
+  taskType: string;
+  status?: string;
+  spiritualFunction?: { id: string; name: string } | null;
+};
+
+export type Demographics = {
+  totalDonations?: number;
+  ageBands?: { under25?: number; from25to40?: number; from41to60?: number; above60?: number };
+  topProfessions?: { label: string; count: number }[];
+};
+
+export type GeoDistribution = {
+  states?: { state: string; donations: number }[];
+  cities?: { city: string; state: string; donations: number }[];
+};
+
+export type FaithSettings = {
+  faithTradition: string;
+  terminologyDonationLabel: string;
+  terminologyDonorLabel: string;
+  sacredCalendarHighlights: Array<{ title?: string; date?: string }> | null;
+};
+
 function token() {
   return typeof window !== 'undefined' ? localStorage.getItem('accessToken') : null;
 }
@@ -44,11 +140,14 @@ function handleHttpStatus(status: number) {
   if (status >= 500) window.alert('Server error. Please try again shortly.');
 }
 
-async function api<T = any>(
+async function api<T>(
   path: string,
   opts: RequestInit = {}
-): Promise<{ success: boolean; data?: T; error?: any; meta?: any }> {
-  const headers: any = { 'Content-Type': 'application/json', ...((opts.headers as any) || {}) };
+): Promise<ApiResponse<T>> {
+  const headers: Record<string, string> = {
+    'Content-Type': 'application/json',
+    ...((opts.headers as Record<string, string> | undefined) || {}),
+  };
   const t = token();
   if (t) headers['Authorization'] = `Bearer ${t}`;
   const url = `${API_BASE}${path}`;
@@ -76,8 +175,8 @@ async function api<T = any>(
         },
       };
     }
-  } catch (e: any) {
-    const raw = String(e?.message || '');
+  } catch (e: unknown) {
+    const raw = e instanceof Error ? e.message : String(e || '');
     const isBrowserNetwork =
       /failed to fetch|load failed|networkerror when attempting to fetch resource/i.test(raw);
     return {
@@ -95,44 +194,50 @@ async function api<T = any>(
 
 export const auth = {
   login: (email: string, password: string) =>
-    api('/auth/login', { method: 'POST', body: JSON.stringify({ email, password }) }),
-  register: (data: any) =>
-    api('/auth/register', {
+    api<{ accessToken: string; refreshToken: string }>('/auth/login', {
+      method: 'POST',
+      body: JSON.stringify({ email, password }),
+    }),
+  register: (data: Record<string, unknown>) =>
+    api<{ accessToken: string; refreshToken: string }>('/auth/register', {
       method: 'POST',
       body: JSON.stringify({ ...data, role: 'INSTITUTION_ADMIN' }),
     }),
 };
 
 export const portal = {
-  onboard: (data: any) =>
-    api('/institutions/portal/onboard', { method: 'POST', body: JSON.stringify(data) }),
-  submit: () => api('/institutions/portal/submit', { method: 'POST' }),
+  onboard: (data: Record<string, unknown>) =>
+    api<Record<string, unknown>>('/institutions/portal/onboard', {
+      method: 'POST',
+      body: JSON.stringify(data),
+    }),
+  submit: () => api<Record<string, unknown>>('/institutions/portal/submit', { method: 'POST' }),
   updateUpi: (upiId: string) =>
-    api('/institutions/portal/upi', { method: 'PATCH', body: JSON.stringify({ upiId }) }),
+    api<{ upiId: string }>('/institutions/portal/upi', { method: 'PATCH', body: JSON.stringify({ upiId }) }),
   dashboard: (rangeDays = 30, options?: { includeDemographics?: boolean; includeGeoDistribution?: boolean }) =>
-    api(
+    api<InstitutionDashboard>(
       `/institutions/portal/dashboard?rangeDays=${rangeDays}${options?.includeDemographics ? '&includeDemographics=1' : ''}${options?.includeGeoDistribution ? '&includeGeoDistribution=1' : ''}`
     ),
-  ledger: (page = 1) => api(`/institutions/portal/ledger?page=${page}`),
-  addBank: (data: any) =>
-    api('/institutions/portal/bank', { method: 'POST', body: JSON.stringify(data) }),
-  requestRedemption: (data: any) =>
-    api('/institutions/portal/redemptions', { method: 'POST', body: JSON.stringify(data) }),
-  faithSettings: () => api('/institutions/portal/settings-faith'),
-  updateFaithSettings: (data: any) =>
-    api('/institutions/portal/settings-faith', { method: 'PATCH', body: JSON.stringify(data) }),
+  ledger: (page = 1) => api<LedgerEntry[]>(`/institutions/portal/ledger?page=${page}`),
+  addBank: (data: Record<string, unknown>) =>
+    api<Record<string, unknown>>('/institutions/portal/bank', { method: 'POST', body: JSON.stringify(data) }),
+  requestRedemption: (data: Record<string, unknown>) =>
+    api<Record<string, unknown>>('/institutions/portal/redemptions', { method: 'POST', body: JSON.stringify(data) }),
+  faithSettings: () => api<FaithSettings>('/institutions/portal/settings-faith'),
+  updateFaithSettings: (data: FaithSettings) =>
+    api<FaithSettings>('/institutions/portal/settings-faith', { method: 'PATCH', body: JSON.stringify(data) }),
   functions: (status?: string) =>
-    api(`/institutions/portal/functions${status ? `?status=${encodeURIComponent(status)}` : ''}`),
-  createFunction: (data: any) =>
-    api('/institutions/portal/functions', { method: 'POST', body: JSON.stringify(data) }),
-  updateFunction: (id: string, data: any) =>
-    api(`/institutions/portal/functions/${id}`, { method: 'PATCH', body: JSON.stringify(data) }),
-  demographics: () => api('/institutions/portal/demographics'),
-  geoDistribution: () => api('/institutions/portal/geo-distribution'),
+    api<SpiritualFunction[]>(`/institutions/portal/functions${status ? `?status=${encodeURIComponent(status)}` : ''}`),
+  createFunction: (data: { name: string; functionType: string; nextDate?: string }) =>
+    api<SpiritualFunction>('/institutions/portal/functions', { method: 'POST', body: JSON.stringify(data) }),
+  updateFunction: (id: string, data: Record<string, unknown>) =>
+    api<SpiritualFunction>(`/institutions/portal/functions/${id}`, { method: 'PATCH', body: JSON.stringify(data) }),
+  demographics: () => api<Demographics>('/institutions/portal/demographics'),
+  geoDistribution: () => api<GeoDistribution>('/institutions/portal/geo-distribution'),
   tasks: (status?: string) =>
-    api(`/institutions/portal/tasks${status ? `?status=${encodeURIComponent(status)}` : ''}`),
-  createTask: (data: any) =>
-    api('/institutions/portal/tasks', { method: 'POST', body: JSON.stringify(data) }),
-  updateTask: (id: string, data: any) =>
-    api(`/institutions/portal/tasks/${id}`, { method: 'PATCH', body: JSON.stringify(data) }),
+    api<OpsTask[]>(`/institutions/portal/tasks${status ? `?status=${encodeURIComponent(status)}` : ''}`),
+  createTask: (data: { title: string; taskType: string; functionId?: string; dueDate?: string }) =>
+    api<OpsTask>('/institutions/portal/tasks', { method: 'POST', body: JSON.stringify(data) }),
+  updateTask: (id: string, data: Record<string, unknown>) =>
+    api<OpsTask>(`/institutions/portal/tasks/${id}`, { method: 'PATCH', body: JSON.stringify(data) }),
 };
