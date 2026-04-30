@@ -18,5 +18,6 @@ jobs:
           set -euo pipefail
           bash -n scripts/prod/deploy-vps.sh
           bash -n scripts/prod/deploy-safe.sh
+          bash -n scripts/prod/deploy-fast.sh
           bash -n scripts/prod/post-deploy-verify.sh
           bash -n scripts/dev/pull-prod-logo-from-vps.sh

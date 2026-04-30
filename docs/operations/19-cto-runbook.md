@@ -6,6 +6,7 @@ Short operational authority doc: backups, deploys, rollback, and schema changes.
 
 - Source of truth: Git `main` (or your release branch).
 - Primary command (recommended): `APP_DIR=/opt/kanak-setu BRANCH=main bash scripts/prod/deploy-safe.sh`
+- Faster command (dependency cache-aware): `APP_DIR=/opt/kanak-setu BRANCH=main bash scripts/prod/deploy-fast.sh`
 - Legacy command (manual source update): `APP_DIR=/opt/kanak-setu BRANCH=main bash scripts/prod/deploy-vps.sh`
 - First-time or full stack: `scripts/prod/vps-one-shot.sh` (see `docs/deployment/18-kanaksetu-domain-go-live.md`).
 - **GitHub Actions (optional):** workflow `.github/workflows/deploy-vps.yml` runs on **workflow_dispatch** after you add secrets `VPS_HOST`, `VPS_USER`, `VPS_SSH_KEY` (see comments in that file). This is the only way to “push to deploy” without logging into the server each time.
@@ -16,6 +17,10 @@ Deploy behavior:
 - Otherwise → **`prisma db push`** (bootstrap / legacy only).
 - `deploy-safe.sh` always runs: `git fetch` → `git reset --hard origin/<branch>` → deploy → verify.
 - `deploy-safe.sh` also cleans tracked `packages/*/tsconfig.tsbuildinfo` artifacts after build.
+- `deploy-fast.sh` keeps the same safety/verify flow, but skips `npm ci` when:
+  - `package-lock.json` hash is unchanged from last successful fast deploy, and
+  - `node_modules` already exists.
+- `deploy-fast.sh` records lock hash at `${APP_DIR}/.deploy-state/package-lock.sha256`.
 
 ## Database backup (daily minimum)
 

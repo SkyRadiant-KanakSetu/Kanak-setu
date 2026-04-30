@@ -27,7 +27,16 @@ git pull origin "${BRANCH}"
 
 echo "[deploy] installing deps (devDependencies required for TypeScript / Next builds)"
 # Root shell or systemd often sets NODE_ENV=production; that makes npm skip devDeps → missing @types/react, etc.
-NODE_ENV=development npm ci
+if [[ "${SKIP_NPM_CI:-0}" == "1" ]]; then
+  if [[ -d "node_modules" ]]; then
+    echo "[deploy] SKIP_NPM_CI=1 and node_modules exists → skipping npm ci"
+  else
+    echo "[deploy] SKIP_NPM_CI=1 but node_modules missing → running npm ci"
+    NODE_ENV=development npm ci
+  fi
+else
+  NODE_ENV=development npm ci
+fi
 
 echo "[deploy] loading production env"
 if [[ ! -f "infra/prod/.env.production" ]]; then
