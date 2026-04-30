@@ -34,6 +34,7 @@
     "smoke:all": "bash scripts/smoke-all.sh",
     "smoke:ci": "bash scripts/smoke-ci.sh",
     "audit:prod": "bash scripts/security/audit-prod.sh",
+    "ci:web-quality": "bash scripts/security/web-quality-gate.sh",
     "deploy:vps": "bash scripts/prod/deploy-vps.sh",
     "deploy:safe": "bash scripts/prod/deploy-safe.sh",
     "deploy:verify": "bash scripts/prod/post-deploy-verify.sh",

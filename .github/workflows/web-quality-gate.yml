@@ -1,0 +1,30 @@
+name: Web Quality Gate
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+
+jobs:
+  web-quality:
+    runs-on: ubuntu-latest
+    env:
+      WEB_WARNING_POLICY_STAGE: ${{ vars.WEB_WARNING_POLICY_STAGE || 'budget' }}
+      WEB_WARNING_BUDGET_FILE: web-warning-budgets.json
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Run staged web quality gate
+        run: |
+          chmod +x scripts/security/web-quality-gate.sh
+          bash scripts/security/web-quality-gate.sh
