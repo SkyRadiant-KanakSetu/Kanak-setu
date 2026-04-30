@@ -34,6 +34,7 @@
     "smoke:all": "bash scripts/smoke-all.sh",
     "smoke:ci": "bash scripts/smoke-ci.sh",
     "deploy:vps": "bash scripts/prod/deploy-vps.sh",
+    "deploy:safe": "bash scripts/prod/deploy-safe.sh",
     "deploy:verify": "bash scripts/prod/post-deploy-verify.sh",
     "db:align-pg": "bash scripts/prod/align-postgres-with-env.sh",
     "db:show-prod-db": "bash scripts/prod/show-prod-db-secret.sh"
