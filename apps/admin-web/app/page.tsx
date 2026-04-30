@@ -2,6 +2,7 @@
 import { useState, useEffect } from 'react';
 import Image from 'next/image';
 import { authApi, admin, merkleApi, setTokens, clearTokens } from '@/lib/api';
+import type { ApiError } from '@/lib/api';
 import type {
   AdminDashboard,
   AnchorResultItem,
@@ -11,6 +12,8 @@ import type {
   MerkleBatch,
   WalletBalance,
   WebhookDeliveryRow,
+  WebhookEventRow,
+  FailedTransactionRow,
 } from '@/lib/api';
 import { AdminLayout } from '@/components/AdminLayout';
 import { KsAlert } from '@kanak-setu/ui';
@@ -18,7 +21,9 @@ import { KsAlert } from '@kanak-setu/ui';
 type Tab = 'dashboard' | 'institutions' | 'donations' | 'merkle' | 'assistant' | 'webhooks' | 'audit';
 const EXPLORER_TX_BASE_URL =
   process.env.NEXT_PUBLIC_BLOCK_EXPLORER_TX_BASE_URL || '';
-function shouldForceRelogin(message?: string) {
+function shouldForceRelogin(message?: string, code?: string) {
+  const c = (code || '').toUpperCase();
+  if (c === 'SESSION_EXPIRED' || c === 'UNAUTHORIZED') return true;
   const m = (message || '').toLowerCase();
   return m.includes('token') && (m.includes('expired') || m.includes('invalid') || m.includes('unauthorized'));
 }
@@ -27,6 +32,65 @@ function getExplorerTxBaseUrl(network?: string): string {
   if (network === 'polygon_mainnet') return 'https://polygonscan.com/tx';
   if (network === 'polygon_amoy') return 'https://amoy.polygonscan.com/tx';
   return EXPLORER_TX_BASE_URL || 'https://polygonscan.com/tx';
+}
+
+type AuthIssue = {
+  type: 'unauthorized' | 'forbidden' | 'network' | 'generic';
+  title: string;
+  message: string;
+};
+
+function classifyAuthIssue(error?: ApiError, userEmail?: string): AuthIssue {
+  const code = (error?.code || '').toUpperCase();
+  const message = error?.message || '';
+  const lower = message.toLowerCase();
+
+  if (code === 'ROLE_MISMATCH') {
+    return {
+      type: 'forbidden',
+      title: 'Access restricted',
+      message: `This area requires a different role. You are signed in as ${userEmail || 'this account'}.`,
+    };
+  }
+
+  if (
+    code === 'FORBIDDEN' ||
+    lower.includes('insufficient permissions') ||
+    lower.includes('admin access required')
+  ) {
+    return {
+      type: 'forbidden',
+      title: 'Access restricted',
+      message: 'This area requires Admin access. Your account is authenticated but does not have required permissions.',
+    };
+  }
+
+  if (
+    code === 'UNAUTHORIZED' ||
+    code === 'SESSION_EXPIRED' ||
+    lower.includes('token expired') ||
+    lower.includes('unauthorized')
+  ) {
+    return {
+      type: 'unauthorized',
+      title: 'Session expired',
+      message: 'Your session has expired or is invalid. Please log in again.',
+    };
+  }
+
+  if (code === 'NETWORK_ERROR' || lower.includes('unreachable') || lower.includes('failed to fetch')) {
+    return {
+      type: 'network',
+      title: 'Network issue',
+      message: message || 'Could not reach the API. Please check connectivity and retry.',
+    };
+  }
+
+  return {
+    type: 'generic',
+    title: 'Login failed',
+    message: message || 'Could not sign in. Please try again.',
+  };
 }
 
 const hashToTab = (hash: string): Tab => {
@@ -51,10 +115,15 @@ export default function AdminPage() {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [error, setError] = useState('');
+  const [authIssue, setAuthIssue] = useState<AuthIssue | null>(null);
   const [tab, setTab] = useState<Tab>('dashboard');
 
   useEffect(() => {
-    if (typeof window !== 'undefined' && localStorage.getItem('accessToken')) setLoggedIn(true);
+    if (typeof window !== 'undefined' && localStorage.getItem('accessToken')) {
+      setLoggedIn(true);
+      const persistedEmail = localStorage.getItem('adminLoginEmail');
+      if (persistedEmail) setEmail(persistedEmail);
+    }
   }, []);
 
   useEffect(() => {
@@ -76,9 +145,12 @@ export default function AdminPage() {
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
     setError('');
+    setAuthIssue(null);
     const res = await authApi.login(email, password);
     if (!res.success) {
-      if (shouldForceRelogin(res.error?.message)) {
+      const issue = classifyAuthIssue(res.error, email.trim());
+      setAuthIssue(issue);
+      if (shouldForceRelogin(res.error?.message, res.error?.code)) {
         localStorage.clear();
         window.location.replace('/');
         return;
@@ -91,6 +163,7 @@ export default function AdminPage() {
       return;
     }
     setTokens(res.data.accessToken, res.data.refreshToken);
+    localStorage.setItem('adminLoginEmail', email.trim());
     setLoggedIn(true);
   };
 
@@ -109,10 +182,22 @@ export default function AdminPage() {
             <p className="mt-2 text-xs font-semibold uppercase tracking-wide text-zinc-500">Admin Console</p>
           </div>
           <h1 className="text-xl font-bold">Admin Login</h1>
-          {error && (
+          {(error || authIssue) && (
             <div className="mt-2">
-              <KsAlert variant="error" title="Login failed">
-                {error}
+              <KsAlert variant="error" title={authIssue?.title || 'Login failed'}>
+                <p>{authIssue?.message || error}</p>
+                {authIssue?.type === 'forbidden' && (
+                  <div className="mt-2 space-y-1 text-xs">
+                    <p>
+                      Signed-in identity: <strong>{email || 'current account'}</strong>
+                    </p>
+                    <p>Required access: Platform Admin role.</p>
+                    <p>Action: Contact your administrator or sign out and use an admin account.</p>
+                  </div>
+                )}
+                {authIssue?.type === 'unauthorized' && (
+                  <p className="mt-2 text-xs">Please sign in again to continue.</p>
+                )}
               </KsAlert>
             </div>
           )}
@@ -160,7 +245,9 @@ export default function AdminPage() {
       onTabChange={setTab}
       onSignOut={() => {
         clearTokens();
+        localStorage.removeItem('adminLoginEmail');
         setLoggedIn(false);
+        setAuthIssue(null);
       }}
     >
       <div className="mb-4 flex flex-wrap gap-2">
@@ -173,6 +260,12 @@ export default function AdminPage() {
             {t.label.replace(/[^\w\s]/g, '').trim()}
           </button>
         ))}
+        <a
+          href="/dashboard/reliability"
+          className="rounded-lg px-3 py-1.5 text-sm bg-white border border-stone-200 text-stone-600 hover:bg-stone-50"
+        >
+          Reliability
+        </a>
       </div>
       <main className="overflow-auto">
         {tab === 'dashboard' && <DashboardTab />}
@@ -271,18 +364,23 @@ function AssistantTab() {
 function DashboardTab() {
   const [data, setData] = useState<AdminDashboard | null>(null);
   const [loadError, setLoadError] = useState('');
+  const [authIssue, setAuthIssue] = useState<AuthIssue | null>(null);
   const [loading, setLoading] = useState(true);
   const [rangeDays, setRangeDays] = useState<7 | 30 | 90>(30);
   useEffect(() => {
     setLoading(true);
     setLoadError('');
+    setAuthIssue(null);
     admin.dashboard(rangeDays).then((r) => {
       setLoading(false);
       if (r.success) {
         setData(r.data || null);
         return;
       }
-      if (shouldForceRelogin(r.error?.message)) {
+      setAuthIssue(
+        classifyAuthIssue(r.error, typeof window !== 'undefined' ? localStorage.getItem('adminLoginEmail') || undefined : undefined)
+      );
+      if (shouldForceRelogin(r.error?.message, r.error?.code)) {
         localStorage.clear();
         window.location.replace('/');
         return;
@@ -300,10 +398,18 @@ function DashboardTab() {
             {loadError}
           </KsAlert>
         </div>
-        <p className="mt-2 text-xs text-gray-500">
-          If you just logged in, confirm you are using a platform admin account (for example admin@kanaksetu.in),
-          not an institution or donor login.
-        </p>
+        {authIssue?.type === 'forbidden' && (
+          <div className="mt-2 rounded border border-amber-200 bg-amber-50 p-2 text-xs text-amber-900">
+            <p>
+              Signed-in identity: <strong>{typeof window !== 'undefined' ? localStorage.getItem('adminLoginEmail') || 'current account' : 'current account'}</strong>
+            </p>
+            <p className="mt-1">This area requires Platform Admin access.</p>
+            <p className="mt-1">Action: Contact your administrator for role assignment or sign in with an admin account.</p>
+          </div>
+        )}
+        {authIssue?.type === 'unauthorized' && (
+          <p className="mt-2 text-xs text-gray-500">Session expired. Please log in again.</p>
+        )}
       </div>
     );
   }
@@ -1058,12 +1164,22 @@ function MerkleTab() {
 // ── Webhook deliveries (idempotency ledger) ──
 function WebhooksTab() {
   const [rows, setRows] = useState<WebhookDeliveryRow[]>([]);
+  const [events, setEvents] = useState<WebhookEventRow[]>([]);
+  const [failedRows, setFailedRows] = useState<FailedTransactionRow[]>([]);
+  const [reviewNoteByPaymentId, setReviewNoteByPaymentId] = useState<Record<string, string>>({});
+  const [reviewingPaymentId, setReviewingPaymentId] = useState('');
   const [msg, setMsg] = useState('');
-  const load = () =>
-    admin.webhookDeliveries(1).then((r) => {
-      if (r.success) setRows(r.data || []);
-      else setMsg(r.error?.message || 'Failed to load');
-    });
+  const load = async () => {
+    const [deliveries, webhookEvents, failedQueue] = await Promise.all([
+      admin.webhookDeliveries(1),
+      admin.webhookEvents(20),
+      admin.failedTransactions(24),
+    ]);
+    if (deliveries.success) setRows(deliveries.data || []);
+    else setMsg(deliveries.error?.message || 'Failed to load');
+    if (webhookEvents.success) setEvents(webhookEvents.data || []);
+    if (failedQueue.success) setFailedRows(failedQueue.data || []);
+  };
   useEffect(() => {
     load();
   }, []);
@@ -1125,6 +1241,122 @@ function WebhooksTab() {
                 <td className="px-3 py-2 font-mono text-[10px]">{w.idempotencyKey?.slice(0, 40)}…</td>
               </tr>
             ))}
+          </tbody>
+        </table>
+      </div>
+
+      <div className="mt-6 overflow-x-auto rounded-xl border bg-white">
+        <div className="border-b px-3 py-2">
+          <p className="text-sm font-semibold">Webhook Events (Last 20)</p>
+        </div>
+        <table className="w-full text-xs">
+          <thead className="bg-gray-50 text-left text-gray-500">
+            <tr>
+              <th className="px-3 py-2">Time</th>
+              <th className="px-3 py-2">Provider</th>
+              <th className="px-3 py-2">Event</th>
+              <th className="px-3 py-2">Status</th>
+              <th className="px-3 py-2">Payload Summary</th>
+            </tr>
+          </thead>
+          <tbody>
+            {events.map((w) => (
+              <tr key={w.id} className="border-t">
+                <td className="px-3 py-2 text-gray-400">{new Date(w.createdAt).toLocaleString('en-IN')}</td>
+                <td className="px-3 py-2">{w.provider || '-'}</td>
+                <td className="px-3 py-2">{w.eventType || '-'}</td>
+                <td className="px-3 py-2">
+                  <span className="rounded bg-gray-100 px-1 py-0.5">{w.status || '-'}</span>
+                </td>
+                <td className="px-3 py-2 font-mono text-[10px] text-gray-600">{w.payloadSummary || '-'}</td>
+              </tr>
+            ))}
+            {events.length === 0 && (
+              <tr>
+                <td className="px-3 py-4 text-gray-500" colSpan={5}>
+                  No webhook events available.
+                </td>
+              </tr>
+            )}
+          </tbody>
+        </table>
+      </div>
+
+      <div className="mt-6 overflow-x-auto rounded-xl border bg-white">
+        <div className="border-b px-3 py-2">
+          <p className="text-sm font-semibold">Failed/Pending Transactions ({'>'}24h)</p>
+        </div>
+        <table className="w-full text-xs">
+          <thead className="bg-gray-50 text-left text-gray-500">
+            <tr>
+              <th className="px-3 py-2">Updated</th>
+              <th className="px-3 py-2">Donation</th>
+              <th className="px-3 py-2">Institution</th>
+              <th className="px-3 py-2">Amount</th>
+              <th className="px-3 py-2">Payment</th>
+              <th className="px-3 py-2">Review</th>
+            </tr>
+          </thead>
+          <tbody>
+            {failedRows.map((row) => (
+              <tr key={`${row.donationId}-${row.payment?.id || 'no-payment'}`} className="border-t">
+                <td className="px-3 py-2 text-gray-400">{new Date(row.updatedAt).toLocaleString('en-IN')}</td>
+                <td className="px-3 py-2">
+                  <p>{row.donationRef?.slice(0, 10) || row.donationId.slice(0, 10)}</p>
+                  <p className="text-[10px] text-gray-500">{row.donationStatus}</p>
+                </td>
+                <td className="px-3 py-2">{row.institutionName || '-'}</td>
+                <td className="px-3 py-2">₹{(row.amountPaise / 100).toFixed(2)}</td>
+                <td className="px-3 py-2">
+                  <p>{row.payment?.status || '-'}</p>
+                  <p className="text-[10px] text-gray-500">{row.payment?.providerPaymentId || row.payment?.providerOrderId || '-'}</p>
+                </td>
+                <td className="px-3 py-2">
+                  {row.review ? (
+                    <div className="rounded bg-green-50 px-2 py-1 text-[10px] text-green-700">
+                      Reviewed by {row.review.reviewedBy || 'admin'}
+                    </div>
+                  ) : row.payment?.id ? (
+                    <div className="space-y-1">
+                      <input
+                        value={reviewNoteByPaymentId[row.payment.id] || ''}
+                        onChange={(e) =>
+                          setReviewNoteByPaymentId((prev) => ({ ...prev, [row.payment!.id]: e.target.value }))
+                        }
+                        placeholder="Review note (optional)"
+                        className="w-40 rounded border px-2 py-1 text-[10px]"
+                      />
+                      <button
+                        type="button"
+                        disabled={reviewingPaymentId === row.payment.id}
+                        onClick={async () => {
+                          setReviewingPaymentId(row.payment!.id);
+                          const r = await admin.markTransactionReviewed(
+                            row.payment!.id,
+                            reviewNoteByPaymentId[row.payment!.id]
+                          );
+                          if (!r.success) setMsg(r.error?.message || 'Could not mark reviewed');
+                          await load();
+                          setReviewingPaymentId('');
+                        }}
+                        className="rounded border border-zinc-300 px-2 py-1 text-[10px] hover:bg-zinc-50 disabled:opacity-60"
+                      >
+                        {reviewingPaymentId === row.payment.id ? 'Saving...' : 'Mark reviewed'}
+                      </button>
+                    </div>
+                  ) : (
+                    <span className="text-[10px] text-gray-400">No payment transaction</span>
+                  )}
+                </td>
+              </tr>
+            ))}
+            {failedRows.length === 0 && (
+              <tr>
+                <td className="px-3 py-4 text-gray-500" colSpan={6}>
+                  No failed/pending transactions older than 24 hours.
+                </td>
+              </tr>
+            )}
           </tbody>
         </table>
       </div>

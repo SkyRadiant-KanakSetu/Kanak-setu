@@ -3,6 +3,7 @@ import { prisma } from '../../config/prisma';
 import { confirmPayment } from '../donations/donation.service';
 import { success } from '../../utils/response';
 import { processPaymentProviderWebhook } from './paymentWebhook.processor';
+import { buildError, ErrorCode, HTTP_STATUS } from '../../lib/errors';
 
 export const paymentRouter = Router();
 
@@ -34,13 +35,12 @@ paymentRouter.post('/mock/simulate', async (req: Request, res: Response, next: N
   try {
     const allowMockSimulation = process.env.ALLOW_MOCK_PAYMENT_SIMULATION === '1';
     if (!allowMockSimulation) {
-      return res.status(400).json({
-        success: false,
-        error: {
-          code: 'MOCK_PAYMENT_DISABLED',
-          message: 'Mock payment simulation is disabled in this environment',
-        },
-      });
+      const err = buildError(
+        ErrorCode.VALIDATION_ERROR,
+        'Mock payment simulation is disabled in this environment',
+        { reason: 'MOCK_PAYMENT_DISABLED' }
+      );
+      return res.status(HTTP_STATUS[ErrorCode.VALIDATION_ERROR]).json(err);
     }
     const { donationId, status } = req.body;
     if (status === 'CAPTURED') {

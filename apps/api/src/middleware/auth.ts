@@ -38,7 +38,7 @@ export function authenticate(req: Request, _res: Response, next: NextFunction) {
 export function requireRole(...roles: UserRole[]) {
   return (req: Request, _res: Response, next: NextFunction) => {
     if (!req.auth || !roles.includes(req.auth.role)) {
-      return next(new AppError(403, 'FORBIDDEN', 'Insufficient permissions'));
+      return next(new AppError(403, 'ROLE_MISMATCH', 'Insufficient permissions'));
     }
     next();
   };
@@ -47,7 +47,7 @@ export function requireRole(...roles: UserRole[]) {
 export function requireAnyAdmin(req: Request, _res: Response, next: NextFunction) {
   const adminRoles: UserRole[] = ['SUPER_ADMIN', 'ADMIN_OPS', 'COMPLIANCE_ADMIN', 'FINANCE_ADMIN'];
   if (!req.auth || !adminRoles.includes(req.auth.role)) {
-    return next(new AppError(403, 'FORBIDDEN', 'Admin access required'));
+    return next(new AppError(403, 'ROLE_MISMATCH', 'Admin access required'));
   }
   next();
 }

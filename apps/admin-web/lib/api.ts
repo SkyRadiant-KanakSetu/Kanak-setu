@@ -18,7 +18,7 @@ function resolveApiBase() {
 }
 
 const API_BASE = resolveApiBase();
-export type ApiError = { code?: string; message?: string };
+export type ApiError = { code?: string; message?: string; correlationId?: string };
 export type ApiMeta = Record<string, unknown>;
 export type ApiResponse<T> = { success: boolean; data?: T; error?: ApiError; meta?: ApiMeta };
 
@@ -108,6 +108,38 @@ export type WebhookDeliveryRow = {
   provider?: string;
   status?: string;
   idempotencyKey?: string;
+};
+
+export type WebhookEventRow = {
+  id: string;
+  provider?: string;
+  createdAt: string;
+  status?: string;
+  eventType?: string;
+  payloadSummary?: string;
+};
+
+export type FailedTransactionRow = {
+  donationId: string;
+  donationRef?: string;
+  donationStatus: string;
+  amountPaise: number;
+  updatedAt: string;
+  donorName?: string;
+  institutionName?: string;
+  payment?: {
+    id: string;
+    status?: string;
+    provider?: string;
+    providerOrderId?: string;
+    providerPaymentId?: string;
+    updatedAt?: string;
+  } | null;
+  review?: {
+    reviewedAt: string;
+    reviewedBy?: string;
+    note?: string;
+  } | null;
 };
 
 export type ReconciliationRunResult = {
@@ -255,6 +287,13 @@ export const admin = {
     api<WebhookDeliveryRow[]>(
       `/admin/webhooks/deliveries?page=${page}${provider ? `&provider=${encodeURIComponent(provider)}` : ''}`
     ),
+  webhookEvents: (limit = 20) => api<WebhookEventRow[]>(`/admin/webhooks/events?limit=${limit}`),
+  failedTransactions: (hours = 24) => api<FailedTransactionRow[]>(`/admin/transactions/failure-queue?hours=${hours}`),
+  markTransactionReviewed: (paymentId: string, note?: string) =>
+    api<{ paymentId: string; reviewed: boolean; reviewedAt: string }>(`/admin/transactions/${paymentId}/review`, {
+      method: 'POST',
+      body: JSON.stringify({ note }),
+    }),
   assistantQuery: (query: string) =>
     api<AssistantAnswer>('/admin/assistant/query', { method: 'POST', body: JSON.stringify({ query }) }),
   ledgerAdjust: (data: LedgerAdjustPayload) =>
