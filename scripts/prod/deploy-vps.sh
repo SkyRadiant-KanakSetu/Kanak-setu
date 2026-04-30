@@ -16,6 +16,11 @@ fi
 cd "${APP_DIR}"
 
 echo "[deploy] updating source"
+if git remote get-url origin 2>/dev/null | grep -q '^https://'; then
+  echo "[deploy] WARN: git remote uses HTTPS — each pull may prompt for credentials."
+  echo "[deploy] Prefer: git remote set-url origin git@github.com:SkyRadiant-KanakSetu/Kanak-setu.git"
+  echo "[deploy] (Deploy key or user SSH key must be registered on GitHub.)"
+fi
 git fetch --all --prune
 git checkout "${BRANCH}"
 git pull origin "${BRANCH}"

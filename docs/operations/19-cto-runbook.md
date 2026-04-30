@@ -54,6 +54,20 @@ npx prisma migrate resolve --applied 20260411000000_baseline --schema=prisma/sch
 
 Then future deploys use `migrate deploy` only. If drift exists, diff the DB against `schema.prisma` and fix before resolving.
 
+## Git on the VPS (HTTPS vs SSH)
+
+- If `git remote -v` shows **`https://github.com/...`**, Git will prompt for credentials on every `git pull` unless you cache a **Personal Access Token** (`git config --global credential.helper store`) or use **`gh auth login`**.
+- **Recommended:** `git remote set-url origin git@github.com:SkyRadiant-KanakSetu/Kanak-setu.git` and use an SSH key whose public half is in GitHub (user key or **read-only deploy key** on the repo). Then `git pull` needs no password.
+
+## Production `logo.png` (donor / institution / admin)
+
+- Source of truth should be **this repo** under `apps/*/public/logo.png` so deploys never revert a hand-copied asset.
+- If the large logo exists only on the server, pull it into your laptop repo (run **on your Mac**, not over SSH on the VPS):
+
+  `PROD_SSH=root@YOUR_VPS_IP bash scripts/dev/pull-prod-logo-from-vps.sh`
+
+  Then commit and push the three files.
+
 ## Secrets and GitHub
 
 - Never commit `infra/prod/.env.production`.

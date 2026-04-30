@@ -7,6 +7,8 @@
 # Optional:
 #   PUBLIC_API_BASE=https://api.kanaksetu.com/api/v1 bash scripts/prod/post-deploy-verify.sh
 #   RUN_SMOKE=1 bash scripts/prod/post-deploy-verify.sh   # runs npm run smoke:local against localhost API
+#   VERIFY_LOGOS=0 …   # skip /logo.png checks on the three public web origins
+#   DONOR_ORIGIN=… INSTITUTION_ORIGIN=… ADMIN_ORIGIN=…  # override default kanaksetu.com hosts
 #
 set -euo pipefail
 
@@ -84,6 +86,27 @@ for path in institutions/portal/functions institutions/portal/settings-faith; do
     exit 1
   fi
 done
+
+if [[ "${VERIFY_LOGOS:-1}" == "1" ]]; then
+  echo "[verify] public /logo.png (200 + image/png)"
+  DONOR_ORIGIN="${DONOR_ORIGIN:-https://kanaksetu.com}"
+  INSTITUTION_ORIGIN="${INSTITUTION_ORIGIN:-https://institution.kanaksetu.com}"
+  ADMIN_ORIGIN="${ADMIN_ORIGIN:-https://admin.kanaksetu.com}"
+  for origin in "${DONOR_ORIGIN}" "${INSTITUTION_ORIGIN}" "${ADMIN_ORIGIN}"; do
+    url="${origin}/logo.png"
+    code="$(curl -sS -o /dev/null -w "%{http_code}" "${url}")"
+    ct="$(curl -sSI "${url}" | tr -d '\r' | grep -i '^content-type:' | head -1 || true)"
+    echo "  ${url} -> HTTP ${code} ${ct}"
+    if [[ "${code}" != "200" ]]; then
+      echo "[verify] FAIL: expected HTTP 200 for ${url}"
+      exit 1
+    fi
+    if ! echo "${ct}" | grep -qi 'image/png'; then
+      echo "[verify] FAIL: expected Content-Type image/png for ${url}"
+      exit 1
+    fi
+  done
+fi
 
 if [[ "${RUN_SMOKE:-0}" == "1" ]]; then
   echo "[verify] npm run smoke:local (API_BASE=${LOCAL_API_BASE})"

@@ -28,6 +28,7 @@
     "docker:up": "docker compose -f infra/docker-compose.yml up -d",
     "docker:down": "docker compose -f infra/docker-compose.yml down",
     "dev:check": "bash scripts/dev-check.sh",
+    "dev:pull-prod-logo": "bash scripts/dev/pull-prod-logo-from-vps.sh",
     "smoke:local": "bash scripts/smoke-local.sh",
     "smoke:proof": "bash scripts/smoke-proof.sh",
     "smoke:all": "bash scripts/smoke-all.sh",
