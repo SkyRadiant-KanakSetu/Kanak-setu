@@ -103,7 +103,6 @@ export default function InstitutionHome() {
   useEffect(() => {
     if (!loggedIn) return;
     loadDashboard();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [rangeDays]);
 
   const handleLogin = async (e: React.FormEvent) => {
