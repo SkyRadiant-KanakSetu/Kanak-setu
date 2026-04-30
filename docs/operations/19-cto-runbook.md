@@ -76,6 +76,12 @@ Then future deploys use `migrate deploy` only. If drift exists, diff the DB agai
 - Never commit `infra/prod/.env.production`.
 - PAT used for `git push` must include **`workflow`** scope if the repo contains `.github/workflows/*`.
 
+## Dependency security posture
+
+- Run production-only audit from repo root: `npm run audit:prod`.
+- Policy: fail deployment pipelines on **critical** vulnerabilities; track and plan remediation for highs that require major-framework upgrades.
+- Current known high is tied to `next@14.2.35`; address in a planned Next major upgrade window with regression testing across donor, institution, and admin apps.
+
 ## Release checklist (minimal)
 
 - [ ] Smoke: `npm run smoke:local` against production API (or post-deploy hook).

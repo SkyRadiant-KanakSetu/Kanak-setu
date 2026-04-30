@@ -33,6 +33,7 @@
     "smoke:proof": "bash scripts/smoke-proof.sh",
     "smoke:all": "bash scripts/smoke-all.sh",
     "smoke:ci": "bash scripts/smoke-ci.sh",
+    "audit:prod": "bash scripts/security/audit-prod.sh",
     "deploy:vps": "bash scripts/prod/deploy-vps.sh",
     "deploy:safe": "bash scripts/prod/deploy-safe.sh",
     "deploy:verify": "bash scripts/prod/post-deploy-verify.sh",
