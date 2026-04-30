@@ -89,8 +89,8 @@ console.log('[web-quality] budget stage passed (no warning regression).');
 NODE
 
 echo "[web-quality] running web builds (type + compile)"
-npm run build -w @kanak-setu/admin-web -- --no-lint
-npm run build -w @kanak-setu/donor-web -- --no-lint
-npm run build -w @kanak-setu/institution-web -- --no-lint
+npm run build -w @kanak-setu/admin-web
+npm run build -w @kanak-setu/donor-web
+npm run build -w @kanak-setu/institution-web
 
 echo "[web-quality] PASS"

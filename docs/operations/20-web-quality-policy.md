@@ -33,6 +33,9 @@ Workflow: `.github/workflows/web-quality-gate.yml`
 
 Script: `scripts/security/web-quality-gate.sh`
 
+Web app package builds (`@kanak-setu/admin-web`, `@kanak-setu/donor-web`, `@kanak-setu/institution-web`) run with `next build --no-lint`.
+This keeps deploy/build logs clean and makes this quality gate the single source of lint-warning enforcement.
+
 What it does:
 
 1. Runs ESLint on web apps and aggregates warnings/errors by app.
