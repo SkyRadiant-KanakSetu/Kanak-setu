@@ -5,7 +5,6 @@ import { prisma } from '../../config/prisma';
 import { getEnv } from '../../config/env';
 import { AppError } from '../../middleware/errorHandler';
 import { UserRole } from '@prisma/client';
-import { v4 as uuid } from 'uuid';
 import { sessionExpiresAt } from '../../utils/sessionExpiry';
 
 const BCRYPT_ROUNDS = parseInt(process.env.BCRYPT_ROUNDS || '12');
@@ -27,7 +26,7 @@ function signAccess(userId: string, role: UserRole) {
 }
 
 function signRefresh() {
-  return uuid();
+  return crypto.randomUUID();
 }
 
 function normalizePhone(phone: string) {

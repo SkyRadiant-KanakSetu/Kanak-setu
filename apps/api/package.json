@@ -23,11 +23,9 @@
     "helmet": "^7.1.0",
     "jsonwebtoken": "^9.0.2",
     "keccak256": "^1.0.6",
-    "merkletreejs": "^0.3.11",
     "morgan": "^1.10.0",
-    "node-cron": "^3.0.3",
+    "node-cron": "^4.2.1",
     "qrcode": "^1.5.3",
-    "uuid": "^9.0.0",
     "zod": "^3.22.0"
   },
   "devDependencies": {

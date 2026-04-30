@@ -1,6 +1,6 @@
 import { prisma } from '../../config/prisma';
 import { CertificateType } from '@prisma/client';
-import { v4 as uuid } from 'uuid';
+import crypto from 'crypto';
 
 // ── Serial number format: KS-{TYPE_PREFIX}-{YYYYMMDD}-{SEQ} ──
 function generateSerial(type: CertificateType): string {
@@ -21,7 +21,7 @@ export async function createCertificate(donationId: string, type: CertificateTyp
       donationId,
       type,
       serialNumber: generateSerial(type),
-      verificationRef: uuid(),
+      verificationRef: crypto.randomUUID(),
       status: 'PENDING',
     },
   });
