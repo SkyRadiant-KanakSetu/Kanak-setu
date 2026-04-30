@@ -19,12 +19,113 @@ function resolveApiBase() {
 
 const API_BASE = resolveApiBase();
 
-interface ApiResponse<T = any> {
+export interface ApiResponse<T = unknown> {
   success: boolean;
   data?: T;
   error?: { code: string; message: string };
   meta?: { page: number; limit: number; total: number; pages: number };
 }
+
+export type AuthUser = {
+  id: string;
+  email: string;
+  role: string;
+};
+
+export type AuthTokenData = {
+  accessToken: string;
+  refreshToken: string;
+  user: AuthUser;
+};
+
+export type DonorProfileData = {
+  userId: string;
+  firstName: string;
+  lastName: string;
+  kycStatus: string;
+  profession?: string;
+  dateOfBirth?: string | null;
+  pan?: string;
+  address?: string;
+  city?: string;
+  state?: string;
+  pincode?: string;
+  user?: { email?: string; phone?: string };
+};
+
+export type OtpResponseData = {
+  devOtp?: string;
+  expiresInSeconds?: number;
+};
+
+export type InstitutionPublicData = {
+  id: string;
+  publicName: string;
+  type: string;
+  description: string;
+  city: string;
+  state: string;
+  publicPageSlug: string | null;
+  has80G: boolean;
+  upiId?: string | null;
+};
+
+export type DonationCreateData = {
+  donationId: string;
+  donationRef?: string;
+};
+
+export type DonationData = {
+  id: string;
+  donationRef?: string;
+  amountPaise: number;
+  status: string;
+  createdAt: string;
+  goldQuantityMg?: string | null;
+  institution?: { publicName?: string };
+  payment?: { providerPaymentId?: string };
+};
+
+export type DonationQuoteData = {
+  pricePerGramPaise: number;
+  source?: string;
+};
+
+export type DonationListItem = DonationData & {
+  certificates?: { id: string; type: string; status: string }[];
+};
+
+export type DownloadCertificateData = {
+  downloadUrl?: string;
+};
+
+export type MerkleProofData = {
+  donationRef: string;
+  amountRupees?: number;
+  amountPaise?: number;
+  leafHash: string;
+  merkleRoot: string;
+  batchNumber: number;
+  batchStatus: string;
+  blockchain?: {
+    network?: string;
+    status?: string;
+    attempts?: number;
+    txHash?: string;
+    blockNumber?: number;
+  } | null;
+};
+
+export type VerifiedCertificateData = {
+  serialNumber: string;
+  type: string;
+  status: string;
+  donation?: {
+    institution?: string;
+    amountPaise?: number;
+    blockchain?: { txHash?: string };
+  };
+};
 
 function getToken(): string | null {
   if (typeof window === 'undefined') return null;
@@ -75,13 +176,13 @@ async function refreshAccessToken(): Promise<boolean> {
   }
 }
 
-export async function api<T = any>(
+export async function api<T = unknown>(
   path: string,
   options: RequestInit = {}
 ): Promise<ApiResponse<T>> {
   const headers: Record<string, string> = {
     'Content-Type': 'application/json',
-    ...((options.headers as any) || {}),
+    ...((options.headers as Record<string, string> | undefined) || {}),
   };
   const token = getToken();
   if (token) headers['Authorization'] = `Bearer ${token}`;
@@ -121,8 +222,8 @@ export async function api<T = any>(
         },
       };
     }
-  } catch (e: any) {
-    const raw = String(e?.message || '');
+  } catch (e: unknown) {
+    const raw = e instanceof Error ? e.message : String(e || '');
     const isBrowserNetwork =
       /failed to fetch|load failed|networkerror when attempting to fetch resource/i.test(raw);
     return {
@@ -146,17 +247,21 @@ export const auth = {
     firstName: string;
     lastName: string;
     phone?: string;
-  }) => api('/auth/register', { method: 'POST', body: JSON.stringify({ ...data, role: 'DONOR' }) }),
+  }) =>
+    api<AuthTokenData>('/auth/register', {
+      method: 'POST',
+      body: JSON.stringify({ ...data, role: 'DONOR' }),
+    }),
   login: (email: string, password: string) =>
-    api('/auth/login', { method: 'POST', body: JSON.stringify({ email, password }) }),
+    api<AuthTokenData>('/auth/login', { method: 'POST', body: JSON.stringify({ email, password }) }),
   requestPhoneOtp: (phone: string) =>
-    api('/auth/login/phone/request-otp', { method: 'POST', body: JSON.stringify({ phone }) }),
+    api<OtpResponseData>('/auth/login/phone/request-otp', { method: 'POST', body: JSON.stringify({ phone }) }),
   verifyPhoneOtp: (phone: string, otp: string) =>
-    api('/auth/login/phone/verify-otp', { method: 'POST', body: JSON.stringify({ phone, otp }) }),
+    api<AuthTokenData>('/auth/login/phone/verify-otp', { method: 'POST', body: JSON.stringify({ phone, otp }) }),
   requestSignupPhoneOtp: (phone: string) =>
-    api('/auth/signup/phone/request-otp', { method: 'POST', body: JSON.stringify({ phone }) }),
+    api<OtpResponseData>('/auth/signup/phone/request-otp', { method: 'POST', body: JSON.stringify({ phone }) }),
   verifySignupPhoneOtp: (phone: string, otp: string, firstName: string, lastName: string) =>
-    api('/auth/signup/phone/verify-otp', {
+    api<AuthTokenData>('/auth/signup/phone/verify-otp', {
       method: 'POST',
       body: JSON.stringify({ phone, otp, firstName, lastName }),
     }),
@@ -169,16 +274,17 @@ export const auth = {
 
 // ── Donors ──
 export const donors = {
-  me: () => api('/donors/me'),
-  update: (data: any) => api('/donors/me', { method: 'PUT', body: JSON.stringify(data) }),
-  donations: (page = 1) => api(`/donors/me/donations?page=${page}`),
+  me: () => api<DonorProfileData>('/donors/me'),
+  update: (data: Record<string, unknown>) =>
+    api<DonorProfileData>('/donors/me', { method: 'PUT', body: JSON.stringify(data) }),
+  donations: (page = 1) => api<DonationListItem[]>(`/donors/me/donations?page=${page}`),
 };
 
 // ── Institutions (public) ──
 export const institutions = {
-  list: (page = 1) => api(`/institutions?page=${page}`),
-  bySlug: (slug: string) => api(`/institutions/slug/${slug}`),
-  byId: (id: string) => api(`/institutions/id/${id}`),
+  list: (page = 1) => api<InstitutionPublicData[]>(`/institutions?page=${page}`),
+  bySlug: (slug: string) => api<InstitutionPublicData>(`/institutions/slug/${slug}`),
+  byId: (id: string) => api<InstitutionPublicData>(`/institutions/id/${id}`),
 };
 
 // ── Donations ──
@@ -188,30 +294,30 @@ export const donations = {
     campaignId?: string;
     amountPaise: number;
     idempotencyKey?: string;
-  }) => api('/donations', { method: 'POST', body: JSON.stringify(data) }),
-  get: (id: string) => api(`/donations/${id}`),
+  }) => api<DonationCreateData>('/donations', { method: 'POST', body: JSON.stringify(data) }),
+  get: (id: string) => api<DonationData>(`/donations/${id}`),
   confirmPayment: (id: string, providerPaymentId: string) =>
-    api(`/donations/${id}/confirm-payment`, {
+    api<DonationData>(`/donations/${id}/confirm-payment`, {
       method: 'POST',
       body: JSON.stringify({ providerPaymentId }),
     }),
-  quote: () => api('/donations/quote/current'),
+  quote: () => api<DonationQuoteData>('/donations/quote/current'),
 };
 
 // ── Certificates ──
 export const certificates = {
   forDonation: (donationId: string) => api(`/certificates/donation/${donationId}`),
-  download: (id: string) => api(`/certificates/${id}/download`),
+  download: (id: string) => api<DownloadCertificateData>(`/certificates/${id}/download`),
 };
 
 // ── Merkle (public proof) ──
 export const merkle = {
-  proof: (donationId: string) => api(`/merkle/proof/${donationId}`),
+  proof: (donationId: string) => api<MerkleProofData>(`/merkle/proof/${donationId}`),
 };
 
 // ── Verify (public) ──
 export const verify = {
-  certificate: (ref: string) => api(`/verify/${ref}`),
+  certificate: (ref: string) => api<VerifiedCertificateData>(`/verify/${ref}`),
 };
 
 // ── Mock payment simulation (dev) ──

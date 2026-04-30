@@ -3,6 +3,8 @@ import { Suspense, useEffect, useState } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { useAuth } from '@/lib/auth';
 
+type UiError = Error & { code?: string };
+
 function AuthContent() {
   const showDevHints = process.env.NODE_ENV !== 'production';
   const [isLogin, setIsLogin] = useState(true);
@@ -77,7 +79,7 @@ function AuthContent() {
     return path;
   }
 
-  function getOtpRequestErrorMessage(err: any) {
+  function getOtpRequestErrorMessage(err: UiError) {
     const code = err?.code;
     const message = String(err?.message || '');
     if (code === 'DONOR_NOT_FOUND' || message.includes('No active donor account found for phone')) {
@@ -101,8 +103,8 @@ function AuthContent() {
         await verifySignupPhoneOtp(phone, otp, firstName, lastName);
       }
       router.push(resolveReturnPath(returnTo));
-    } catch (err: any) {
-      setError(err.message || 'Something went wrong');
+    } catch (err: unknown) {
+      setError(err instanceof Error ? err.message : 'Something went wrong');
     } finally {
       setLoading(false);
     }
@@ -121,8 +123,9 @@ function AuthContent() {
         setDevOtp(resp.devOtp || '');
         setResendCooldown(30);
         setOtpExpiresIn(resp.expiresInSeconds || 300);
-      } catch (err: any) {
-        const msg = err?.message || '';
+      } catch (err: unknown) {
+        const knownErr = err as UiError;
+        const msg = knownErr?.message || '';
         if (msg.includes('No active donor account found for phone')) {
           const resp = await requestSignupPhoneOtp(phone);
           setOtpSent(true);
@@ -135,10 +138,10 @@ function AuthContent() {
           setOtpExpiresIn(resp.expiresInSeconds || 300);
           return;
         }
-        throw err;
+        throw knownErr;
       }
-    } catch (err: any) {
-      setError(getOtpRequestErrorMessage(err));
+    } catch (err: unknown) {
+      setError(getOtpRequestErrorMessage(err as UiError));
     } finally {
       setLoading(false);
     }

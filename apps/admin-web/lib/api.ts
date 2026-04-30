@@ -18,6 +18,123 @@ function resolveApiBase() {
 }
 
 const API_BASE = resolveApiBase();
+export type ApiError = { code?: string; message?: string };
+export type ApiMeta = Record<string, unknown>;
+export type ApiResponse<T> = { success: boolean; data?: T; error?: ApiError; meta?: ApiMeta };
+
+export type AuthLoginData = {
+  accessToken: string;
+  refreshToken: string;
+};
+
+export type DashboardTrendPoint = {
+  donations: number;
+  activeDonors: number;
+};
+
+export type AdminDashboard = {
+  donors: number;
+  institutions: number;
+  donations: number;
+  pendingInstitutions: number;
+  failedDonations: number;
+  rangeDays: number;
+  newDonorsInRange?: number;
+  activeDonorsInRange?: number;
+  repeatDonorsInRange?: number;
+  avgDonationTicketPaiseInRange?: number;
+  donorTrend?: DashboardTrendPoint[];
+};
+
+export type InstitutionRow = {
+  id: string;
+  legalName: string;
+  publicName: string;
+  type: string;
+  city?: string;
+  upiId?: string;
+  status: string;
+  publicPageSlug?: string | null;
+};
+
+export type OnboardInstitutionResponse = {
+  email?: string;
+  status?: string;
+};
+
+export type DonationRow = {
+  id: string;
+  donationRef?: string;
+  amountPaise: number;
+  goldQuantityMg?: string | null;
+  status: string;
+  donor?: { firstName?: string; lastName?: string };
+  institution?: { publicName?: string };
+  payment?: {
+    providerPaymentId?: string;
+    providerOrderId?: string;
+    events?: Array<{ eventType?: string }>;
+  };
+};
+
+export type MerkleBatch = {
+  id: string;
+  batchNumber: number;
+  status: string;
+  leafCount: number;
+  merkleRoot?: string;
+  anchor?: {
+    status?: string;
+    attempts?: number;
+    txHash?: string;
+  } | null;
+};
+
+export type WalletBalance = {
+  balanceMatic?: string | number;
+  address?: string;
+  network?: string;
+  chainId?: string | number;
+};
+
+export type AnchorResultItem = {
+  txHash?: string;
+  error?: string;
+};
+
+export type WebhookDeliveryRow = {
+  id: string;
+  createdAt: string;
+  provider?: string;
+  status?: string;
+  idempotencyKey?: string;
+};
+
+export type ReconciliationRunResult = {
+  runRecordId?: string;
+};
+
+export type AuditLogRow = {
+  id: string;
+  createdAt: string;
+  action?: string;
+  entity?: string;
+  entityId?: string;
+  ipAddress?: string;
+  user?: { email?: string };
+};
+
+export type AssistantAnswer = {
+  answer?: string;
+};
+
+export type LedgerAdjustPayload = {
+  institutionId: string;
+  adjustmentType: 'CREDIT' | 'DEBIT';
+  goldQuantityMg: string;
+  description?: string;
+};
+
 function token() {
   return typeof window !== 'undefined' ? localStorage.getItem('accessToken') : null;
 }
@@ -39,11 +156,14 @@ function handleHttpStatus(status: number) {
   if (status >= 500) window.alert('Server error. Please try again in a moment.');
 }
 
-async function api<T = any>(
+async function api<T = unknown>(
   path: string,
   opts: RequestInit = {}
-): Promise<{ success: boolean; data?: T; error?: any; meta?: any }> {
-  const headers: any = { 'Content-Type': 'application/json', ...((opts.headers as any) || {}) };
+): Promise<ApiResponse<T>> {
+  const headers: Record<string, string> = {
+    'Content-Type': 'application/json',
+    ...((opts.headers as Record<string, string> | undefined) || {}),
+  };
   const t = token();
   if (t) headers['Authorization'] = `Bearer ${t}`;
   const url = `${API_BASE}${path}`;
@@ -71,8 +191,8 @@ async function api<T = any>(
         },
       };
     }
-  } catch (e: any) {
-    const raw = String(e?.message || '');
+  } catch (e: unknown) {
+    const raw = e instanceof Error ? e.message : String(e || '');
     const isBrowserNetwork =
       /failed to fetch|load failed|networkerror when attempting to fetch resource/i.test(raw);
     return {
@@ -90,13 +210,13 @@ async function api<T = any>(
 
 export const authApi = {
   login: (email: string, password: string) =>
-    api('/auth/login', { method: 'POST', body: JSON.stringify({ email, password }) }),
+    api<AuthLoginData>('/auth/login', { method: 'POST', body: JSON.stringify({ email, password }) }),
 };
 
 export const admin = {
-  dashboard: (rangeDays = 30) => api(`/admin/dashboard?rangeDays=${rangeDays}`),
+  dashboard: (rangeDays = 30) => api<AdminDashboard>(`/admin/dashboard?rangeDays=${rangeDays}`),
   institutions: (page = 1, status?: string) =>
-    api(`/admin/institutions?page=${page}${status ? `&status=${status}` : ''}`),
+    api<InstitutionRow[]>(`/admin/institutions?page=${page}${status ? `&status=${status}` : ''}`),
   onboardInstitution: (data: {
     email: string;
     password: string;
@@ -113,38 +233,38 @@ export const admin = {
     upiId?: string;
     status?: string;
     notes?: string;
-  }) => api('/admin/institutions/onboard', { method: 'POST', body: JSON.stringify(data) }),
+  }) => api<OnboardInstitutionResponse>('/admin/institutions/onboard', { method: 'POST', body: JSON.stringify(data) }),
   updateInstitutionUpi: (id: string, upiId: string) =>
-    api(`/admin/institutions/${id}/upi`, {
+    api<{ upiId?: string }>(`/admin/institutions/${id}/upi`, {
       method: 'PATCH',
       body: JSON.stringify({ upiId }),
     }),
   changeInstitutionStatus: (id: string, status: string, notes?: string) =>
-    api(`/admin/institutions/${id}/status`, {
+    api<{ status?: string }>(`/admin/institutions/${id}/status`, {
       method: 'PATCH',
       body: JSON.stringify({ status, notes }),
     }),
   donations: (page = 1, status?: string) =>
-    api(`/admin/donations?page=${page}${status ? `&status=${status}` : ''}`),
-  retryVendor: (id: string) => api(`/admin/donations/${id}/retry-vendor`, { method: 'POST' }),
+    api<DonationRow[]>(`/admin/donations?page=${page}${status ? `&status=${status}` : ''}`),
+  retryVendor: (id: string) => api<{ ok?: boolean }>(`/admin/donations/${id}/retry-vendor`, { method: 'POST' }),
   auditLogs: (page = 1, entity?: string) =>
-    api(`/admin/audit-logs?page=${page}${entity ? `&entity=${entity}` : ''}`),
-  reconciliation: (page = 1) => api(`/admin/reconciliation?page=${page}`),
-  runReconciliation: () => api('/admin/reconciliation/run', { method: 'POST' }),
+    api<AuditLogRow[]>(`/admin/audit-logs?page=${page}${entity ? `&entity=${entity}` : ''}`),
+  reconciliation: (page = 1) => api<Record<string, unknown>>(`/admin/reconciliation?page=${page}`),
+  runReconciliation: () => api<ReconciliationRunResult>('/admin/reconciliation/run', { method: 'POST' }),
   webhookDeliveries: (page = 1, provider?: string) =>
-    api(
+    api<WebhookDeliveryRow[]>(
       `/admin/webhooks/deliveries?page=${page}${provider ? `&provider=${encodeURIComponent(provider)}` : ''}`
     ),
   assistantQuery: (query: string) =>
-    api('/admin/assistant/query', { method: 'POST', body: JSON.stringify({ query }) }),
-  ledgerAdjust: (data: any) =>
+    api<AssistantAnswer>('/admin/assistant/query', { method: 'POST', body: JSON.stringify({ query }) }),
+  ledgerAdjust: (data: LedgerAdjustPayload) =>
     api('/admin/ledger/adjust', { method: 'POST', body: JSON.stringify(data) }),
 };
 
 export const merkleApi = {
-  batches: (page = 1) => api(`/merkle/batches?page=${page}`),
-  walletBalance: () => api('/merkle/wallet-balance'),
-  seal: () => api('/merkle/seal', { method: 'POST' }),
-  anchor: (batchId: string) => api(`/merkle/anchor/${batchId}`, { method: 'POST' }),
-  anchorAll: (force = false) => api(`/merkle/anchor-all${force ? '?force=1' : ''}`, { method: 'POST' }),
+  batches: (page = 1) => api<MerkleBatch[]>(`/merkle/batches?page=${page}`),
+  walletBalance: () => api<WalletBalance>('/merkle/wallet-balance'),
+  seal: () => api<{ ok?: boolean }>('/merkle/seal', { method: 'POST' }),
+  anchor: (batchId: string) => api<AnchorResultItem>(`/merkle/anchor/${batchId}`, { method: 'POST' }),
+  anchorAll: (force = false) => api<AnchorResultItem[]>(`/merkle/anchor-all${force ? '?force=1' : ''}`, { method: 'POST' }),
 };

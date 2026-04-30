@@ -2,6 +2,7 @@
 import { useState, useEffect, Suspense } from 'react';
 import { useSearchParams } from 'next/navigation';
 import { merkle, verify } from '@/lib/api';
+import type { MerkleProofData, VerifiedCertificateData } from '@/lib/api';
 import { KsBadge, KsHash } from '@kanak-setu/ui';
 
 const EXPLORER_TX_BASE_URL =
@@ -12,8 +13,8 @@ function VerifyContent() {
   const donationId = searchParams.get('donation');
   const certRef = searchParams.get('ref');
 
-  const [proof, setProof] = useState<any>(null);
-  const [certData, setCertData] = useState<any>(null);
+  const [proof, setProof] = useState<MerkleProofData | null>(null);
+  const [certData, setCertData] = useState<VerifiedCertificateData | null>(null);
   const [loading, setLoading] = useState(false);
   const [searchRef, setSearchRef] = useState(certRef || '');
   const [info, setInfo] = useState('');
@@ -22,7 +23,7 @@ function VerifyContent() {
     if (donationId) {
       setLoading(true);
       merkle.proof(donationId).then((res) => {
-        if (res.success) setProof(res.data);
+        if (res.success && res.data) setProof(res.data);
         else setInfo(res.error?.message || 'Proof not available yet for this donation');
         setLoading(false);
       });
@@ -36,7 +37,7 @@ function VerifyContent() {
     setLoading(true);
     setInfo('');
     const res = await verify.certificate(r);
-    if (res.success) setCertData(res.data);
+    if (res.success && res.data) setCertData(res.data);
     else setInfo(res.error?.message || 'Certificate not found');
     setLoading(false);
   };
@@ -154,7 +155,7 @@ function VerifyContent() {
             </div>
             <div>
               <span className="text-gray-400">Amount:</span> ₹
-              {(certData.donation?.amountPaise / 100).toFixed(2)}
+              {((certData.donation?.amountPaise || 0) / 100).toFixed(2)}
             </div>
             {certData.donation?.blockchain?.txHash && (
               <div>

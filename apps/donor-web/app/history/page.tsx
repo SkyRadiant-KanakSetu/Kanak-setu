@@ -3,11 +3,12 @@ import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { useAuth } from '@/lib/auth';
 import { certificates, donors } from '@/lib/api';
+import type { DonationListItem } from '@/lib/api';
 
 export default function HistoryPage() {
   const { user, loading: authLoading } = useAuth();
   const router = useRouter();
-  const [donations, setDonations] = useState<any[]>([]);
+  const [donations, setDonations] = useState<DonationListItem[]>([]);
   const [loading, setLoading] = useState(true);
   const [downloadingCertId, setDownloadingCertId] = useState<string | null>(null);
 
@@ -75,7 +76,7 @@ export default function HistoryPage() {
         </div>
       ) : (
         <div className="mt-6 space-y-4">
-          {donations.map((d: any) => (
+          {donations.map((d) => (
             <div key={d.id} className="rounded-xl border border-gray-100 bg-white p-5 shadow-sm">
               <div className="flex items-start justify-between">
                 <div>
@@ -110,8 +111,8 @@ export default function HistoryPage() {
               </div>
               <div className="mt-3 flex flex-wrap gap-2 text-xs">
                 {d.certificates
-                  ?.filter((c: any) => c.status === 'ISSUED')
-                  .map((c: any) => (
+                  ?.filter((c) => c.status === 'ISSUED')
+                  .map((c) => (
                     <button
                       key={c.id}
                       type="button"

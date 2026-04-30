@@ -28,9 +28,9 @@ function DonateForm() {
 
   useEffect(() => {
     donations.quote().then((res) => {
-      if (res.success) {
+      if (res.success && res.data) {
         setGoldPrice(res.data.pricePerGramPaise);
-        setQuoteSource((res.data as { source?: string }).source);
+        setQuoteSource(res.data.source);
       }
     });
   }, []);
@@ -107,12 +107,14 @@ function DonateForm() {
         amountPaise,
         idempotencyKey: `${user.id}-${institutionId}-${Date.now()}`,
       });
-      if (!res.success) throw new Error(res.error?.message || 'Failed to create donation');
+      if (!res.success || !res.data?.donationId) {
+        throw new Error(res.error?.message || 'Failed to create donation');
+      }
 
       setActiveDonationId(res.data.donationId);
       setStep('awaiting_confirmation');
-    } catch (err: any) {
-      setError(err.message);
+    } catch (err: unknown) {
+      setError(err instanceof Error ? err.message : 'Failed to create donation');
       setStep('error');
     }
   };

@@ -3,11 +3,12 @@ import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { useAuth } from '@/lib/auth';
 import { donors } from '@/lib/api';
+import type { DonorProfileData } from '@/lib/api';
 
 export default function ProfilePage() {
   const { user, loading: authLoading } = useAuth();
   const router = useRouter();
-  const [profile, setProfile] = useState<any>(null);
+  const [profile, setProfile] = useState<DonorProfileData | null>(null);
   const [editing, setEditing] = useState(false);
   const [form, setForm] = useState({
     firstName: '',
@@ -47,7 +48,7 @@ export default function ProfilePage() {
 
   const handleSave = async () => {
     const res = await donors.update(form);
-    if (res.success) {
+    if (res.success && res.data) {
       setProfile(res.data);
       setEditing(false);
     }

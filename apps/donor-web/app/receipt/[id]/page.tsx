@@ -3,6 +3,7 @@
 import { useEffect, useState } from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import { donations } from '@/lib/api';
+import type { DonationData } from '@/lib/api';
 
 export default function ReceiptPage() {
   const params = useParams();
@@ -10,7 +11,7 @@ export default function ReceiptPage() {
   const donationId = typeof params?.id === 'string' ? params.id : '';
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
-  const [donation, setDonation] = useState<any>(null);
+  const [donation, setDonation] = useState<DonationData | null>(null);
 
   useEffect(() => {
     if (!donationId) {

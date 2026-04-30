@@ -2,6 +2,16 @@
 import { useState, useEffect } from 'react';
 import Image from 'next/image';
 import { authApi, admin, merkleApi, setTokens, clearTokens } from '@/lib/api';
+import type {
+  AdminDashboard,
+  AnchorResultItem,
+  AuditLogRow,
+  DonationRow,
+  InstitutionRow,
+  MerkleBatch,
+  WalletBalance,
+  WebhookDeliveryRow,
+} from '@/lib/api';
 import { AdminLayout } from '@/components/AdminLayout';
 import { KsAlert } from '@kanak-setu/ui';
 
@@ -74,6 +84,10 @@ export default function AdminPage() {
         return;
       }
       setError(res.error?.message || 'Failed');
+      return;
+    }
+    if (!res.data?.accessToken || !res.data?.refreshToken) {
+      setError('Login response missing tokens');
       return;
     }
     setTokens(res.data.accessToken, res.data.refreshToken);
@@ -255,7 +269,7 @@ function AssistantTab() {
 
 // ── Dashboard ──
 function DashboardTab() {
-  const [data, setData] = useState<any>(null);
+  const [data, setData] = useState<AdminDashboard | null>(null);
   const [loadError, setLoadError] = useState('');
   const [loading, setLoading] = useState(true);
   const [rangeDays, setRangeDays] = useState<7 | 30 | 90>(30);
@@ -265,7 +279,7 @@ function DashboardTab() {
     admin.dashboard(rangeDays).then((r) => {
       setLoading(false);
       if (r.success) {
-        setData(r.data);
+        setData(r.data || null);
         return;
       }
       if (shouldForceRelogin(r.error?.message)) {
@@ -358,10 +372,10 @@ function DashboardTab() {
       <div className="mt-6 rounded-xl border bg-white p-4">
         <p className="text-xs text-gray-500">Daily donor activity trend</p>
         <div className="mt-3 grid grid-cols-2 gap-4 md:grid-cols-4">
-          <MiniTrend title="Donations / day" values={(data.donorTrend || []).map((d: any) => d.donations)} />
+          <MiniTrend title="Donations / day" values={(data.donorTrend || []).map((d) => d.donations)} />
           <MiniTrend
             title="Active donors / day"
-            values={(data.donorTrend || []).map((d: any) => d.activeDonors)}
+            values={(data.donorTrend || []).map((d) => d.activeDonors)}
           />
         </div>
       </div>
@@ -391,7 +405,7 @@ function MiniTrend({ title, values }: { title: string; values: number[] }) {
 
 // ── Institutions ──
 function InstitutionsTab() {
-  const [list, setList] = useState<any[]>([]);
+  const [list, setList] = useState<InstitutionRow[]>([]);
   const [filter, setFilter] = useState('');
   const [creating, setCreating] = useState(false);
   const [createError, setCreateError] = useState('');
@@ -502,7 +516,7 @@ function InstitutionsTab() {
     return window.location.origin;
   };
 
-  const buildDonorLink = (inst: any) => {
+  const buildDonorLink = (inst: InstitutionRow) => {
     const base = donorSiteBase();
     if (inst.publicPageSlug) {
       return `${base}/give/${encodeURIComponent(inst.publicPageSlug)}`;
@@ -514,7 +528,7 @@ function InstitutionsTab() {
     return `${base}/donate?${q.toString()}`;
   };
 
-  const copyDonorLink = async (inst: any) => {
+  const copyDonorLink = async (inst: InstitutionRow) => {
     try {
       await navigator.clipboard.writeText(buildDonorLink(inst));
       setCopiedLinkForId(inst.id);
@@ -663,7 +677,7 @@ function InstitutionsTab() {
         ))}
       </div>
       <div className="mt-4 space-y-3">
-        {list.map((inst: any) => (
+        {list.map((inst) => (
           <div key={inst.id} className="rounded-xl border bg-white p-4">
             <div className="flex items-start justify-between">
               <div>
@@ -751,7 +765,7 @@ function InstitutionsTab() {
 
 // ── Donations ──
 function DonationsTab() {
-  const [list, setList] = useState<any[]>([]);
+  const [list, setList] = useState<DonationRow[]>([]);
   const [filter, setFilter] = useState('');
   const load = () =>
     admin.donations(1, filter || undefined).then((r) => r.success && setList(r.data || []));
@@ -790,7 +804,7 @@ function DonationsTab() {
             </tr>
           </thead>
           <tbody>
-            {list.map((d: any) => (
+            {list.map((d) => (
               <tr key={d.id} className="border-t">
                 <td className="px-3 py-2 font-mono text-xs">{d.donationRef?.slice(0, 10) || d.id.slice(0, 10)}</td>
                 <td className="px-3 py-2">
@@ -834,8 +848,8 @@ function DonationsTab() {
 
 // ── Merkle / Blockchain ──
 function MerkleTab() {
-  const [batches, setBatches] = useState<any[]>([]);
-  const [wallet, setWallet] = useState<any>(null);
+  const [batches, setBatches] = useState<MerkleBatch[]>([]);
+  const [wallet, setWallet] = useState<WalletBalance | null>(null);
   const [msg, setMsg] = useState('');
   const [loadingWallet, setLoadingWallet] = useState(false);
   const [actionLoading, setActionLoading] = useState(false);
@@ -845,7 +859,7 @@ function MerkleTab() {
       const nextBatches = r.data || [];
       setBatches(nextBatches);
       // Clear stale action errors once no batches are currently failing.
-      if (!nextBatches.some((b: any) => b.status === 'ANCHOR_FAILED')) {
+      if (!nextBatches.some((b) => b.status === 'ANCHOR_FAILED')) {
         setMsg('');
       }
     });
@@ -865,11 +879,11 @@ function MerkleTab() {
   }, []);
   const explorerTxBaseUrl = getExplorerTxBaseUrl(wallet?.network);
 
-  const formatAnchorResultMessage = (result: any) => {
+  const formatAnchorResultMessage = (result: AnchorResultItem | AnchorResultItem[] | undefined) => {
     const items = Array.isArray(result) ? result : [result];
-    const anchored = items.filter((item: any) => item?.txHash).length;
-    const failed = items.filter((item: any) => item?.error).length;
-    const exhausted = items.filter((item: any) =>
+    const anchored = items.filter((item) => item?.txHash).length;
+    const failed = items.filter((item) => item?.error).length;
+    const exhausted = items.filter((item) =>
       String(item?.error || '').includes('Anchor retries exhausted')
     ).length;
 
@@ -977,7 +991,7 @@ function MerkleTab() {
             </tr>
           </thead>
           <tbody>
-            {batches.map((b: any) => (
+            {batches.map((b) => (
               <tr key={b.id} className="border-t">
                 <td className="px-3 py-2">{b.batchNumber}</td>
                 <td className="px-3 py-2">
@@ -1043,7 +1057,7 @@ function MerkleTab() {
 
 // ── Webhook deliveries (idempotency ledger) ──
 function WebhooksTab() {
-  const [rows, setRows] = useState<any[]>([]);
+  const [rows, setRows] = useState<WebhookDeliveryRow[]>([]);
   const [msg, setMsg] = useState('');
   const load = () =>
     admin.webhookDeliveries(1).then((r) => {
@@ -1073,7 +1087,7 @@ function WebhooksTab() {
               const r = await admin.runReconciliation();
               setMsg(
                 r.success
-                  ? `Reconciliation run #${(r.data as any)?.runRecordId?.slice(0, 8)}…`
+                  ? `Reconciliation run #${r.data?.runRecordId?.slice(0, 8)}…`
                   : r.error?.message || 'Failed'
               );
             }}
@@ -1099,7 +1113,7 @@ function WebhooksTab() {
             </tr>
           </thead>
           <tbody>
-            {rows.map((w: any) => (
+            {rows.map((w) => (
               <tr key={w.id} className="border-t">
                 <td className="px-3 py-2 text-gray-400">
                   {new Date(w.createdAt).toLocaleString('en-IN')}
@@ -1120,7 +1134,7 @@ function WebhooksTab() {
 
 // ── Audit Log ──
 function AuditTab() {
-  const [logs, setLogs] = useState<any[]>([]);
+  const [logs, setLogs] = useState<AuditLogRow[]>([]);
   useEffect(() => {
     admin.auditLogs().then((r) => r.success && setLogs(r.data || []));
   }, []);
@@ -1141,7 +1155,7 @@ function AuditTab() {
             </tr>
           </thead>
           <tbody>
-            {logs.map((l: any) => (
+            {logs.map((l) => (
               <tr key={l.id} className="border-t">
                 <td className="px-3 py-2 text-gray-400">
                   {new Date(l.createdAt).toLocaleString('en-IN')}
