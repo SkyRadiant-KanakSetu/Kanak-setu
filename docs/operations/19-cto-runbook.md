@@ -20,7 +20,7 @@ Deploy behavior:
 - `deploy-fast.sh` keeps the same safety/verify flow, but skips `npm ci` when:
   - `package-lock.json` hash is unchanged from last successful fast deploy, and
   - `node_modules` already exists.
-- `deploy-fast.sh` records lock hash at `${APP_DIR}/.deploy-state/package-lock.sha256`.
+- `deploy-fast.sh` records lock hash outside repo at `/var/lib/<app-name>-deploy-state/package-lock.sha256` (or `STATE_DIR` override), so `git clean -fd` does not erase cache state.
 
 ## Database backup (daily minimum)
 

@@ -12,7 +12,8 @@ set -euo pipefail
 
 APP_DIR="${APP_DIR:-/opt/kanak-setu}"
 BRANCH="${BRANCH:-main}"
-STATE_DIR="${STATE_DIR:-${APP_DIR}/.deploy-state}"
+APP_NAME="${APP_NAME:-$(basename "${APP_DIR}")}"
+STATE_DIR="${STATE_DIR:-/var/lib/${APP_NAME}-deploy-state}"
 LOCK_HASH_FILE="${STATE_DIR}/package-lock.sha256"
 
 if [[ ! -d "${APP_DIR}" ]]; then
