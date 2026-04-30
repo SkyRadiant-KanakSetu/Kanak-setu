@@ -48,9 +48,16 @@ export default tseslint.config(
     plugins: {
       '@next/next': nextPlugin,
     },
+    settings: {
+      next: {
+        rootDir: ['apps/admin-web/', 'apps/donor-web/', 'apps/institution-web/'],
+      },
+    },
     rules: {
       ...nextPlugin.configs.recommended.rules,
       ...nextPlugin.configs['core-web-vitals'].rules,
+      // App Router projects do not have a /pages directory.
+      '@next/next/no-html-link-for-pages': 'off',
     },
   }
 );
