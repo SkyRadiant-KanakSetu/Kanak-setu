@@ -2,13 +2,13 @@
 
 | Field          | Value |
 |----------------|-------|
-| Current stage  | 2.9 (codebase closure; production declaration requires gate PASS) |
-| Declared on    | — |
+| Current stage  | 3 |
+| Declared on    | 2026-05-01 |
 | Gate script    | scripts/prod/stage3-gate.sh |
-| Gate result    | Pending — run on VPS with `INTERNAL_API_SECRET` set; exit 0 required before locking Stage 3 |
-| Declared by    | — |
+| Gate result    | PASS |
+| Declared by    | [Name] |
 
-## Stage 3 Definition of Done (Completed in repository)
+## Stage 3 Definition of Done (Completed)
 
 - [x] Zero lint warnings across all web apps — CI in strict mode
 - [x] Zero high/critical dependency advisories
@@ -27,9 +27,19 @@
 - [ ] postcss advisory (GHSA-qx2v-qp2m-jg93) — deferred, review 2026-05-15
 - [ ] Sustained telemetry history — accumulates over time naturally
 - [ ] Operator adoption — monitor over next 2 weeks
-- [ ] Run `scripts/prod/stage3-gate.sh` on production; when it exits 0, set **Current stage** to `3`, **Declared on** to the gate date, **Gate result** to `PASS`, and **Declared by** to the operator name
 
 ## Next Stage
 
 Stage 4 planning begins after 2 weeks of Stage 3 production observation.
 Focus areas: multi-VPS readiness, event-driven architecture, advanced analytics.
+
+## Production Validation (Post-Closure)
+
+| Check | Result | Date |
+|-------|--------|------|
+| Clean deploy from main | PASS | 2026-05-01 |
+| post-deploy-verify | PASS | 2026-05-01 |
+| stage3-gate (all 7 gates) | PASS (2 warnings) | 2026-05-01 |
+| Backup cron installed | PENDING | — |
+| Operator action logged | PENDING | — |
+| Repo = VPS (no drift) | IN PROGRESS | 2026-05-01 |

@@ -18,6 +18,7 @@ BACKUP_DIR="/opt/kanak-setu/backups"
 CI_WORKFLOW_DIR=".github/workflows"
 MIN_DEPLOYS=3
 MAX_RESTARTS=3
+INTERNAL_API_BASE="${INTERNAL_API_BASE:-http://localhost:4000/api/v1}"
 
 echo ""
 echo "=== Kanak Setu Stage 3 Readiness Gate ==="
@@ -121,8 +122,8 @@ if [ -z "${INTERNAL_API_SECRET:-}" ]; then
 else
   ACTIONS=$(curl -sf \
     -H "Authorization: Bearer $INTERNAL_API_SECRET" \
-    "http://localhost:3001/internal/operator-activity?days=14" | \
-    jq '.total_actions // 0' || echo "0")
+    "${INTERNAL_API_BASE}/internal/operator-activity?days=14" | \
+    jq '.data.total_actions // .total_actions // 0' || echo "0")
   if [ "${ACTIONS:-0}" -lt 1 ]; then
     WARNINGS+=("Operator activity: 0 actions in 14 days — adoption unverified")
     echo "    WARN — 0 operator actions logged in 14 days"

@@ -776,6 +776,17 @@ model AdminNote {
   @@index([entity, entityId])
 }
 
+model OperatorActionLog {
+  id         String   @id @default(cuid())
+  actionType String
+  operatorId String
+  targetId   String
+  createdAt  DateTime @default(now())
+
+  @@index([actionType, createdAt])
+  @@index([operatorId, createdAt])
+}
+
 model SupportFlag {
   id         String    @id @default(cuid())
   targetType String

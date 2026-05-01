@@ -94,7 +94,8 @@ if command -v pm2 >/dev/null 2>&1; then
     }
   ' 2>/dev/null || pm2 status
   echo "[verify] pm2 memory check (rss <= ${MAX_PM2_RSS_MB} MB)"
-  PM2_LIMIT_BYTES="$((MAX_PM2_RSS_MB * 1024 * 1024))" pm2 jlist | node -e '
+  export PM2_LIMIT_BYTES="$((MAX_PM2_RSS_MB * 1024 * 1024))"
+  pm2 jlist | node -e '
     const fs = require("fs");
     const apps = JSON.parse(fs.readFileSync(0, "utf8"));
     const limit = Number(process.env.PM2_LIMIT_BYTES || 0);

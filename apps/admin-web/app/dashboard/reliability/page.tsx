@@ -80,6 +80,7 @@ export default function ReliabilityDashboardPage() {
   const [pm2Rows, setPm2Rows] = useState<Pm2Row[]>([]);
   const [verifyData, setVerifyData] = useState<VerifyResult | null>(null);
   const [operatorActivity, setOperatorActivity] = useState<OperatorActivity | null>(null);
+  const [dismissedOperatorNotice, setDismissedOperatorNotice] = useState(false);
   const [loadError, setLoadError] = useState('');
 
   useEffect(() => {
@@ -326,6 +327,22 @@ export default function ReliabilityDashboardPage() {
 
       <section className="mb-6 rounded border bg-white p-4">
         <h2 className="text-lg font-medium">Operator Activity</h2>
+        {!dismissedOperatorNotice && (operatorActivity?.total_actions ?? 0) === 0 && (
+          <div className="mt-3 rounded border border-amber-200 bg-amber-50 p-3 text-sm text-amber-900">
+            <div className="flex items-start justify-between gap-3">
+              <p>
+                The failed transaction review queue is active. Review any stale transactions weekly to keep this dashboard healthy.
+              </p>
+              <button
+                type="button"
+                onClick={() => setDismissedOperatorNotice(true)}
+                className="rounded border border-amber-300 bg-amber-100 px-2 py-1 text-xs font-medium text-amber-900"
+              >
+                Dismiss
+              </button>
+            </div>
+          </div>
+        )}
         <div className="mt-3 grid gap-2 sm:grid-cols-3">
           <div className="rounded border p-3">
             <p className="text-xs text-gray-500">Total actions (14d)</p>
