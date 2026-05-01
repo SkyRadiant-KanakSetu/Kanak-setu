@@ -16,6 +16,7 @@ import { certificateRouter } from './modules/certificates/certificate.routes';
 import { verifyRouter } from './modules/certificates/verify.routes';
 import { webhookRouter } from './modules/webhooks/webhook.routes';
 import { agroRouter } from './modules/agro/agro.routes';
+import { internalRouter } from './modules/internal/internal.routes';
 import { errorHandler } from './middleware/errorHandler';
 import { getEnv } from './config/env';
 
@@ -87,6 +88,7 @@ app.use('/api/v1/merkle', merkleRouter);
 app.use('/api/v1/certificates', certificateRouter);
 app.use('/api/v1/verify', verifyRouter);
 app.use('/api/v1/agro', agroRouter);
+app.use('/api/v1/internal', internalRouter);
 
 // --- ERROR HANDLER ---
 app.use(errorHandler);

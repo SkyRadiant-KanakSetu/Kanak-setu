@@ -28,7 +28,7 @@ jobs:
     env:
       DATABASE_URL: postgresql://kanak:kanak_dev_pwd@localhost:5432/kanak_setu
       NODE_ENV: development
-      JWT_SECRET: ci-secret
+      JWT_SECRET: ci-smoke-jwt-secret-minimum-32-characters-long
       JWT_ACCESS_EXPIRY: 15m
       JWT_REFRESH_EXPIRY: 7d
       ANCHOR_PRIVATE_KEY: ci-anchor-private-key-placeholder

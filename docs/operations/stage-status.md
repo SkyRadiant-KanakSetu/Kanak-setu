@@ -2,10 +2,10 @@
 
 | Field          | Value |
 |----------------|-------|
-| Current stage  | 4 (execution) |
+| Current stage  | 4 (declared — confirm VPS gate PASS) |
 | Declared on    | 2026-05-02 |
-| Gate script    | scripts/prod/stage3-gate.sh (still authoritative until Stage 4 gate ships) |
-| Gate result    | Stage 3 PASS; Stage 4 verification ongoing |
+| Gate script    | scripts/prod/stage4-gate.sh |
+| Gate result    | Run on VPS — see closure report |
 | Declared by    | [Name] |
 
 ## Stage 3 Definition of Done (Completed)
@@ -26,28 +26,29 @@
 
 - [ ] postcss advisory (GHSA-qx2v-qp2m-jg93) — deferred, review 2026-05-15
 - [ ] Sustained telemetry history — accumulates over time naturally
-- [ ] Operator adoption — monitor over next 2 weeks
+- [ ] Operator adoption — monitor usage after Stage 4
 
-## Stage 4 Definition of Done (In progress)
+## Stage 4 Definition of Done
 
 - [x] **Track 1 — Release automation:** GitHub Actions release + rollback; production approval; deploy-safe + post-deploy-verify
-- [x] **Track 2 — Event-driven core:** PostgreSQL outbox + `kanak-outbox-worker`, payment flows enqueue work, admin dead-letter UX (`main` @ 2026-05-02)
-- [x] **CI:** Web Quality Gate strict passes on `main` (ESLint zero warnings)
-- [x] **Track 3 — Multi-server readiness:** outbox worker uses PostgreSQL `FOR UPDATE SKIP LOCKED` (safe to run multiple workers); global API `express-rate-limit` uses Redis when `REDIS_URL` is set (per-process memory store otherwise). Merkle/reconciliation crons already use DB advisory-style locks in `systemConfig`.
+- [x] **Track 2 — Event-driven core:** PostgreSQL outbox + `kanak-outbox-worker`, async payment side-effects, admin dead-letter UX
+- [x] **CI:** Web Quality Gate strict on `main`
+- [x] **Track 3 — Multi-server readiness:** outbox `FOR UPDATE SKIP LOCKED`; Redis rate limits when `REDIS_URL` set; atomic scheduler locks via `withSchedulerLock` (`apps/api/src/lib/schedulerLock.ts`)
+- [x] **Gate:** `scripts/prod/stage4-gate.sh` (extends Stage 3 baseline + Stage 4 checks)
 
-## Next milestones
-
-- Harden `systemConfig` scheduler locks for true single-run under concurrency (optional; current lock reduces duplicate work).
-- Optionally introduce `stage4-gate.sh` when Stage 4 criteria stabilize.
-
-## Production Validation (Post-Closure)
+## Production Validation
 
 | Check | Result | Date |
 |-------|--------|------|
 | Clean deploy from main | PASS | 2026-05-01 |
 | post-deploy-verify | PASS | 2026-05-01 |
-| stage3-gate (all 7 gates) | PASS (2 warnings) | 2026-05-01 |
-| Backup cron installed | PENDING | — |
-| Operator action logged | PENDING | — |
+| stage3-gate | PASS (warnings allowed) | 2026-05-01 |
+| stage4-gate | Run on VPS — update after PASS | — |
+| Backup cron + daily artifact | Complete on VPS per `scripts/prod/backup.sh` | — |
+| Operator action logged | Complete via admin / internal API | — |
+| `kanak-outbox-worker` online + outbox flowing | Confirm on VPS (`pm2`, DB counts) | — |
 | Repo = VPS (no drift) | IN PROGRESS | 2026-05-01 |
-| Outbox migration + worker live | PENDING (post-deploy) | — |
+
+## Next Stage
+
+Stage 5 planning after an observation window: observability, product growth, optional multi-VPS. See `docs/operations/stage4-closure-report-2026-05-02.md`.
