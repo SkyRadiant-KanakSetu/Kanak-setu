@@ -17,7 +17,7 @@ VERIFY_JSON="/opt/kanak-setu/logs/last-verify.json"
 BACKUP_DIR="/opt/kanak-setu/backups"
 CI_WORKFLOW_DIR=".github/workflows"
 MIN_DEPLOYS=3
-MAX_RESTARTS=3
+MAX_RESTARTS="${MAX_RESTARTS:-15}"
 INTERNAL_API_BASE="${INTERNAL_API_BASE:-http://localhost:4000/api/v1}"
 
 echo ""

@@ -9,6 +9,10 @@
 #   cd /opt/kanak-setu
 #   set -a && source infra/prod/.env.production && set +a   # DATABASE_URL, INTERNAL_API_SECRET
 #   APP_DIR=/opt/kanak-setu bash scripts/prod/stage4-gate.sh
+#
+# Env overrides:
+#   MAX_RESTARTS        — default 15 (deploys increment PM2 restart counters)
+#   LOCAL_API_HEALTH_BASE — always used for S4-4 (default http://127.0.0.1:4000/api/v1)
 # ============================================================
 
 set -euo pipefail
@@ -30,14 +34,24 @@ VERIFY_JSON="${APP_DIR}/logs/last-verify.json"
 BACKUP_DIR="${APP_DIR}/backups"
 CI_WORKFLOW_DIR="${APP_DIR}/.github/workflows"
 MIN_DEPLOYS=3
-MAX_RESTARTS=3
+MAX_RESTARTS="${MAX_RESTARTS:-15}"
+# Caller may export INTERNAL_API_BASE for /internal/* curls; preserve it if sourcing .env overwrites.
+CALLER_INTERNAL_API_BASE="${INTERNAL_API_BASE-}"
 INTERNAL_API_BASE="${INTERNAL_API_BASE:-http://127.0.0.1:4000/api/v1}"
+# Always probe loopback for S4-4 (avoids .env API_BASE_URL pointing at public hostname from this host).
+LOCAL_API_HEALTH_BASE="${LOCAL_API_HEALTH_BASE:-http://127.0.0.1:4000/api/v1}"
 
 if [[ -f "${APP_DIR}/infra/prod/.env.production" ]] && [[ -z "${DATABASE_URL:-}" ]]; then
   set -a
   # shellcheck disable=SC1090
   source "${APP_DIR}/infra/prod/.env.production"
   set +a
+fi
+
+if [[ -n "${CALLER_INTERNAL_API_BASE}" ]]; then
+  INTERNAL_API_BASE="${CALLER_INTERNAL_API_BASE}"
+else
+  INTERNAL_API_BASE="${INTERNAL_API_BASE:-http://127.0.0.1:4000/api/v1}"
 fi
 
 echo ""
@@ -66,7 +80,7 @@ fi
 echo "[S3-2] Last verify snapshot..."
 if [[ ! -f "${VERIFY_JSON}" ]]; then
   PASS=false
-  ISSUES+=("Verify snapshot missing at ${VERIFY_JSON}")
+  ISSUES+=("Verify snapshot missing at ${VERIFY_JSON} — run: APP_DIR=${APP_DIR} bash scripts/prod/post-deploy-verify.sh")
 else
   OVERALL="$(jq -r '.overall // "MISSING"' "${VERIFY_JSON}")"
   VERIFY_TS="$(jq -r '.timestamp // "unknown"' "${VERIFY_JSON}")"
@@ -87,9 +101,12 @@ for SVC in kanak-api kanak-donor-web kanak-institution-web kanak-admin-web; do
     ISSUES+=("PM2 ${SVC}: ${STATUS}")
   elif [[ "${RESTARTS:-0}" -gt "${MAX_RESTARTS}" ]]; then
     PASS=false
-    ISSUES+=("PM2 ${SVC} restarts: ${RESTARTS} (max ${MAX_RESTARTS})")
+    ISSUES+=("PM2 ${SVC} restarts: ${RESTARTS} (max ${MAX_RESTARTS}, override with MAX_RESTARTS=)")
   else
-    echo "    PASS — ${SVC} online, restarts: ${RESTARTS}"
+    WARN_R=""
+    [[ "${RESTARTS:-0}" -ge 5 ]] && WARN_R=" ← elevated (deploy churn is normal)" && \
+      WARNINGS+=("${SVC} restarts=${RESTARTS} — consider pm2 reset after stable release")
+    echo "    PASS — ${SVC} online, restarts: ${RESTARTS}${WARN_R}"
   fi
 done
 
@@ -213,14 +230,24 @@ else
 fi
 
 echo "[S4-4] API health endpoint..."
-HEALTH="$(curl -sf "${INTERNAL_API_BASE}/health" 2>/dev/null || echo "{}")"
+HEALTH_CODE=""
+HEALTH=""
+GATE_HEALTH_TMP="$(mktemp)"
+for CAND in "${LOCAL_API_HEALTH_BASE}/health" "${INTERNAL_API_BASE}/health"; do
+  HEALTH_CODE="$(curl -sS -o "${GATE_HEALTH_TMP}" -w "%{http_code}" --connect-timeout 3 "${CAND}" 2>/dev/null || echo "000")"
+  if [[ "${HEALTH_CODE}" == "200" ]] && [[ -s "${GATE_HEALTH_TMP}" ]]; then
+    HEALTH="$(cat "${GATE_HEALTH_TMP}")"
+    break
+  fi
+done
+rm -f "${GATE_HEALTH_TMP}"
 HEALTH_OK="$(echo "${HEALTH}" | jq -r '.success // false')"
 DATA_STATUS="$(echo "${HEALTH}" | jq -r '.data.status // "missing"')"
 if [[ "${HEALTH_OK}" != "true" ]] || [[ "${DATA_STATUS}" != "ok" ]]; then
   PASS=false
-  ISSUES+=("Health check failed (success=${HEALTH_OK}, data.status=${DATA_STATUS})")
+  ISSUES+=("Health check failed (HTTP ${HEALTH_CODE:-?}, success=${HEALTH_OK}, data.status=${DATA_STATUS}) — tried ${LOCAL_API_HEALTH_BASE}/health")
 else
-  echo "    PASS — ${INTERNAL_API_BASE}/health ok"
+  echo "    PASS — ${LOCAL_API_HEALTH_BASE}/health ok"
 fi
 
 echo "[S4-5] Release workflow targets main..."
