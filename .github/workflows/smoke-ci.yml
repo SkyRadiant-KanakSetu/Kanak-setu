@@ -32,6 +32,7 @@ jobs:
       JWT_ACCESS_EXPIRY: 15m
       JWT_REFRESH_EXPIRY: 7d
       ANCHOR_PRIVATE_KEY: ci-anchor-private-key-placeholder
+      ANCHOR_CONTRACT_ADDRESS: 0x0000000000000000000000000000000000000000
       CORS_ORIGINS: http://localhost:3000,http://localhost:3001,http://localhost:3002
       PAYMENT_PROVIDER: MOCK
       GOLD_VENDOR: MOCK
