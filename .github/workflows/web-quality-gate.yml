@@ -9,7 +9,7 @@ jobs:
   web-quality:
     runs-on: ubuntu-latest
     env:
-      WEB_WARNING_POLICY_STAGE: ${{ vars.WEB_WARNING_POLICY_STAGE || 'budget' }}
+      WEB_WARNING_POLICY_STAGE: ${{ vars.WEB_WARNING_POLICY_STAGE || 'strict' }}
       WEB_WARNING_BUDGET_FILE: web-warning-budgets.json
     steps:
       - name: Checkout
