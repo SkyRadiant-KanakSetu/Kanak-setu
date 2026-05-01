@@ -27,6 +27,8 @@ ISSUES=()
 WARNINGS=()
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+# shellcheck disable=SC1091
+source "${SCRIPT_DIR}/inc-local-api-base.sh"
 REPO_ROOT="$(cd "${SCRIPT_DIR}/../.." && pwd)"
 APP_DIR="${APP_DIR:-${REPO_ROOT}}"
 TLOG="${APP_DIR}/logs/deploy-telemetry.log"
@@ -35,10 +37,8 @@ BACKUP_DIR="${APP_DIR}/backups"
 CI_WORKFLOW_DIR="${APP_DIR}/.github/workflows"
 MIN_DEPLOYS=3
 MAX_RESTARTS="${MAX_RESTARTS:-15}"
-# Caller may export INTERNAL_API_BASE for /internal/* curls; preserve it if sourcing .env overwrites.
+# Caller may export INTERNAL_API_BASE / LOCAL_API_HEALTH_BASE; otherwise discover loopback API port once.
 CALLER_INTERNAL_API_BASE="${INTERNAL_API_BASE-}"
-INTERNAL_API_BASE="${INTERNAL_API_BASE:-http://127.0.0.1:4000/api/v1}"
-# LOCAL_API_HEALTH_BASE for S4-4 — captured before defaults; resolved after .env + PM2 port below.
 CALLER_LOCAL_HEALTH="${LOCAL_API_HEALTH_BASE-}"
 
 if [[ -f "${APP_DIR}/infra/prod/.env.production" ]] && [[ -z "${DATABASE_URL:-}" ]]; then
@@ -48,31 +48,18 @@ if [[ -f "${APP_DIR}/infra/prod/.env.production" ]] && [[ -z "${DATABASE_URL:-}"
   set +a
 fi
 
+_DISCOVERED="$(kanak_discover_local_api_base "")"
+
 if [[ -n "${CALLER_INTERNAL_API_BASE}" ]]; then
   INTERNAL_API_BASE="${CALLER_INTERNAL_API_BASE}"
 else
-  INTERNAL_API_BASE="${INTERNAL_API_BASE:-http://127.0.0.1:4000/api/v1}"
+  INTERNAL_API_BASE="${_DISCOVERED}"
 fi
 
 if [[ -n "${CALLER_LOCAL_HEALTH}" ]]; then
   LOCAL_API_HEALTH_BASE="${CALLER_LOCAL_HEALTH}"
 else
-  API_HEALTH_PORT=""
-  if command -v pm2 >/dev/null 2>&1 && command -v jq >/dev/null 2>&1; then
-    API_HEALTH_PORT="$(pm2 jlist 2>/dev/null | jq -r '.[] | select(.name=="kanak-api") | .pm2_env.env.PORT // empty' | head -1)"
-  fi
-  if [[ -z "${API_HEALTH_PORT}" || "${API_HEALTH_PORT}" == "null" ]]; then
-    API_HEALTH_PORT="${PORT:-4000}"
-  fi
-  LOCAL_API_HEALTH_BASE=""
-  for HOST_TRY in 127.0.0.1 localhost; do
-    TRY_BASE="http://${HOST_TRY}:${API_HEALTH_PORT}/api/v1"
-    if curl -fsS --connect-timeout 2 "${TRY_BASE}/health" >/dev/null 2>&1; then
-      LOCAL_API_HEALTH_BASE="${TRY_BASE}"
-      break
-    fi
-  done
-  LOCAL_API_HEALTH_BASE="${LOCAL_API_HEALTH_BASE:-http://127.0.0.1:${API_HEALTH_PORT}/api/v1}"
+  LOCAL_API_HEALTH_BASE="${_DISCOVERED}"
 fi
 
 echo ""

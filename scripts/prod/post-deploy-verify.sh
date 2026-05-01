@@ -13,6 +13,10 @@
 #
 set -euo pipefail
 
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+# shellcheck disable=SC1091
+source "${SCRIPT_DIR}/inc-local-api-base.sh"
+
 APP_DIR="${APP_DIR:-/opt/kanak-setu}"
 PUBLIC_API_BASE="${PUBLIC_API_BASE:-https://api.kanaksetu.com/api/v1}"
 # If caller exports LOCAL_API_BASE, preserve it (must capture before any default below).
@@ -83,29 +87,8 @@ else
   echo "[verify] WARN: ${ENV_FILE} missing; skipping prisma migrate status"
 fi
 
-# Local API URL for health/smoke: must reflect PORT from .env.production and PM2 (not hardcoded 4000).
-if [[ -n "${VERIFY_LOCAL_API_USER}" ]]; then
-  LOCAL_API_BASE="${VERIFY_LOCAL_API_USER}"
-else
-  API_PORT=""
-  if command -v pm2 >/dev/null 2>&1 && command -v jq >/dev/null 2>&1; then
-    API_PORT="$(pm2 jlist 2>/dev/null | jq -r '.[] | select(.name=="kanak-api") | .pm2_env.env.PORT // empty' | head -1)"
-  fi
-  if [[ -z "${API_PORT}" || "${API_PORT}" == "null" ]]; then
-    API_PORT="${PORT:-4000}"
-  fi
-  # Prefer loopback; try both numeric forms if one refuses (IPv4 vs IPv6 localhost).
-  for HOST_TRY in 127.0.0.1 localhost; do
-    TRY_BASE="http://${HOST_TRY}:${API_PORT}/api/v1"
-    if curl -fsS --connect-timeout 2 "${TRY_BASE}/health" >/dev/null 2>&1; then
-      LOCAL_API_BASE="${TRY_BASE}"
-      break
-    fi
-  done
-  if [[ -z "${LOCAL_API_BASE:-}" ]]; then
-    LOCAL_API_BASE="http://127.0.0.1:${API_PORT}/api/v1"
-  fi
-fi
+# Local API URL for health/smoke: probe PM2/env ports + common drift (e.g. 4100) and ss PID fallback.
+LOCAL_API_BASE="$(kanak_discover_local_api_base "${VERIFY_LOCAL_API_USER}")"
 echo "[verify] local API base: ${LOCAL_API_BASE}"
 
 echo "[verify] pm2 (kanak apps)"
