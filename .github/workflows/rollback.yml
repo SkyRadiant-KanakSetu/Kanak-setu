@@ -1,0 +1,56 @@
+name: Rollback
+
+on:
+  workflow_dispatch:
+    inputs:
+      target_sha:
+        description: "Git SHA to roll back to (leave empty for previous commit)"
+        required: false
+        type: string
+      reason:
+        description: "Reason for rollback (required for audit trail)"
+        required: true
+        type: string
+
+jobs:
+  rollback:
+    name: Production Rollback
+    runs-on: ubuntu-latest
+    environment: production
+    steps:
+      - name: Execute rollback
+        uses: appleboy/ssh-action@v1.0.3
+        with:
+          host: ${{ secrets.VPS_HOST }}
+          username: ${{ secrets.VPS_USER }}
+          key: ${{ secrets.VPS_SSH_KEY }}
+          script: |
+            set -euo pipefail
+            APP_DIR=${{ secrets.VPS_APP_DIR }}
+            TARGET="${{ github.event.inputs.target_sha }}"
+            REASON="${{ github.event.inputs.reason }}"
+
+            echo "=== ROLLBACK INITIATED ==="
+            echo "Operator: ${{ github.actor }}"
+            echo "Reason: $REASON"
+            echo "Target SHA: ${TARGET:-previous commit}"
+            echo "Timestamp: $(date -u)"
+
+            cd "$APP_DIR"
+
+            echo "$(date -u) | rollback | reason=$REASON | target=${TARGET:-HEAD~1}" \
+              >> "$APP_DIR/logs/deploy-telemetry.log"
+
+            if [ -n "$TARGET" ]; then
+              git checkout "$TARGET"
+            else
+              git checkout HEAD~1
+            fi
+
+            export APP_DIR BRANCH
+            BRANCH="$(git rev-parse HEAD)"
+            bash "$APP_DIR/scripts/prod/deploy-safe.sh"
+
+            bash "$APP_DIR/scripts/prod/post-deploy-verify.sh"
+            echo "=== ROLLBACK COMPLETE ==="
+            echo "Now running: $(git rev-parse HEAD)"

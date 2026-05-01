@@ -1,0 +1,111 @@
+name: Release
+
+on:
+  push:
+    branches: [main]
+
+concurrency:
+  group: production-deploy
+  cancel-in-progress: false
+
+jobs:
+  quality:
+    name: Quality Gate
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Lint — admin-web
+        run: cd apps/admin-web && npx next lint
+        env:
+          WEB_WARNING_POLICY_STAGE: strict
+
+      - name: Lint — donor-web
+        run: cd apps/donor-web && npx next lint
+        env:
+          WEB_WARNING_POLICY_STAGE: strict
+
+      - name: Lint — institution-web
+        run: cd apps/institution-web && npx next lint
+        env:
+          WEB_WARNING_POLICY_STAGE: strict
+
+      - name: Type check — api
+        run: cd apps/api && npx tsc --noEmit
+
+      - name: Security audit
+        run: |
+          for app in apps/api apps/admin-web apps/donor-web apps/institution-web; do
+            echo "Auditing $app..."
+            (cd "$app" && npm audit --audit-level=high)
+          done
+
+      - name: Build — all apps
+        run: npm run build
+
+  deploy:
+    name: Deploy to Production
+    needs: quality
+    runs-on: ubuntu-latest
+    environment: production
+    steps:
+      - name: Deploy via SSH
+        uses: appleboy/ssh-action@v1.0.3
+        with:
+          host: ${{ secrets.VPS_HOST }}
+          username: ${{ secrets.VPS_USER }}
+          key: ${{ secrets.VPS_SSH_KEY }}
+          script: |
+            set -euo pipefail
+            export APP_DIR=${{ secrets.VPS_APP_DIR }}
+            export BRANCH=main
+
+            echo "=== Starting automated deploy ==="
+            echo "Triggered by: ${{ github.actor }}"
+            echo "Commit: ${{ github.sha }}"
+            echo "Timestamp: $(date -u)"
+
+            bash "$APP_DIR/scripts/prod/deploy-safe.sh"
+
+      - name: Post-deploy verification
+        uses: appleboy/ssh-action@v1.0.3
+        with:
+          host: ${{ secrets.VPS_HOST }}
+          username: ${{ secrets.VPS_USER }}
+          key: ${{ secrets.VPS_SSH_KEY }}
+          script: |
+            set -euo pipefail
+            export APP_DIR=${{ secrets.VPS_APP_DIR }}
+            export INTERNAL_API_SECRET=${{ secrets.INTERNAL_API_SECRET }}
+
+            bash "$APP_DIR/scripts/prod/post-deploy-verify.sh"
+
+            RESULT="$(jq -r '.overall' "$APP_DIR/logs/last-verify.json")"
+            if [ "$RESULT" != "PASS" ]; then
+              echo "Post-deploy verification failed: $RESULT"
+              exit 1
+            fi
+            echo "Verification: PASS"
+
+      - name: Deploy summary
+        if: always()
+        uses: appleboy/ssh-action@v1.0.3
+        with:
+          host: ${{ secrets.VPS_HOST }}
+          username: ${{ secrets.VPS_USER }}
+          key: ${{ secrets.VPS_SSH_KEY }}
+          script: |
+            APP_DIR=${{ secrets.VPS_APP_DIR }}
+            echo "=== Deploy Summary ==="
+            echo "HEAD: $(cd "$APP_DIR" && git rev-parse HEAD)"
+            echo "Time: $(date -u)"
+            jq '{overall, timestamp, backup_status}' "$APP_DIR/logs/last-verify.json"
+            tail -1 "$APP_DIR/logs/deploy-telemetry.log"
