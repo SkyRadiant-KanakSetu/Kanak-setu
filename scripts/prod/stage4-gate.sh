@@ -38,8 +38,8 @@ MAX_RESTARTS="${MAX_RESTARTS:-15}"
 # Caller may export INTERNAL_API_BASE for /internal/* curls; preserve it if sourcing .env overwrites.
 CALLER_INTERNAL_API_BASE="${INTERNAL_API_BASE-}"
 INTERNAL_API_BASE="${INTERNAL_API_BASE:-http://127.0.0.1:4000/api/v1}"
-# Always probe loopback for S4-4 (avoids .env API_BASE_URL pointing at public hostname from this host).
-LOCAL_API_HEALTH_BASE="${LOCAL_API_HEALTH_BASE:-http://127.0.0.1:4000/api/v1}"
+# LOCAL_API_HEALTH_BASE for S4-4 — captured before defaults; resolved after .env + PM2 port below.
+CALLER_LOCAL_HEALTH="${LOCAL_API_HEALTH_BASE-}"
 
 if [[ -f "${APP_DIR}/infra/prod/.env.production" ]] && [[ -z "${DATABASE_URL:-}" ]]; then
   set -a
@@ -52,6 +52,27 @@ if [[ -n "${CALLER_INTERNAL_API_BASE}" ]]; then
   INTERNAL_API_BASE="${CALLER_INTERNAL_API_BASE}"
 else
   INTERNAL_API_BASE="${INTERNAL_API_BASE:-http://127.0.0.1:4000/api/v1}"
+fi
+
+if [[ -n "${CALLER_LOCAL_HEALTH}" ]]; then
+  LOCAL_API_HEALTH_BASE="${CALLER_LOCAL_HEALTH}"
+else
+  API_HEALTH_PORT=""
+  if command -v pm2 >/dev/null 2>&1 && command -v jq >/dev/null 2>&1; then
+    API_HEALTH_PORT="$(pm2 jlist 2>/dev/null | jq -r '.[] | select(.name=="kanak-api") | .pm2_env.env.PORT // empty' | head -1)"
+  fi
+  if [[ -z "${API_HEALTH_PORT}" || "${API_HEALTH_PORT}" == "null" ]]; then
+    API_HEALTH_PORT="${PORT:-4000}"
+  fi
+  LOCAL_API_HEALTH_BASE=""
+  for HOST_TRY in 127.0.0.1 localhost; do
+    TRY_BASE="http://${HOST_TRY}:${API_HEALTH_PORT}/api/v1"
+    if curl -fsS --connect-timeout 2 "${TRY_BASE}/health" >/dev/null 2>&1; then
+      LOCAL_API_HEALTH_BASE="${TRY_BASE}"
+      break
+    fi
+  done
+  LOCAL_API_HEALTH_BASE="${LOCAL_API_HEALTH_BASE:-http://127.0.0.1:${API_HEALTH_PORT}/api/v1}"
 fi
 
 echo ""
@@ -230,6 +251,7 @@ else
 fi
 
 echo "[S4-4] API health endpoint..."
+echo "    (probe base ${LOCAL_API_HEALTH_BASE})"
 HEALTH_CODE=""
 HEALTH=""
 GATE_HEALTH_TMP="$(mktemp)"

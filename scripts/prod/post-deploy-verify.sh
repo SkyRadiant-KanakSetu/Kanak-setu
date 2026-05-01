@@ -5,6 +5,7 @@
 #   bash scripts/prod/post-deploy-verify.sh
 #
 # Optional:
+#   LOCAL_API_BASE=http://127.0.0.1:PORT/api/v1   # override auto-detection
 #   PUBLIC_API_BASE=https://api.kanaksetu.com/api/v1 bash scripts/prod/post-deploy-verify.sh
 #   RUN_SMOKE=1 bash scripts/prod/post-deploy-verify.sh   # runs npm run smoke:local against localhost API
 #   VERIFY_LOGOS=0 …   # skip /logo.png checks on the three public web origins
@@ -14,7 +15,8 @@ set -euo pipefail
 
 APP_DIR="${APP_DIR:-/opt/kanak-setu}"
 PUBLIC_API_BASE="${PUBLIC_API_BASE:-https://api.kanaksetu.com/api/v1}"
-LOCAL_API_BASE="${LOCAL_API_BASE:-http://127.0.0.1:4000/api/v1}"
+# If caller exports LOCAL_API_BASE, preserve it (must capture before any default below).
+VERIFY_LOCAL_API_USER="${LOCAL_API_BASE-}"
 LOG_DIR="${LOG_DIR:-${APP_DIR}/logs}"
 LAST_VERIFY_FILE="${LOG_DIR}/last-verify.json"
 MAX_PM2_RSS_MB="${MAX_PM2_RSS_MB:-512}"
@@ -81,6 +83,31 @@ else
   echo "[verify] WARN: ${ENV_FILE} missing; skipping prisma migrate status"
 fi
 
+# Local API URL for health/smoke: must reflect PORT from .env.production and PM2 (not hardcoded 4000).
+if [[ -n "${VERIFY_LOCAL_API_USER}" ]]; then
+  LOCAL_API_BASE="${VERIFY_LOCAL_API_USER}"
+else
+  API_PORT=""
+  if command -v pm2 >/dev/null 2>&1 && command -v jq >/dev/null 2>&1; then
+    API_PORT="$(pm2 jlist 2>/dev/null | jq -r '.[] | select(.name=="kanak-api") | .pm2_env.env.PORT // empty' | head -1)"
+  fi
+  if [[ -z "${API_PORT}" || "${API_PORT}" == "null" ]]; then
+    API_PORT="${PORT:-4000}"
+  fi
+  # Prefer loopback; try both numeric forms if one refuses (IPv4 vs IPv6 localhost).
+  for HOST_TRY in 127.0.0.1 localhost; do
+    TRY_BASE="http://${HOST_TRY}:${API_PORT}/api/v1"
+    if curl -fsS --connect-timeout 2 "${TRY_BASE}/health" >/dev/null 2>&1; then
+      LOCAL_API_BASE="${TRY_BASE}"
+      break
+    fi
+  done
+  if [[ -z "${LOCAL_API_BASE:-}" ]]; then
+    LOCAL_API_BASE="http://127.0.0.1:${API_PORT}/api/v1"
+  fi
+fi
+echo "[verify] local API base: ${LOCAL_API_BASE}"
+
 echo "[verify] pm2 (kanak apps)"
 if command -v pm2 >/dev/null 2>&1; then
   pm2 jlist | node -e '
@@ -117,12 +144,21 @@ else
 fi
 
 echo "[verify] API health (local)"
-LOCAL_HEALTH_MS="$(curl -sS -o /tmp/kanak-health-local.json -w "%{time_total}" "${LOCAL_API_BASE}/health" | awk '{print int($1*1000)}')"
-if [[ -s /tmp/kanak-health-local.json ]]; then
-  head -c 200 /tmp/kanak-health-local.json
+VERIFY_HEALTH_TMP="$(mktemp)"
+set +e
+CURL_TIME="$(curl -sS -o "${VERIFY_HEALTH_TMP}" -w "%{time_total}" --connect-timeout 5 "${LOCAL_API_BASE}/health")"
+CURL_EC=$?
+set -e
+LOCAL_HEALTH_MS="$(printf '%s' "${CURL_TIME}" | awk '{print int($1*1000)}')"
+if [[ "${CURL_EC}" -eq 0 ]] && [[ -s "${VERIFY_HEALTH_TMP}" ]]; then
+  head -c 200 "${VERIFY_HEALTH_TMP}"
   echo ""
+  rm -f "${VERIFY_HEALTH_TMP}"
 else
-  echo "[verify] FAIL: local health check"
+  rm -f "${VERIFY_HEALTH_TMP}"
+  echo "[verify] FAIL: local health check (${LOCAL_API_BASE}/health) curl_exit=${CURL_EC}"
+  echo "[verify] hint: kanak-api PORT from PM2 env.PORT vs infra/prod/.env.production PORT"
+  ss -tlnp 2>/dev/null | head -25 || netstat -tlnp 2>/dev/null | head -25 || true
   exit 1
 fi
 echo "[verify] local /health response time: ${LOCAL_HEALTH_MS} ms"
