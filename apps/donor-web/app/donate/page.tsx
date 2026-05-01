@@ -1,5 +1,6 @@
 'use client';
 import { useState, useEffect, useMemo, Suspense } from 'react';
+import Image from 'next/image';
 import { useSearchParams, useRouter } from 'next/navigation';
 import { useAuth } from '@/lib/auth';
 import { donations, institutions } from '@/lib/api';
@@ -160,7 +161,14 @@ function DonateForm() {
           </p>
           <div className="mt-3 flex flex-col items-center gap-4 sm:flex-row sm:items-start">
             {upiQrDataUrl ? (
-              <img src={upiQrDataUrl} alt="UPI payment QR code" className="h-40 w-40 rounded-lg border p-2" />
+              <Image
+                src={upiQrDataUrl}
+                alt="UPI payment QR code"
+                width={160}
+                height={160}
+                unoptimized
+                className="h-40 w-40 rounded-lg border p-2"
+              />
             ) : (
               <div className="flex h-40 w-40 items-center justify-center rounded-lg border border-dashed text-xs text-gray-400">
                 Generating QR...
@@ -237,7 +245,14 @@ function DonateForm() {
         <div className="mt-6 rounded-xl border border-gold-200 bg-white p-4">
           <div className="flex flex-col items-center gap-4 sm:flex-row sm:items-start">
             {upiQrDataUrl ? (
-              <img src={upiQrDataUrl} alt="UPI payment QR code" className="h-40 w-40 rounded-lg border p-2" />
+              <Image
+                src={upiQrDataUrl}
+                alt="UPI payment QR code"
+                width={160}
+                height={160}
+                unoptimized
+                className="h-40 w-40 rounded-lg border p-2"
+              />
             ) : (
               <div className="flex h-40 w-40 items-center justify-center rounded-lg border border-dashed text-xs text-gray-400">
                 Generating QR...

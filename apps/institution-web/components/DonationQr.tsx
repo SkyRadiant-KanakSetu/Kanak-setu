@@ -1,5 +1,6 @@
 'use client';
 
+import Image from 'next/image';
 import { useEffect, useMemo, useState } from 'react';
 
 type Props = {
@@ -78,7 +79,14 @@ export function DonationQr({ institutionId, publicName, publicPageSlug, status }
       )}
       <div className="mt-4 flex flex-col items-center gap-4 md:flex-row md:items-start">
         {dataUrl ? (
-          <img src={dataUrl} alt="Donation QR code" className="h-48 w-48 rounded-lg border bg-white p-2" />
+          <Image
+            src={dataUrl}
+            alt="Donation QR code"
+            width={192}
+            height={192}
+            unoptimized
+            className="h-48 w-48 rounded-lg border bg-white p-2"
+          />
         ) : (
           <div className="flex h-48 w-48 items-center justify-center rounded-lg border border-dashed text-xs text-gray-400">
             Generating QR…
