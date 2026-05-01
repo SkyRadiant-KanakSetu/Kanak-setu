@@ -89,6 +89,8 @@ console.log('[web-quality] budget stage passed (no warning regression).');
 NODE
 
 echo "[web-quality] running web builds (type + compile)"
+echo "[web-quality] building shared packages required by web apps"
+npm run build:packages
 npm run build -w @kanak-setu/admin-web
 npm run build -w @kanak-setu/donor-web
 npm run build -w @kanak-setu/institution-web
