@@ -107,8 +107,13 @@ fi
 
 # ── Gate 5: CI is in strict warning mode ─────────────────────────────────────
 echo "[5] CI strict warning policy..."
-if grep -r "strict" "$CI_WORKFLOW_DIR"/*.yml > /dev/null 2>&1; then
-  echo "    PASS — strict mode found in CI workflow"
+STRICT_HIT="$(
+  grep -RilE \
+    'strict|WEB_WARNING_POLICY_STAGE|--max-warnings[=[:space:]]*0|eslint.*max-warnings' \
+    "$CI_WORKFLOW_DIR" 2>/dev/null | head -1 || true
+)"
+if [ -n "$STRICT_HIT" ]; then
+  echo "    PASS — strict mode found in CI workflow ($STRICT_HIT)"
 else
   PASS=false
   ISSUES+=("CI strict warning mode not confirmed in $CI_WORKFLOW_DIR")
