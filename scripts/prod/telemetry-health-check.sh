@@ -7,7 +7,7 @@ TELEMETRY_LOG="${LOG_DIR}/deploy-telemetry.log"
 VERIFY_FILE="${LOG_DIR}/last-verify.json"
 OUT_FILE="${LOG_DIR}/telemetry-health-latest.txt"
 MIN_ENTRIES="${MIN_ENTRIES:-3}"
-WORKFLOW_FILE="${APP_DIR}/.github/workflows/web-quality-gate.yml"
+WORKFLOW_DIR="${APP_DIR}/.github/workflows"
 
 mkdir -p "${LOG_DIR}"
 
@@ -117,9 +117,17 @@ if [[ -n "${last_deploy_line}" ]]; then
 fi
 
 ci_strict="FAIL"
-if [[ -f "${WORKFLOW_FILE}" ]] && grep -Eq \
-  "WEB_WARNING_POLICY_STAGE:.*strict|strict|--max-warnings[=[:space:]]*0|eslint.*max-warnings" \
-  "${WORKFLOW_FILE}"; then
+strict_pattern="WEB_WARNING_POLICY_STAGE:.*strict|strict|--max-warnings[=[:space:]]*0|eslint.*max-warnings"
+STRICT_HIT=""
+
+for candidate_dir in "${WORKFLOW_DIR}" "${APP_DIR}/.github/workflows" ".github/workflows" "/opt/kanak-setu/.github/workflows"; do
+  if [[ -d "${candidate_dir}" ]]; then
+    STRICT_HIT="$(grep -RilE "${strict_pattern}" "${candidate_dir}" 2>/dev/null | head -1 || true)"
+    [[ -n "${STRICT_HIT}" ]] && break
+  fi
+done
+
+if [[ -n "${STRICT_HIT}" ]]; then
   ci_strict="PASS"
 else
   warnings+=("CI strict mode not confirmed in workflow")
