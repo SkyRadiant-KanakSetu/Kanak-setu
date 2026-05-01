@@ -60,7 +60,7 @@ fi
 
 # ── Gate 3: All PM2 services online with low restart count ───────────────────
 echo "[3] PM2 service health..."
-for SVC in kanak-api donor institution admin; do
+for SVC in kanak-api kanak-donor-web kanak-institution-web kanak-admin-web; do
   STATUS=$(pm2 jlist 2>/dev/null | jq -r \
     ".[] | select(.name==\"$SVC\") | .pm2_env.status" || echo "MISSING")
   RESTARTS=$(pm2 jlist 2>/dev/null | jq -r \
