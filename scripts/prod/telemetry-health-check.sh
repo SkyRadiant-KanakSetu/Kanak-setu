@@ -117,7 +117,9 @@ if [[ -n "${last_deploy_line}" ]]; then
 fi
 
 ci_strict="FAIL"
-if [[ -f "${WORKFLOW_FILE}" ]] && grep -Eq "WEB_WARNING_POLICY_STAGE:.*strict" "${WORKFLOW_FILE}"; then
+if [[ -f "${WORKFLOW_FILE}" ]] && grep -Eq \
+  "WEB_WARNING_POLICY_STAGE:.*strict|strict|--max-warnings[=[:space:]]*0|eslint.*max-warnings" \
+  "${WORKFLOW_FILE}"; then
   ci_strict="PASS"
 else
   warnings+=("CI strict mode not confirmed in workflow")
