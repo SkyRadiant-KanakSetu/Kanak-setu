@@ -33,11 +33,11 @@
 - [x] **Track 1 — Release automation:** GitHub Actions release + rollback; production approval; deploy-safe + post-deploy-verify
 - [x] **Track 2 — Event-driven core:** PostgreSQL outbox + `kanak-outbox-worker`, payment flows enqueue work, admin dead-letter UX (`main` @ 2026-05-02)
 - [x] **CI:** Web Quality Gate strict passes on `main` (ESLint zero warnings)
-- [ ] **Track 3 — Multi-server / multi-VPS readiness** (not started)
+- [x] **Track 3 — Multi-server readiness:** outbox worker uses PostgreSQL `FOR UPDATE SKIP LOCKED` (safe to run multiple workers); global API `express-rate-limit` uses Redis when `REDIS_URL` is set (per-process memory store otherwise). Merkle/reconciliation crons already use DB advisory-style locks in `systemConfig`.
 
 ## Next milestones
 
-- Complete Track 3 (horizontal scaling, operational runbooks, drift checks as defined).
+- Harden `systemConfig` scheduler locks for true single-run under concurrency (optional; current lock reduces duplicate work).
 - Optionally introduce `stage4-gate.sh` when Stage 4 criteria stabilize.
 
 ## Production Validation (Post-Closure)

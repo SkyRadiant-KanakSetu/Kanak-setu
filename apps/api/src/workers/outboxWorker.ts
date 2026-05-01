@@ -1,5 +1,5 @@
 import '../loadEnv';
-import { Prisma, PrismaClient } from '@prisma/client';
+import { Prisma, PrismaClient, type OutboxEvent } from '@prisma/client';
 import { confirmPayment } from '../modules/donations/donation.service';
 import { generateDonationReceipt } from '../modules/certificates/certificate.service';
 
@@ -26,21 +26,31 @@ const handlers: Partial<Record<EventType, (payload: Record<string, unknown>, eve
   'donor.confirmation': handleDonorConfirmation,
 };
 
-async function processBatch() {
-  const events = await prisma.$transaction(async (tx) => {
-    const batch = await tx.outboxEvent.findMany({
-      where: { status: 'pending', attempts: { lt: MAX_ATTEMPTS } },
-      orderBy: { createdAt: 'asc' },
-      take: BATCH_SIZE,
-    });
-    if (batch.length === 0) return [];
+async function claimOutboxBatch(): Promise<OutboxEvent[]> {
+  /**
+   * PostgreSQL `FOR UPDATE SKIP LOCKED` claims rows atomically so multiple worker
+   * processes (horizontal scaling) cannot process the same event twice.
+   */
+  const claimed = await prisma.$queryRaw<OutboxEvent[]>`
+    WITH picked AS (
+      SELECT "id"
+      FROM "OutboxEvent"
+      WHERE "status" = 'pending' AND "attempts" < ${MAX_ATTEMPTS}
+      ORDER BY "createdAt" ASC
+      FOR UPDATE SKIP LOCKED
+      LIMIT ${BATCH_SIZE}
+    )
+    UPDATE "OutboxEvent" AS o
+    SET "status" = 'processing', "lastAttemptAt" = NOW(), "updatedAt" = NOW()
+    FROM picked
+    WHERE o."id" = picked."id"
+    RETURNING o.*;
+  `;
+  return claimed;
+}
 
-    await tx.outboxEvent.updateMany({
-      where: { id: { in: batch.map((e) => e.id) } },
-      data: { status: 'processing', lastAttemptAt: new Date() },
-    });
-    return batch;
-  });
+async function processBatch() {
+  const events = await claimOutboxBatch();
 
   for (const event of events) {
     const handler = handlers[event.eventType as EventType];

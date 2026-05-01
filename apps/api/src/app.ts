@@ -2,7 +2,7 @@ import express, { type RequestHandler } from 'express';
 import cors from 'cors';
 import helmet from 'helmet';
 import morgan from 'morgan';
-import rateLimit from 'express-rate-limit';
+import rateLimit, { type Store } from 'express-rate-limit';
 
 import { requestIdMiddleware } from './middleware/requestId';
 import { authRouter } from './modules/auth/auth.routes';
@@ -19,7 +19,13 @@ import { agroRouter } from './modules/agro/agro.routes';
 import { errorHandler } from './middleware/errorHandler';
 import { getEnv } from './config/env';
 
-const app = express();
+export type BuildAppOptions = {
+  /** When set (e.g. Redis), global API rate limits are shared across replicas */
+  rateLimitStore?: Store;
+};
+
+export function buildApp(opts?: BuildAppOptions) {
+  const app = express();
 
 // Caddy (or any reverse proxy): use X-Forwarded-* for req.ip, rate limiting, and secure cookies.
 app.set('trust proxy', 1);
@@ -66,6 +72,7 @@ app.use(
     max: parseInt(process.env.RATE_LIMIT_MAX || '100'),
     standardHeaders: true,
     legacyHeaders: false,
+    ...(opts?.rateLimitStore ? { store: opts.rateLimitStore } : {}),
   })
 );
 
@@ -84,4 +91,8 @@ app.use('/api/v1/agro', agroRouter);
 // --- ERROR HANDLER ---
 app.use(errorHandler);
 
-export { app };
+  return app;
+}
+
+/** Default app for tests and tooling (in-memory rate limits). */
+export const app = buildApp();
