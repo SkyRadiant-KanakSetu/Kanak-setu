@@ -11,6 +11,10 @@ WORKFLOW_DIR="${APP_DIR}/.github/workflows"
 
 mkdir -p "${LOG_DIR}"
 
+if [[ -d "${APP_DIR}" ]]; then
+  cd "${APP_DIR}"
+fi
+
 now_utc="$(date -u +"%Y-%m-%dT%H:%M:%SZ")"
 overall="HEALTHY"
 warnings=()
@@ -119,7 +123,7 @@ fi
 ci_strict="FAIL"
 STRICT_HIT=""
 
-for candidate_dir in "${WORKFLOW_DIR}" "${APP_DIR}/.github/workflows" ".github/workflows" "/opt/kanak-setu/.github/workflows"; do
+for candidate_dir in ".github/workflows" "${WORKFLOW_DIR}" "${APP_DIR}/.github/workflows" "/opt/kanak-setu/.github/workflows"; do
   if [[ -d "${candidate_dir}" ]]; then
     STRICT_HIT="$(grep -Ril "strict" "${candidate_dir}" 2>/dev/null | head -1 || true)"
     [[ -n "${STRICT_HIT}" ]] && break
