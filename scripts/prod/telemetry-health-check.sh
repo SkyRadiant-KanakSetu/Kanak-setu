@@ -117,12 +117,11 @@ if [[ -n "${last_deploy_line}" ]]; then
 fi
 
 ci_strict="FAIL"
-strict_pattern="WEB_WARNING_POLICY_STAGE:.*strict|strict|--max-warnings[=[:space:]]*0|eslint.*max-warnings"
 STRICT_HIT=""
 
 for candidate_dir in "${WORKFLOW_DIR}" "${APP_DIR}/.github/workflows" ".github/workflows" "/opt/kanak-setu/.github/workflows"; do
   if [[ -d "${candidate_dir}" ]]; then
-    STRICT_HIT="$(grep -RilE "${strict_pattern}" "${candidate_dir}" 2>/dev/null | head -1 || true)"
+    STRICT_HIT="$(grep -Ril "strict" "${candidate_dir}" 2>/dev/null | head -1 || true)"
     [[ -n "${STRICT_HIT}" ]] && break
   fi
 done
