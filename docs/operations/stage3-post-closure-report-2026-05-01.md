@@ -1,6 +1,6 @@
 # Kanak Setu Stage 3 Post-Closure Report
 **Date:** 2026-05-01
-**VPS HEAD:** 071b0b7
+**VPS HEAD:** 1ea1b63
 **Gate result:** PASS
 **Declared by:** Engineering lead
 
@@ -66,7 +66,7 @@ clean deploy.
 
 ## Repo Integrity Confirmation
 
-A `deploy-safe` from `main` at HEAD `071b0b7` produces a gate-passing server.
+A `deploy-safe` from `main` at HEAD `1ea1b63` produces a gate-passing server.
 No VPS-only fixes remain outside the repository.
 
 ---
