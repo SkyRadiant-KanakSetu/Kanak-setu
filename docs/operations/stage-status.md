@@ -2,10 +2,10 @@
 
 | Field          | Value |
 |----------------|-------|
-| Current stage  | 3 |
-| Declared on    | 2026-05-01 |
-| Gate script    | scripts/prod/stage3-gate.sh |
-| Gate result    | PASS |
+| Current stage  | 4 (execution) |
+| Declared on    | 2026-05-02 |
+| Gate script    | scripts/prod/stage3-gate.sh (still authoritative until Stage 4 gate ships) |
+| Gate result    | Stage 3 PASS; Stage 4 verification ongoing |
 | Declared by    | [Name] |
 
 ## Stage 3 Definition of Done (Completed)
@@ -28,10 +28,17 @@
 - [ ] Sustained telemetry history — accumulates over time naturally
 - [ ] Operator adoption — monitor over next 2 weeks
 
-## Next Stage
+## Stage 4 Definition of Done (In progress)
 
-Stage 4 planning begins after 2 weeks of Stage 3 production observation.
-Focus areas: multi-VPS readiness, event-driven architecture, advanced analytics.
+- [x] **Track 1 — Release automation:** GitHub Actions release + rollback; production approval; deploy-safe + post-deploy-verify
+- [x] **Track 2 — Event-driven core:** PostgreSQL outbox + `kanak-outbox-worker`, payment flows enqueue work, admin dead-letter UX (`main` @ 2026-05-02)
+- [x] **CI:** Web Quality Gate strict passes on `main` (ESLint zero warnings)
+- [ ] **Track 3 — Multi-server / multi-VPS readiness** (not started)
+
+## Next milestones
+
+- Complete Track 3 (horizontal scaling, operational runbooks, drift checks as defined).
+- Optionally introduce `stage4-gate.sh` when Stage 4 criteria stabilize.
 
 ## Production Validation (Post-Closure)
 
@@ -43,3 +50,4 @@ Focus areas: multi-VPS readiness, event-driven architecture, advanced analytics.
 | Backup cron installed | PENDING | — |
 | Operator action logged | PENDING | — |
 | Repo = VPS (no drift) | IN PROGRESS | 2026-05-01 |
+| Outbox migration + worker live | PENDING (post-deploy) | — |
