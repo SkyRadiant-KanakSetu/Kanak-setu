@@ -1,7 +1,7 @@
 # Kanak Setu Stage 4 Closure Report
 
 **Date:** 2026-05-02  
-**Closure commit:** Run `git rev-parse HEAD` at the commit that contains this file (authoritative repo revision).  
+**Closure commit:** `73d4f00dcc451c6cecf5abf6c8961ab2ab4a06e0`  
 **Gate script:** `scripts/prod/stage4-gate.sh`  
 **Declared by:** [Name]
 
