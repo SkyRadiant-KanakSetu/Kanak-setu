@@ -51,6 +51,16 @@ type OperatorActivity = {
   last_action_at: string | null;
 };
 
+type DeadLetter = {
+  id: string;
+  eventType: string;
+  aggregateId: string;
+  aggregateType: string;
+  failReason: string;
+  attempts: number;
+  createdAt: string;
+};
+
 function fmtDuration(seconds: number) {
   if (!Number.isFinite(seconds) || seconds < 0) return '-';
   if (seconds < 60) return `${seconds}s`;
@@ -80,6 +90,8 @@ export default function ReliabilityDashboardPage() {
   const [pm2Rows, setPm2Rows] = useState<Pm2Row[]>([]);
   const [verifyData, setVerifyData] = useState<VerifyResult | null>(null);
   const [operatorActivity, setOperatorActivity] = useState<OperatorActivity | null>(null);
+  const [deadLetters, setDeadLetters] = useState<DeadLetter[]>([]);
+  const [deadLetterActionId, setDeadLetterActionId] = useState<string | null>(null);
   const [dismissedOperatorNotice, setDismissedOperatorNotice] = useState(false);
   const [loadError, setLoadError] = useState('');
 
@@ -108,14 +120,16 @@ export default function ReliabilityDashboardPage() {
       fetch('/api/reliability/pm2-status').then((r) => r.json()),
       fetch('/api/reliability/last-verify').then((r) => r.json()),
       fetch('/api/reliability/operator-activity?days=14').then((r) => r.json()),
+      fetch('/api/reliability/dead-letters?limit=20').then((r) => r.json()),
     ])
-      .then(([deploy, pm2, verify, ops]) => {
-        if (!deploy.success || !pm2.success || !verify.success || !ops.success) {
+      .then(([deploy, pm2, verify, ops, dead]) => {
+        if (!deploy.success || !pm2.success || !verify.success || !ops.success || !dead.success) {
           throw new Error(
             deploy.error?.message ||
               pm2.error?.message ||
               verify.error?.message ||
               ops.error?.message ||
+              dead.error?.message ||
               'Could not load reliability data'
           );
         }
@@ -130,11 +144,28 @@ export default function ReliabilityDashboardPage() {
         setPm2Rows(Array.isArray(pm2.data) ? pm2.data : []);
         setVerifyData(verify.data || null);
         setOperatorActivity(ops.data || null);
+        setDeadLetters(Array.isArray(dead.data) ? dead.data : []);
       })
       .catch((e: unknown) => {
         setLoadError(e instanceof Error ? e.message : 'Failed to fetch reliability data');
       });
   }, [authChecked, authError]);
+
+  async function deadLetterAction(id: string, action: 'retry' | 'dismiss') {
+    setDeadLetterActionId(id);
+    try {
+      const response = await fetch(`/api/reliability/dead-letters/${id}/${action}`, { method: 'POST' });
+      const body = await response.json();
+      if (!response.ok || !body?.success) {
+        throw new Error(body?.error?.message || `Failed to ${action} dead letter`);
+      }
+      setDeadLetters((rows) => rows.filter((row) => row.id !== id));
+    } catch (error) {
+      setLoadError(error instanceof Error ? error.message : `Failed to ${action} dead letter`);
+    } finally {
+      setDeadLetterActionId(null);
+    }
+  }
 
   const warningBaseline = useMemo(
     () => [
@@ -368,6 +399,65 @@ export default function ReliabilityDashboardPage() {
               No activity yet
             </p>
           )}
+      </section>
+
+      <section className="mb-6 rounded border bg-white p-4">
+        <h2 className="text-lg font-medium">Failed Events (Dead Letters)</h2>
+        <div className="mt-3 overflow-x-auto">
+          <table className="w-full text-left text-sm">
+            <thead className="text-xs text-gray-500">
+              <tr>
+                <th className="pb-2">Event type</th>
+                <th className="pb-2">Aggregate</th>
+                <th className="pb-2">Fail reason</th>
+                <th className="pb-2">Attempts</th>
+                <th className="pb-2">Created</th>
+                <th className="pb-2">Actions</th>
+              </tr>
+            </thead>
+            <tbody>
+              {deadLetters.map((row) => (
+                <tr key={row.id} className="border-t align-top">
+                  <td className="py-2">{row.eventType}</td>
+                  <td className="py-2">
+                    <div>{row.aggregateType}</div>
+                    <div className="break-all text-xs text-gray-500">{row.aggregateId}</div>
+                  </td>
+                  <td className="py-2">{row.failReason}</td>
+                  <td className="py-2">{row.attempts}</td>
+                  <td className="py-2">{new Date(row.createdAt).toLocaleString('en-IN')}</td>
+                  <td className="py-2">
+                    <div className="flex gap-2">
+                      <button
+                        type="button"
+                        className="rounded border px-2 py-1 text-xs"
+                        disabled={deadLetterActionId === row.id}
+                        onClick={() => deadLetterAction(row.id, 'retry')}
+                      >
+                        Retry
+                      </button>
+                      <button
+                        type="button"
+                        className="rounded border px-2 py-1 text-xs"
+                        disabled={deadLetterActionId === row.id}
+                        onClick={() => deadLetterAction(row.id, 'dismiss')}
+                      >
+                        Dismiss
+                      </button>
+                    </div>
+                  </td>
+                </tr>
+              ))}
+              {!deadLetters.length && (
+                <tr>
+                  <td className="py-3 text-gray-500" colSpan={6}>
+                    No dead letters.
+                  </td>
+                </tr>
+              )}
+            </tbody>
+          </table>
+        </div>
       </section>
 
       <section className="mb-6 rounded border bg-white p-4">

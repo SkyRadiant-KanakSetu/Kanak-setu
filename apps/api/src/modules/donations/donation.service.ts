@@ -4,6 +4,7 @@ import { getPaymentAdapter } from '../payments/payment.adapter';
 import { getGoldVendorAdapter } from '../vendor/vendor.adapter';
 import { auditLog } from '../../utils/auditLog';
 import { Decimal } from '@prisma/client/runtime/library';
+import { writeOutboxEvent } from '../../lib/outbox';
 
 const paymentGW = getPaymentAdapter();
 const goldVendor = getGoldVendorAdapter();
@@ -177,6 +178,78 @@ export async function confirmPayment(
   return allocateGold(donationId);
 }
 
+export async function queuePaymentConfirmation(
+  donationId: string,
+  providerPaymentId: string,
+  actorUserId?: string
+) {
+  const donation = await prisma.donation.findUnique({
+    where: { id: donationId },
+    include: { donor: true },
+  });
+  if (!donation) throw new AppError(404, 'NOT_FOUND', 'Donation not found');
+  if (actorUserId && donation.donor.userId !== actorUserId) {
+    throw new AppError(403, 'FORBIDDEN', 'This donation does not belong to you');
+  }
+  if (donation.status !== 'PAYMENT_PENDING') {
+    if (
+      [
+        'PAYMENT_CONFIRMED',
+        'UNDER_REVIEW',
+        'VENDOR_ORDER_PLACED',
+        'GOLD_ALLOCATED',
+        'COMPLETED',
+        'BATCHED',
+        'ANCHORED',
+      ].includes(donation.status)
+    ) {
+      return { accepted: true, alreadyProcessed: true, donationId };
+    }
+    throw new AppError(400, 'INVALID_STATE', `Cannot confirm payment from status ${donation.status}`);
+  }
+
+  await writeOutboxEvent(prisma, {
+    eventType: 'payment.confirmed',
+    aggregateId: donationId,
+    aggregateType: 'Donation',
+    payload: {
+      donationId,
+      providerPaymentId,
+      actorUserId: actorUserId || null,
+      source: actorUserId ? 'donor_confirm_route' : 'system',
+    },
+  });
+
+  return { accepted: true, alreadyProcessed: false, donationId };
+}
+
+export async function queuePaymentFailure(
+  donationId: string,
+  actorUserId?: string
+) {
+  const donation = await prisma.donation.findUnique({
+    where: { id: donationId },
+    include: { donor: true },
+  });
+  if (!donation) throw new AppError(404, 'NOT_FOUND', 'Donation not found');
+  if (actorUserId && donation.donor.userId !== actorUserId) {
+    throw new AppError(403, 'FORBIDDEN', 'This donation does not belong to you');
+  }
+
+  await writeOutboxEvent(prisma, {
+    eventType: 'payment.failed',
+    aggregateId: donationId,
+    aggregateType: 'Donation',
+    payload: {
+      donationId,
+      actorUserId: actorUserId || null,
+      source: actorUserId ? 'donor_confirm_route' : 'system',
+    },
+  });
+
+  return { accepted: true, donationId };
+}
+
 // ── Step 3: Allocate gold via vendor ──
 export async function allocateGold(donationId: string) {
   const donation = await prisma.donation.findUnique({ where: { id: donationId } });
@@ -219,6 +292,50 @@ export async function allocateGold(donationId: string) {
         status: 'COMPLETED',
       },
     });
+
+    await prisma.$transaction([
+      writeOutboxEvent(prisma, {
+        eventType: 'receipt.generate',
+        aggregateId: donationId,
+        aggregateType: 'Donation',
+        payload: {
+          donationId,
+          certificateType: 'DONATION_RECEIPT',
+        },
+      }),
+      writeOutboxEvent(prisma, {
+        eventType: 'donor.confirmation',
+        aggregateId: donation.donorId,
+        aggregateType: 'Donor',
+        payload: {
+          donationId,
+          donorId: donation.donorId,
+          amountPaise: donation.amountPaise,
+          status: 'COMPLETED',
+        },
+      }),
+      writeOutboxEvent(prisma, {
+        eventType: 'institution.notification',
+        aggregateId: donation.institutionId,
+        aggregateType: 'Institution',
+        payload: {
+          donationId,
+          institutionId: donation.institutionId,
+          amountPaise: donation.amountPaise,
+          status: 'COMPLETED',
+        },
+      }),
+      writeOutboxEvent(prisma, {
+        eventType: 'webhook.dispatch',
+        aggregateId: donationId,
+        aggregateType: 'Webhook',
+        payload: {
+          donationId,
+          donationRef: donation.donationRef,
+          providerPaymentStatus: 'CAPTURED',
+        },
+      }),
+    ]);
 
     // Credit institution ledger
     await creditInstitutionLedger(donation.institutionId, donationId, goldQty);

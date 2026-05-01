@@ -65,5 +65,18 @@ module.exports = {
       args: 'run start -w @kanak-setu/admin-web',
       env: { NODE_ENV: 'production', PORT: '3002', ...nextRuntimeEnv() },
     },
+    {
+      name: 'kanak-outbox-worker',
+      cwd: APP_DIR,
+      script: 'node',
+      args: 'apps/api/dist/workers/outboxWorker.js',
+      restart_delay: 5000,
+      max_restarts: 10,
+      out_file: path.join(APP_DIR, 'logs', 'outbox-worker.log'),
+      error_file: path.join(APP_DIR, 'logs', 'outbox-worker.log'),
+      env: appEnv({
+        NODE_ENV: 'production',
+      }),
+    },
   ],
 };

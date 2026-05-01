@@ -763,6 +763,39 @@ enum WebhookDeliveryStatus {
   FAILED
 }
 
+// ===================== OUTBOX / EVENT PROCESSING =====================
+
+model OutboxEvent {
+  id            String   @id @default(cuid())
+  eventType     String
+  aggregateId   String
+  aggregateType String
+  payload       Json
+  status        String   @default("pending") // pending | processing | delivered | failed
+  attempts      Int      @default(0)
+  lastAttemptAt DateTime?
+  deliveredAt   DateTime?
+  failedAt      DateTime?
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  @@index([status, createdAt])
+  @@index([aggregateId, aggregateType])
+}
+
+model OutboxDeadLetter {
+  id          String   @id @default(cuid())
+  originalId  String
+  eventType   String
+  aggregateId String
+  aggregateType String
+  payload     Json
+  failReason  String
+  attempts    Int
+  dismissedAt DateTime?
+  createdAt   DateTime @default(now())
+}
+
 // ===================== ADMIN / SUPPORT =====================
 
 model AdminNote {

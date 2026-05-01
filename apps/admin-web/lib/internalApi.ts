@@ -4,15 +4,18 @@ export function resolveApiBase() {
   return 'https://api.kanaksetu.com/api/v1';
 }
 
-export async function fetchInternal(path: string) {
+export async function fetchInternal(path: string, init?: RequestInit) {
   const secret = process.env.INTERNAL_API_SECRET;
   if (!secret) {
     throw new Error('INTERNAL_API_SECRET is not configured');
   }
   const response = await fetch(`${resolveApiBase()}${path}`, {
+    method: init?.method || 'GET',
     headers: {
       Authorization: `Bearer ${secret}`,
+      ...(init?.headers || {}),
     },
+    body: init?.body,
     cache: 'no-store',
   });
   const body = await response.json();

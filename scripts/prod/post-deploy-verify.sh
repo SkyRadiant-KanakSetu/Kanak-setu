@@ -85,7 +85,7 @@ echo "[verify] pm2 (kanak apps)"
 if command -v pm2 >/dev/null 2>&1; then
   pm2 jlist | node -e '
     const apps = JSON.parse(require("fs").readFileSync(0, "utf8"));
-    const want = ["kanak-api","kanak-donor-web","kanak-institution-web","kanak-admin-web"];
+    const want = ["kanak-api","kanak-donor-web","kanak-institution-web","kanak-admin-web","kanak-outbox-worker"];
     for (const name of want) {
       const p = apps.find((a) => a.name === name);
       if (!p) { console.log(name + ": MISSING"); continue; }
@@ -99,7 +99,7 @@ if command -v pm2 >/dev/null 2>&1; then
     const fs = require("fs");
     const apps = JSON.parse(fs.readFileSync(0, "utf8"));
     const limit = Number(process.env.PM2_LIMIT_BYTES || 0);
-    const want = ["kanak-api","kanak-donor-web","kanak-institution-web","kanak-admin-web"];
+    const want = ["kanak-api","kanak-donor-web","kanak-institution-web","kanak-admin-web","kanak-outbox-worker"];
     let bad = 0;
     for (const name of want) {
       const p = apps.find((a) => a.name === name);

@@ -1,6 +1,5 @@
 import { Router, Request, Response, NextFunction } from 'express';
-import { prisma } from '../../config/prisma';
-import { confirmPayment } from '../donations/donation.service';
+import { queuePaymentConfirmation, queuePaymentFailure } from '../donations/donation.service';
 import { success } from '../../utils/response';
 import { processPaymentProviderWebhook } from './paymentWebhook.processor';
 import { buildError, ErrorCode, HTTP_STATUS } from '../../lib/errors';
@@ -44,18 +43,11 @@ paymentRouter.post('/mock/simulate', async (req: Request, res: Response, next: N
     }
     const { donationId, status } = req.body;
     if (status === 'CAPTURED') {
-      const result = await confirmPayment(donationId, `mock_pay_${Date.now()}`);
+      const result = await queuePaymentConfirmation(donationId, `mock_pay_${Date.now()}`);
       success(res, result);
     } else {
-      await prisma.paymentTransaction.updateMany({
-        where: { donationId },
-        data: { status: 'FAILED' },
-      });
-      await prisma.donation.update({
-        where: { id: donationId },
-        data: { status: 'PAYMENT_FAILED' },
-      });
-      success(res, { status: 'PAYMENT_FAILED' });
+      const result = await queuePaymentFailure(donationId);
+      success(res, result);
     }
   } catch (e) {
     next(e);

@@ -28,14 +28,14 @@ donationRouter.post(
   }
 );
 
-// ── Confirm payment (client-side verification callback) ──
+// ── Confirm payment (client-side verification callback; queued via outbox) ──
 donationRouter.post(
   '/:id/confirm-payment',
   authenticate,
   requireRole('DONOR'),
   async (req: Request, res: Response, next: NextFunction) => {
     try {
-      const result = await donationService.confirmPayment(
+      const result = await donationService.queuePaymentConfirmation(
         req.params.id,
         req.body.providerPaymentId,
         req.auth!.userId

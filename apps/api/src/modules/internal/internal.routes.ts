@@ -1,6 +1,7 @@
 import { Router, type Request, type Response, type NextFunction } from 'express';
 import fs from 'fs';
 import path from 'path';
+import { Prisma } from '@prisma/client';
 import { prisma } from '../../config/prisma';
 import { AppError } from '../../middleware/errorHandler';
 import { success } from '../../utils/response';
@@ -38,7 +39,13 @@ internalRouter.get('/pm2-status', async (_req: Request, res: Response, next: Nex
     const { execSync } = await import('child_process');
     const raw = execSync('pm2 jlist', { encoding: 'utf8' });
     const apps = JSON.parse(raw) as Pm2Row[];
-    const targetApps = new Set(['kanak-api', 'kanak-donor-web', 'kanak-institution-web', 'kanak-admin-web']);
+    const targetApps = new Set([
+      'kanak-api',
+      'kanak-donor-web',
+      'kanak-institution-web',
+      'kanak-admin-web',
+      'kanak-outbox-worker',
+    ]);
     const rows = apps
       .filter((p) => Boolean(p.name && targetApps.has(p.name)))
       .map((p) => ({
@@ -182,6 +189,67 @@ internalRouter.get('/operator-activity', async (req: Request, res: Response, nex
   } catch (error) {
     next(
       new AppError(500, 'OPERATOR_ACTIVITY_FAILED', `Unable to read operator activity: ${(error as Error).message}`)
+    );
+  }
+});
+
+internalRouter.get('/dead-letters', async (req: Request, res: Response, next: NextFunction) => {
+  try {
+    const limitRaw = Number(req.query.limit || 20);
+    const limit = Number.isFinite(limitRaw) && limitRaw > 0 ? Math.min(limitRaw, 100) : 20;
+    const rows = await prisma.outboxDeadLetter.findMany({
+      where: { dismissedAt: null },
+      orderBy: { createdAt: 'desc' },
+      take: limit,
+    });
+    success(res, rows);
+  } catch (error) {
+    next(new AppError(500, 'DEAD_LETTER_LIST_FAILED', `Unable to list dead letters: ${(error as Error).message}`));
+  }
+});
+
+internalRouter.post('/dead-letters/:id/retry', async (req: Request, res: Response, next: NextFunction) => {
+  try {
+    const id = req.params.id;
+    const row = await prisma.outboxDeadLetter.findUnique({ where: { id } });
+    if (!row) return next(new AppError(404, 'NOT_FOUND', 'Dead letter not found'));
+
+    const event = await prisma.$transaction(async (tx) => {
+      await tx.outboxDeadLetter.update({
+        where: { id },
+        data: { dismissedAt: new Date() },
+      });
+      return tx.outboxEvent.create({
+        data: {
+          eventType: row.eventType,
+          aggregateId: row.aggregateId,
+          aggregateType: row.aggregateType,
+          payload: row.payload as Prisma.InputJsonValue,
+          status: 'pending',
+          attempts: 0,
+        },
+      });
+    });
+
+    success(res, { retried: true, outboxEventId: event.id });
+  } catch (error) {
+    next(new AppError(500, 'DEAD_LETTER_RETRY_FAILED', `Unable to retry dead letter: ${(error as Error).message}`));
+  }
+});
+
+internalRouter.post('/dead-letters/:id/dismiss', async (req: Request, res: Response, next: NextFunction) => {
+  try {
+    const id = req.params.id;
+    const row = await prisma.outboxDeadLetter.findUnique({ where: { id } });
+    if (!row) return next(new AppError(404, 'NOT_FOUND', 'Dead letter not found'));
+    await prisma.outboxDeadLetter.update({
+      where: { id },
+      data: { dismissedAt: new Date() },
+    });
+    success(res, { dismissed: true });
+  } catch (error) {
+    next(
+      new AppError(500, 'DEAD_LETTER_DISMISS_FAILED', `Unable to dismiss dead letter: ${(error as Error).message}`)
     );
   }
 });

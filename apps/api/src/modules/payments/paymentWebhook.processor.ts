@@ -1,9 +1,9 @@
 import { prisma } from '../../config/prisma';
 import { AppError } from '../../middleware/errorHandler';
 import { auditLog } from '../../utils/auditLog';
-import { confirmPayment } from '../donations/donation.service';
 import { getPaymentAdapterForProvider } from './payment.adapter';
 import { ingestWebhook, hashPayloadIdempotencyKey, type WebhookProvider } from '../webhooks/webhook.service';
+import { writeOutboxEvent } from '../../lib/outbox';
 
 function extractProviderOrderId(body: unknown): string | undefined {
   const b = body as Record<string, unknown>;
@@ -100,33 +100,31 @@ export async function processPaymentProviderWebhook(input: {
   });
 
   if (verification.status === 'CAPTURED' && payment.status === 'CREATED') {
-    try {
-      await confirmPayment(
-        payment.donationId,
-        verification.providerPaymentId || `unknown_${payment.id}`
-      );
-    } catch (err) {
-      await auditLog({
-        action: 'WEBHOOK_PROCESSING_ERROR',
-        entity: 'Donation',
-        entityId: payment.donationId,
-        metadata: { error: String(err), provider: input.provider },
-      });
-      throw err;
-    }
-    return { duplicate: false, processed: true, message: 'Payment captured and donation advanced' };
+    await writeOutboxEvent(prisma, {
+      eventType: 'payment.confirmed',
+      aggregateId: payment.donationId,
+      aggregateType: 'Donation',
+      payload: {
+        donationId: payment.donationId,
+        providerPaymentId: verification.providerPaymentId || `unknown_${payment.id}`,
+        source: 'payment_webhook',
+      },
+    });
+    return { duplicate: false, processed: true, message: 'Payment captured and queued for processing' };
   }
 
   if (verification.status === 'FAILED') {
-    await prisma.paymentTransaction.update({
-      where: { id: payment.id },
-      data: { status: 'FAILED' },
+    await writeOutboxEvent(prisma, {
+      eventType: 'payment.failed',
+      aggregateId: payment.donationId,
+      aggregateType: 'Donation',
+      payload: {
+        donationId: payment.donationId,
+        transactionId: payment.id,
+        source: 'payment_webhook',
+      },
     });
-    await prisma.donation.update({
-      where: { id: payment.donationId },
-      data: { status: 'PAYMENT_FAILED' },
-    });
-    return { duplicate: false, processed: true, message: 'Payment failure recorded' };
+    return { duplicate: false, processed: true, message: 'Payment failure queued for processing' };
   }
 
   if (verification.status === 'AUTHORIZED') {

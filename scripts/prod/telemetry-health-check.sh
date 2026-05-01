@@ -53,14 +53,17 @@ pm2_status_kanak_api="missing"
 pm2_status_donor="missing"
 pm2_status_institution="missing"
 pm2_status_admin="missing"
+pm2_status_outbox="missing"
 pm2_mem_kanak_api="0"
 pm2_mem_donor="0"
 pm2_mem_institution="0"
 pm2_mem_admin="0"
+pm2_mem_outbox="0"
 pm2_restarts_kanak_api="0"
 pm2_restarts_donor="0"
 pm2_restarts_institution="0"
 pm2_restarts_admin="0"
+pm2_restarts_outbox="0"
 
 if command -v pm2 >/dev/null 2>&1; then
   while IFS='|' read -r name status mem restart; do
@@ -86,6 +89,11 @@ if command -v pm2 >/dev/null 2>&1; then
         pm2_mem_admin="${mem}"
         pm2_restarts_admin="${restart}"
         ;;
+      kanak-outbox-worker)
+        pm2_status_outbox="${status}"
+        pm2_mem_outbox="${mem}"
+        pm2_restarts_outbox="${restart}"
+        ;;
     esac
   done < <(
     pm2 jlist 2>/dev/null | node -e '
@@ -96,7 +104,7 @@ if command -v pm2 >/dev/null 2>&1; then
       const apps=JSON.parse(raw.slice(start));
       for (const a of apps) {
         const name=a.name||"";
-        if (!["kanak-api","kanak-donor-web","kanak-institution-web","kanak-admin-web"].includes(name)) continue;
+        if (!["kanak-api","kanak-donor-web","kanak-institution-web","kanak-admin-web","kanak-outbox-worker"].includes(name)) continue;
         const st=a.pm2_env?.status||"unknown";
         const mem=((a.monit?.memory||0)/(1024*1024)).toFixed(0);
         const rt=String(a.pm2_env?.restart_time||0);
@@ -112,12 +120,14 @@ fi
 [[ "${pm2_status_donor}" == "online" ]] || warnings+=("kanak-donor-web not online (${pm2_status_donor})")
 [[ "${pm2_status_institution}" == "online" ]] || warnings+=("kanak-institution-web not online (${pm2_status_institution})")
 [[ "${pm2_status_admin}" == "online" ]] || warnings+=("kanak-admin-web not online (${pm2_status_admin})")
+[[ "${pm2_status_outbox}" == "online" ]] || warnings+=("kanak-outbox-worker not online (${pm2_status_outbox})")
 
 if [[ -n "${last_deploy_line}" ]]; then
   [[ "${pm2_restarts_kanak_api}" -le 3 ]] || warnings+=("kanak-api restart count ${pm2_restarts_kanak_api} > 3 since last deploy")
   [[ "${pm2_restarts_donor}" -le 3 ]] || warnings+=("kanak-donor-web restart count ${pm2_restarts_donor} > 3 since last deploy")
   [[ "${pm2_restarts_institution}" -le 3 ]] || warnings+=("kanak-institution-web restart count ${pm2_restarts_institution} > 3 since last deploy")
   [[ "${pm2_restarts_admin}" -le 3 ]] || warnings+=("kanak-admin-web restart count ${pm2_restarts_admin} > 3 since last deploy")
+  [[ "${pm2_restarts_outbox}" -le 3 ]] || warnings+=("kanak-outbox-worker restart count ${pm2_restarts_outbox} > 3 since last deploy")
 fi
 
 ci_strict="FAIL"
@@ -155,6 +165,7 @@ fi
   echo "PM2 donor:         ${pm2_status_donor} | ${pm2_mem_donor}MB | restarts: ${pm2_restarts_donor}"
   echo "PM2 institution:   ${pm2_status_institution} | ${pm2_mem_institution}MB | restarts: ${pm2_restarts_institution}"
   echo "PM2 admin:         ${pm2_status_admin} | ${pm2_mem_admin}MB | restarts: ${pm2_restarts_admin}"
+  echo "PM2 outbox:        ${pm2_status_outbox} | ${pm2_mem_outbox}MB | restarts: ${pm2_restarts_outbox}"
   echo "CI strict mode:    ${ci_strict}"
   if [[ -f "${TELEMETRY_LOG}" ]]; then
     echo "Last 5 telemetry lines:"
