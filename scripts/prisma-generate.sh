@@ -7,10 +7,11 @@ ROOT="$(cd "${SCRIPT_DIR}/.." && pwd)"
 cd "${ROOT}"
 export DATABASE_URL="${DATABASE_URL:-postgresql://127.0.0.1:5432/_prisma_generate_placeholder?schema=public}"
 # Never use `npm exec prisma` / bare `npx prisma`: npm can resolve prisma@7+ from the registry and
-# break schema validation (P1012). Always invoke the workspace-installed CLI from package-lock.
-PRISMA_BIN="${ROOT}/node_modules/.bin/prisma"
-if [[ ! -x "$PRISMA_BIN" ]]; then
-  echo "error: ${PRISMA_BIN} missing or not executable — run from repo root: NODE_ENV=development npm ci" >&2
+# break schema validation (P1012). Invoke the lockfile-pinned package entrypoint with node (avoids
+# .bin shims that are sometimes not marked executable on Linux after npm ci).
+PRISMA_CLI="${ROOT}/node_modules/prisma/build/index.js"
+if [[ ! -f "$PRISMA_CLI" ]]; then
+  echo "error: ${PRISMA_CLI} missing — run from repo root: rm -rf node_modules && NODE_ENV=development npm ci" >&2
   exit 1
 fi
-exec "${PRISMA_BIN}" generate --schema="${ROOT}/prisma/schema.prisma"
+exec node "${PRISMA_CLI}" generate --schema="${ROOT}/prisma/schema.prisma"
