@@ -50,27 +50,29 @@ Archive `/tmp/stage4-gate-result.txt` with change-management records. Resolve an
 
 ---
 
-## Gate results (declared alignment)
+## Gate results (final VPS run)
 
-These rows match the checks implemented in `stage4-gate.sh` and the **2026-05-02** production validation session: `post-deploy-verify` PASS with **HEALTHY** telemetry, backup artifact present under `backups/`, all five Kanak PM2 apps online, `logs/last-verify.json` present. Re-run the gate script on the VPS after every major deploy to refresh the archived transcript.
+Final declaration run captured on VPS at **2026-05-02T14:20:57Z** using `scripts/prod/run-stage4-gate-production.sh` with transcript at `/tmp/stage4-gate-result.txt`.
 
 | Gate | Check | Result |
 |------|-------|--------|
-| S3-1 | Telemetry log | PASS |
-| S3-2 | Last verify snapshot | PASS |
-| S3-3 | PM2 core services | PASS |
-| S3-4 | Dependency audit (high/critical) | PASS |
+| S3-1 | Telemetry log | PASS — 3 deploy entries |
+| S3-2 | Last verify snapshot | PASS — `PASS` at `2026-05-02T14:18:22Z` |
+| S3-3 | PM2 core services | PASS — all core apps online |
+| S3-4 | Dependency audit (high/critical) | PASS — 0 in all apps |
 | S3-5 | CI strict policy | PASS |
-| S3-6 | Operator adoption | WARN — non-blocking if zero actions in 14 days |
-| S3-7 | Backup freshness | PASS |
+| S3-6 | Operator adoption | PASS — 1 operator action |
+| S3-7 | Backup freshness | WARN — no recent backup in last 24h (non-blocking) |
 | S4-1 | Release pipeline | PASS |
 | S4-2 | Outbox worker | PASS |
-| S4-3 | Outbox DB health | PASS or WARN — depends on queue snapshot |
-| S4-4 | API health endpoint | PASS |
+| S4-3 | Outbox DB health | PASS — no stuck backlog / no undismissed dead letters |
+| S4-4 | API health endpoint | PASS — `http://127.0.0.1:4100/api/v1/health` |
 | S4-5 | Release targets `main` | PASS |
-| S4-6 | Hardcoded path audit | WARN or PASS — grep may flag benign hits |
+| S4-6 | Hardcoded path audit | WARN — 2 grep hits in API src (non-blocking in gate run) |
 
-**Overall:** PASS (exit code 0 when no FAIL items).
+**Overall:** PASS (`exit code 0`).
+
+Follow-up after declaration: S4-6 warning cleanup was committed on `main` in `c9cb69a` (removed `/opt` and localhost defaults in API runtime paths).
 
 ---
 

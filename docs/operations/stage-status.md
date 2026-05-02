@@ -44,9 +44,9 @@
 | Clean deploy from main | PASS | 2026-05-01 |
 | post-deploy-verify | PASS (HEALTHY telemetry) | 2026-05-02 |
 | stage3-gate (baseline) | PASS (warnings allowed) | 2026-05-01 |
-| stage4-gate | PASS — run on VPS to archive transcript | 2026-05-02 |
-| Backup cron + daily artifact | PASS — `backup.sh` + accepted snapshots | 2026-05-02 |
-| Operator action logged | WARN acceptable | 2026-05-02 |
+| stage4-gate | PASS (`exit 0`) — transcript at `/tmp/stage4-gate-result.txt` on VPS | 2026-05-02 |
+| Backup cron + daily artifact | WARN in final gate run (no backup in last 24h); non-blocking | 2026-05-02 |
+| Operator action logged | PASS — 1 action in final gate run | 2026-05-02 |
 | Repo = VPS (no drift) | CONFIRMED — includes `a5919ec`; pull latest `main` for declaration docs | 2026-05-02 |
 | Outbox migration + worker live | PASS | 2026-05-02 |
 | Port environment locked (4100) | PASS | 2026-05-02 |
