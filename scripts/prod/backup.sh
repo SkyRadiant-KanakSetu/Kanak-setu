@@ -6,6 +6,15 @@
 set -euo pipefail
 
 APP_DIR="${APP_DIR:-/opt/kanak-setu}"
+ENV_FILE="${APP_DIR}/infra/prod/.env.production"
+# Cron often runs without a shell profile — load production DB URL when unset.
+if [[ -z "${DATABASE_URL:-}" && -f "${ENV_FILE}" ]]; then
+  set -a
+  # shellcheck disable=SC1090
+  source "${ENV_FILE}"
+  set +a
+fi
+
 BACKUP_DIR="$APP_DIR/backups"
 LOG_FILE="$APP_DIR/logs/backup.log"
 TIMESTAMP=$(date +%Y-%m-%d-%H%M)

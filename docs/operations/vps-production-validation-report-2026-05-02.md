@@ -85,6 +85,22 @@ APP_DIR=/opt/kanak-setu INTERNAL_API_BASE=http://127.0.0.1:4100/api/v1 \
 
 If verify shows backup **WARN**, create one of the above and re-run verify.
 
+### Daily backup cron (recommended)
+
+`backup.sh` loads `DATABASE_URL` from `infra/prod/.env.production` when the variable is unset, so cron only needs `APP_DIR`:
+
+```bash
+sudo crontab -e
+```
+
+Add (example: 03:15 UTC daily; adjust timezone as needed):
+
+```cron
+15 3 * * * APP_DIR=/opt/kanak-setu /bin/bash /opt/kanak-setu/scripts/prod/backup.sh >> /opt/kanak-setu/logs/backup-cron.log 2>&1
+```
+
+Ensure `pg_dump` is on `PATH` for the cron user (often install `postgresql-client` or use full path to `pg_dump` in `backup.sh` if needed).
+
 ---
 
 ## PM2 notes
