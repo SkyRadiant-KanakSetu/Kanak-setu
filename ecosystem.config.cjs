@@ -39,8 +39,10 @@ module.exports = {
     {
       name: 'kanak-api',
       cwd: APP_DIR,
-      script: 'npm',
-      args: 'run start -w @kanak-setu/api',
+      // Run built server directly (not `npm run start -w`) so PM2 PORT reaches the Node process
+      // that calls listen(), PM2 pid matches ss, and no stale npm child can hold another port.
+      script: 'node',
+      args: 'apps/api/dist/server.js',
       env: appEnv({
         NODE_ENV: 'production',
         PORT: apiListenPort,

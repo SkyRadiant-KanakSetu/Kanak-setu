@@ -19,11 +19,16 @@ const candidates = isProd
       path.join(root, 'infra', '.env.example'),
     ];
 
+// Preserve bind port from the parent process (e.g. PM2) if set before dotenv runs.
+const incomingPort = process.env.PORT;
 for (const p of candidates) {
   if (fs.existsSync(p)) {
     dotenv.config({ path: p, override: false });
     break;
   }
+}
+if (incomingPort !== undefined && incomingPort !== '') {
+  process.env.PORT = incomingPort;
 }
 
 export const LOADED_ENV_PATH = candidates.find((p) => fs.existsSync(p)) ?? null;

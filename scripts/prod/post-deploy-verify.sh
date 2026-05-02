@@ -161,7 +161,8 @@ if [[ "${CURL_EC}" -eq 0 ]] && [[ -s "${VERIFY_HEALTH_TMP}" ]]; then
 else
   rm -f "${VERIFY_HEALTH_TMP}"
   echo "[verify] FAIL: local health check (${LOCAL_API_BASE}/health) curl_exit=${CURL_EC}"
-  echo "[verify] hint: kanak-api PORT from PM2 env.PORT vs infra/prod/.env.production PORT"
+  echo "[verify] hint: PORT in infra/prod/.env.production vs PM2; kanak-api now runs \`node apps/api/dist/server.js\` (pull latest ecosystem.config.cjs)."
+  echo "[verify] hint: if nothing listens on PORT but another port has a stale node, run: pm2 delete kanak-api && pm2 start ecosystem.config.cjs --only kanak-api"
   ss -tlnp 2>/dev/null | head -25 || netstat -tlnp 2>/dev/null | head -25 || true
   exit 1
 fi
