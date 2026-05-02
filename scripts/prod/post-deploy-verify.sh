@@ -134,9 +134,30 @@ CURL_EC=$?
 set -e
 LOCAL_HEALTH_MS="$(printf '%s' "${CURL_TIME}" | awk '{print int($1*1000)}')"
 if [[ "${CURL_EC}" -eq 0 ]] && [[ -s "${VERIFY_HEALTH_TMP}" ]]; then
-  head -c 200 "${VERIFY_HEALTH_TMP}"
-  echo ""
+  HEALTH_BODY="$(cat "${VERIFY_HEALTH_TMP}")"
   rm -f "${VERIFY_HEALTH_TMP}"
+  KANAK_HEALTH_OK=0
+  if command -v jq >/dev/null 2>&1; then
+    if echo "${HEALTH_BODY}" | jq -e '.success == true and .data.status == "ok"' >/dev/null 2>&1; then
+      KANAK_HEALTH_OK=1
+    fi
+  else
+    if echo "${HEALTH_BODY}" | grep -qE '"success"[[:space:]]*:[[:space:]]*true' \
+      && echo "${HEALTH_BODY}" | grep -qE '"status"[[:space:]]*:[[:space:]]*"ok"'; then
+      KANAK_HEALTH_OK=1
+    fi
+  fi
+  if [[ "${KANAK_HEALTH_OK}" -ne 1 ]]; then
+    echo "[verify] FAIL: local /health is not Kanak API (want success:true and data.status ok)"
+    echo "${HEALTH_BODY}" | head -c 400
+    echo ""
+    echo "[verify] hint: wrong process on loopback port (curl another app), or kanak-api not running."
+    echo "[verify] hint: align PORT in infra/prod/.env.production, ecosystem PM2 env, and Caddy (infra/prod/Caddyfile)."
+    ss -tlnp 2>/dev/null | head -25 || true
+    exit 1
+  fi
+  echo "${HEALTH_BODY}" | head -c 200
+  echo ""
 else
   rm -f "${VERIFY_HEALTH_TMP}"
   echo "[verify] FAIL: local health check (${LOCAL_API_BASE}/health) curl_exit=${CURL_EC}"
@@ -159,10 +180,36 @@ else
 fi
 
 echo "[verify] API health (public)"
-if curl -fsS "${PUBLIC_API_BASE}/health" | head -c 200; then
+PUB_HEALTH_TMP="$(mktemp)"
+set +e
+PUB_CODE="$(curl -sS -o "${PUB_HEALTH_TMP}" -w "%{http_code}" --connect-timeout 10 "${PUBLIC_API_BASE}/health" 2>/dev/null)"
+set -e
+if [[ "${PUB_CODE}" == "200" ]] && [[ -s "${PUB_HEALTH_TMP}" ]]; then
+  PUB_OK=0
+  if command -v jq >/dev/null 2>&1; then
+    if jq -e '.success == true and .data.status == "ok"' "${PUB_HEALTH_TMP}" >/dev/null 2>&1; then
+      PUB_OK=1
+    fi
+  else
+    if grep -qE '"success"[[:space:]]*:[[:space:]]*true' "${PUB_HEALTH_TMP}" \
+      && grep -qE '"status"[[:space:]]*:[[:space:]]*"ok"' "${PUB_HEALTH_TMP}"; then
+      PUB_OK=1
+    fi
+  fi
+  if [[ "${PUB_OK}" -ne 1 ]]; then
+    echo "[verify] FAIL: public /health JSON is not Kanak ok"
+    head -c 400 "${PUB_HEALTH_TMP}"
+    echo ""
+    rm -f "${PUB_HEALTH_TMP}"
+    exit 1
+  fi
+  head -c 200 "${PUB_HEALTH_TMP}"
   echo ""
+  rm -f "${PUB_HEALTH_TMP}"
 else
-  echo "[verify] FAIL: public health check"
+  rm -f "${PUB_HEALTH_TMP}"
+  echo "[verify] FAIL: public health check (HTTP ${PUB_CODE:-?})"
+  echo "[verify] hint: 502/503 often means Caddy upstream port ≠ kanak-api listen port. Set KANAK_API_PORT for Caddy (see infra/prod/Caddyfile) or align PORT with reverse_proxy."
   exit 1
 fi
 

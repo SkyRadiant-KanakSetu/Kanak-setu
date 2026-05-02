@@ -30,12 +30,23 @@ _kanak_ss_node_listen_ports() {
   done < <(ss -tlnp 2>/dev/null | grep -F '"node",pid=' || true)
 }
 
-# True if GET ${base}/health returns HTTP 200 (PM2/npm mismatch should not rely on curl --fail alone).
-_kanak_health_http_ok() {
+# True if GET ${base}/health is Kanak API: 200 + { success: true, data: { status: "ok" } }.
+# Rejects other Node apps on the same host (e.g. 401 JSON with a non-Kanak error body).
+_kanak_api_health_ok() {
   local base="$1"
-  local code
-  code="$(curl -sS -o /dev/null -w "%{http_code}" --connect-timeout 2 "${base}/health" 2>/dev/null || echo "000")"
-  [[ "${code}" == "200" ]]
+  local tmp code body
+  tmp="$(mktemp)"
+  code="$(curl -sS -o "${tmp}" -w "%{http_code}" --connect-timeout 2 "${base}/health" 2>/dev/null || echo "000")"
+  body="$(cat "${tmp}" 2>/dev/null || true)"
+  rm -f "${tmp}"
+  [[ "${code}" == "200" ]] || return 1
+  if command -v jq >/dev/null 2>&1; then
+    echo "${body}" | jq -e '.success == true and .data.status == "ok"' >/dev/null 2>&1
+    return $?
+  fi
+  echo "${body}" | grep -qE '"success"[[:space:]]*:[[:space:]]*true' || return 1
+  echo "${body}" | grep -qE '"status"[[:space:]]*:[[:space:]]*"ok"' || return 1
+  return 0
 }
 
 kanak_discover_local_api_base() {
@@ -65,12 +76,12 @@ kanak_discover_local_api_base() {
   # Common drift / alternate configs (API may listen here while PM2 env still says 4000)
   candidates+=(4000 4100 8080 3000)
 
-  # Prefer actual Node listen ports from ss (PM2 pid is often `npm`, not the listening `node` child).
+  # Extra listen ports from ss (append — do not prefer over PM2/PORT; avoids wrong app on 4100).
   if command -v ss >/dev/null 2>&1; then
     local np
     while IFS= read -r np || [[ -n "${np}" ]]; do
       [[ -z "${np}" ]] && continue
-      candidates=("${np}" "${candidates[@]}")
+      candidates+=("${np}")
     done < <(_kanak_ss_node_listen_ports | sort -u)
   fi
 
@@ -94,7 +105,7 @@ kanak_discover_local_api_base() {
     seen+="${port}|"
     for host in 127.0.0.1 localhost; do
       url="http://${host}:${port}/api/v1"
-      if _kanak_health_http_ok "${url}"; then
+      if _kanak_api_health_ok "${url}"; then
         printf '%s' "${url}"
         return 0
       fi
@@ -112,7 +123,7 @@ kanak_discover_local_api_base() {
       if [[ -n "${port}" ]]; then
         for host in 127.0.0.1 localhost; do
           url="http://${host}:${port}/api/v1"
-          if _kanak_health_http_ok "${url}"; then
+          if _kanak_api_health_ok "${url}"; then
             printf '%s' "${url}"
             return 0
           fi
@@ -121,13 +132,7 @@ kanak_discover_local_api_base() {
     fi
   fi
 
-  local fb="${PORT:-4000}"
-  if command -v ss >/dev/null 2>&1; then
-    local ss1
-    ss1="$(_kanak_ss_node_listen_ports | head -1)"
-    [[ -n "${ss1}" ]] && fb="${ss1}"
-  fi
-  printf '%s' "http://127.0.0.1:${fb}/api/v1"
+  printf '%s' "http://127.0.0.1:${PORT:-4000}/api/v1"
   # Always return 0 so `LOCAL_API_BASE="$(kanak_discover …)"` does not abort `set -e` callers;
   # verification curls below decide success.
   return 0

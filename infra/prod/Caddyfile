@@ -19,5 +19,6 @@ admin.kanaksetu.com {
 
 api.kanaksetu.com {
   encode gzip
-  reverse_proxy 127.0.0.1:4000
+  # Must match kanak-api listen port (PORT / PM2). On VPS: export KANAK_API_PORT=4100 for systemd/caddy if not 4000.
+  reverse_proxy 127.0.0.1:{$KANAK_API_PORT:4000}
 }
