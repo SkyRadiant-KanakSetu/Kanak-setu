@@ -38,7 +38,10 @@ else
   PASS=false
   ISSUES+=("Stage 4 baseline failed — resolve Stage 4 issues first")
   echo "    FAIL — Stage 4 baseline failed"
-  sed -n '1,40p' "${BASELINE_OUT}" | sed 's/^/      /'
+  echo "    ---- stage4 summary ----"
+  grep -E '^Result:|^Resolve before declaring Stage 4:|^  ✗' "${BASELINE_OUT}" | sed 's/^/      /' || true
+  echo "    ---- stage4 tail ----"
+  tail -n 60 "${BASELINE_OUT}" | sed 's/^/      /'
 fi
 rm -f "${BASELINE_OUT}"
 
