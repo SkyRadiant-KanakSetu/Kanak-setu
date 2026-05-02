@@ -20,7 +20,7 @@
     "format": "prettier --write .",
     "format:check": "prettier --check .",
     "typecheck": "npm run build -w @kanak-setu/validators && npm run build -w @kanak-setu/config && npm run build -w @kanak-setu/sdk && npm run build -w @kanak-setu/blockchain && npm run build -w @kanak-setu/ui",
-    "db:generate": "prisma generate --schema=prisma/schema.prisma",
+    "db:generate": "bash scripts/prisma-generate.sh",
     "db:migrate": "prisma migrate dev --schema=prisma/schema.prisma",
     "db:push": "prisma db push --schema=prisma/schema.prisma",
     "db:seed": "tsx prisma/seed.ts",
@@ -49,15 +49,12 @@
     "dotenv": "^16.4.0",
     "eslint": "^9.15.0",
     "prettier": "^3.2.0",
-    "prisma": "5.12.0",
+    "prisma": "5.22.0",
     "tsx": "^4.19.0",
     "typescript": "^5.4.0",
     "typescript-eslint": "^8.15.0"
   },
   "prisma": {
     "seed": "tsx prisma/seed.ts"
-  },
-  "dependencies": {
-    "@prisma/client": "^5.12.0"
   }
 }
