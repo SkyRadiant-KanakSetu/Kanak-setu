@@ -5,13 +5,16 @@
 
 kanak_prisma() {
   local root="${KANAK_REPO_ROOT:-${APP_DIR:-.}}"
-  if [[ -x "${root}/node_modules/.bin/prisma" ]]; then
-    "${root}/node_modules/.bin/prisma" "$@"
+  local cli="${root}/node_modules/prisma/build/index.js"
+  if [[ -f "${cli}" ]]; then
+    (cd "${root}" && node "${cli}" "$@")
     return $?
   fi
-  if [[ -x "${root}/apps/api/node_modules/.bin/prisma" ]]; then
-    "${root}/apps/api/node_modules/.bin/prisma" "$@"
+  cli="${root}/apps/api/node_modules/prisma/build/index.js"
+  if [[ -f "${cli}" ]]; then
+    (cd "${root}" && node "${cli}" "$@")
     return $?
   fi
-  (cd "${root}" && npm exec -w @kanak-setu/api -- prisma "$@")
+  echo "kanak_prisma: prisma CLI not found under ${root}/node_modules — run npm ci" >&2
+  return 127
 }
