@@ -203,6 +203,12 @@ if [[ "${PUB_CODE}" == "200" ]] && [[ -s "${PUB_HEALTH_TMP}" ]]; then
     echo "[verify] FAIL: public /health JSON is not Kanak ok"
     head -c 400 "${PUB_HEALTH_TMP}"
     echo ""
+    if head -c 200 "${PUB_HEALTH_TMP}" | grep -qiE '<!doctype[[:space:]]*html|<[[:space:]]*html[[:space:]]'; then
+      echo "[verify] hint: public host returned HTML (often Caddy upstream defaulted to :4000 where another app listens)."
+      echo "[verify] hint: sudo APP_DIR=${APP_DIR} bash scripts/prod/sync-caddy-kanak-api-port.sh   # sets systemd KANAK_API_PORT + restarts caddy"
+      echo "[verify] hint: sudo cp ${APP_DIR}/infra/prod/Caddyfile /etc/caddy/Caddyfile && sudo systemctl restart caddy"
+      echo "[verify] hint: systemctl show caddy -p Environment | grep KANAK"
+    fi
     rm -f "${PUB_HEALTH_TMP}"
     exit 1
   fi
@@ -255,7 +261,10 @@ fi
 # ── Backup freshness ──────────────────────────────────────────────────────────
 echo "[backup] Checking backup freshness..."
 BACKUP_DIR="${APP_DIR}/backups"
-LATEST_BACKUP="$(find "${BACKUP_DIR}" -name "*.sql*" -mtime -1 2>/dev/null | sort -r | head -1 || true)"
+# DB dumps from scripts/prod/backup.sh (*.sql.gz); optional config snapshot tarballs (kanak-setu-*.tgz).
+LATEST_BACKUP="$(
+  find "${BACKUP_DIR}" \( -name "*.sql*" -o -name "kanak-setu-*.tgz" \) -mtime -1 2>/dev/null | sort -r | head -1 || true
+)"
 if [[ -z "${LATEST_BACKUP}" ]]; then
   BACKUP_STATUS="WARN"
   BACKUP_MSG="No backup found in last 24 hours"

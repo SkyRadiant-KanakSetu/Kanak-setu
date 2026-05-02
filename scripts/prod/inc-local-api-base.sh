@@ -110,10 +110,11 @@ kanak_discover_local_api_base() {
     listen_port="$(_kanak_listen_port_for_pid "${apipid}")"
   fi
 
-  # Probe order: actual listen port, then infra PORT=, then PM2/shell/ss list.
+  # Probe order: infra PORT= first (desired state), then kanak-api PID listen (actual), then PM2/shell/ss.
+  # Putting file_port before listen_port avoids a stale process on 4000 masking a new PORT= in .env.production.
   local prio=()
-  [[ -n "${listen_port}" ]] && prio+=("${listen_port}")
   [[ -n "${file_port}" ]] && prio+=("${file_port}")
+  [[ -n "${listen_port}" ]] && prio+=("${listen_port}")
   candidates=("${prio[@]}" "${candidates[@]}")
 
   local seen='|'

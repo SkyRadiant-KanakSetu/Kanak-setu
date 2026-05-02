@@ -45,4 +45,17 @@ EOF
 
 systemctl daemon-reload
 echo "[sync] ${CONF} → KANAK_API_PORT=${PORT}"
-echo "[sync] run: systemctl restart caddy   (or reload if your unit supports it)"
+
+if systemctl is-active --quiet caddy.service 2>/dev/null; then
+  systemctl restart caddy.service
+  echo "[sync] restarted caddy.service"
+else
+  echo "[sync] WARN: caddy.service not active — start it after fixing config"
+fi
+
+if systemctl show caddy.service -p Environment 2>/dev/null | grep -q "KANAK_API_PORT=${PORT}"; then
+  echo "[sync] OK: caddy Environment includes KANAK_API_PORT=${PORT}"
+else
+  echo "[sync] WARN: could not confirm KANAK_API_PORT in unit (check: systemctl show caddy -p Environment)"
+fi
+echo "[sync] if api.kanaksetu.com still serves the wrong app: sudo cp ${APP_DIR}/infra/prod/Caddyfile /etc/caddy/Caddyfile && sudo systemctl restart caddy"

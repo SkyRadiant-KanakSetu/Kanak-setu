@@ -139,7 +139,9 @@ fi
 
 # ── Gate 7: Backup freshness ─────────────────────────────────────────────────
 echo "[7] Backup freshness..."
-LATEST_BACKUP=$(find "$BACKUP_DIR" -name "*.sql*" -mtime -1 2>/dev/null | head -1)
+LATEST_BACKUP="$(
+  find "$BACKUP_DIR" \( -name "*.sql*" -o -name "kanak-setu-*.tgz" \) -mtime -1 2>/dev/null | sort -r | head -1 || true
+)"
 if [ -z "$LATEST_BACKUP" ]; then
   WARNINGS+=("No backup found in last 24 hours — verify backup cron is running")
   echo "    WARN — No backup found in $BACKUP_DIR in the last 24 hours"

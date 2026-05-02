@@ -21,9 +21,6 @@ function withTimeout<T>(p: Promise<T>, ms: number, label: string): Promise<T> {
 }
 
 async function main() {
-  await prisma.$connect();
-  console.log('✅ Database connected');
-
   let rateLimitStore: Store | undefined;
   const redisUrl = getEnv().REDIS_URL;
   if (redisUrl) {
@@ -46,7 +43,8 @@ async function main() {
   startCronJobs();
   console.log('✅ Cron jobs started');
 
-  // Bind HTTP before anchor/RPC checks so /health works and operators are not blind if RPC or anchor validation is slow.
+  // Bind HTTP before DB + anchor work so a slow/hung Prisma connect never leaves the process with no listener
+  // (operators can still hit /api/v1/health; DB routes may 500 until connect completes).
   await new Promise<void>((resolve, reject) => {
     const server = app.listen(PORT, () => {
       console.log(`🚀 Kanak Setu API listening on port ${PORT}`);
@@ -54,6 +52,9 @@ async function main() {
     });
     server.on('error', reject);
   });
+
+  await withTimeout(prisma.$connect(), 60000, 'Database connect');
+  console.log('✅ Database connected');
 
   try {
     await withTimeout(assertAnchorRuntimeReady(), 45000, 'Anchor runtime checks');

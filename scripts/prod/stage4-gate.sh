@@ -174,7 +174,9 @@ else
 fi
 
 echo "[S3-7] Backup freshness (non-blocking)..."
-LATEST="$(find "${BACKUP_DIR}" -name "*.sql*" -mtime -1 2>/dev/null | head -1 || true)"
+LATEST="$(
+  find "${BACKUP_DIR}" \( -name "*.sql*" -o -name "kanak-setu-*.tgz" \) -mtime -1 2>/dev/null | sort -r | head -1 || true
+)"
 if [[ -z "${LATEST}" ]]; then
   WARNINGS+=("No backup in last 24h — verify cron")
   echo "    WARN — no recent backup under ${BACKUP_DIR}"
