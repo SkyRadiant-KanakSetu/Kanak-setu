@@ -2,10 +2,10 @@
 
 | Field          | Value |
 |----------------|-------|
-| Current stage  | 4 (declared) |
-| Declared on    | 2026-05-02 |
-| Gate script    | scripts/prod/stage4-gate.sh |
-| Gate result    | PASS — see `stage4-closure-report-2026-05-02.md` |
+| Current stage  | 5 (execution started — observability baseline PASS) |
+| Declared on    | 2026-05-02 (Stage 4) / 2026-05-02 (Stage 5 kickoff) |
+| Gate script    | scripts/prod/stage5-gate.sh |
+| Gate result    | PASS (`exit 0`) with non-blocking warnings (Sentry/Logtail pending) |
 | Declared by    | Engineering |
 
 ## Stage 3 Definition of Done (Completed)
@@ -53,4 +53,4 @@
 
 ## Next Stage
 
-Stage 5 execution starts with observability-first rollout (Sentry, Logtail, uptime) before growth features. See `docs/operations/stage4-closure-report-2026-05-02.md`, `docs/operations/vps-production-validation-report-2026-05-02.md`, `docs/operations/vps-process-registry.md`, and `docs/operations/logging-policy.md`.
+Stage 5 is in execution with observability-first rollout (Sentry, Logtail, uptime) before growth features. See `docs/operations/stage5-baseline-report-2026-05-02.md`, `docs/operations/stage4-closure-report-2026-05-02.md`, `docs/operations/vps-production-validation-report-2026-05-02.md`, `docs/operations/vps-process-registry.md`, and `docs/operations/logging-policy.md`.
