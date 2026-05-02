@@ -19,6 +19,8 @@ function readProdFileEnv() {
 }
 
 const fileEnv = readProdFileEnv();
+/** Single source for API listen port: infra/prod/.env.production `PORT` (default 4000). Caddy must match (KANAK_API_PORT). */
+const apiListenPort = String(fileEnv.PORT ?? '').trim() || '4000';
 
 function nextRuntimeEnv() {
   return {
@@ -41,7 +43,7 @@ module.exports = {
       args: 'run start -w @kanak-setu/api',
       env: appEnv({
         NODE_ENV: 'production',
-        PORT: '4000',
+        PORT: apiListenPort,
       }),
     },
     {
