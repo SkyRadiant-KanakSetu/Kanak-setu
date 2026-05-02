@@ -111,6 +111,9 @@ APP_DIR="${APP_DIR}" BRANCH="${BRANCH}" bash scripts/prod/deploy-vps.sh
 
 echo "[bootstrap] Caddy TLS + reverse proxy"
 "${SUDO[@]}" cp infra/prod/Caddyfile /etc/caddy/Caddyfile
+if [[ -f infra/prod/.env.production ]]; then
+  "${SUDO[@]}" env APP_DIR="${APP_DIR}" bash "${APP_DIR}/scripts/prod/sync-caddy-kanak-api-port.sh" || true
+fi
 "${SUDO[@]}" systemctl restart caddy
 "${SUDO[@]}" systemctl enable caddy
 

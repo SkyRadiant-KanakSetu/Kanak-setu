@@ -209,7 +209,7 @@ if [[ "${PUB_CODE}" == "200" ]] && [[ -s "${PUB_HEALTH_TMP}" ]]; then
 else
   rm -f "${PUB_HEALTH_TMP}"
   echo "[verify] FAIL: public health check (HTTP ${PUB_CODE:-?})"
-  echo "[verify] hint: 502/503 often means Caddy upstream port ≠ kanak-api listen port. Set KANAK_API_PORT for Caddy (see infra/prod/Caddyfile) or align PORT with reverse_proxy."
+  echo "[verify] hint: 502/503 — align Caddy with PORT in infra/prod/.env.production: sudo APP_DIR=${APP_DIR} bash scripts/prod/sync-caddy-kanak-api-port.sh && sudo systemctl restart caddy"
   exit 1
 fi
 

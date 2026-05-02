@@ -76,6 +76,9 @@ fi
 
 echo "[bootstrap] install Caddy config template"
 sudo cp infra/prod/Caddyfile /etc/caddy/Caddyfile
+if [[ -f infra/prod/.env.production ]]; then
+  sudo env APP_DIR="${APP_DIR}" bash scripts/prod/sync-caddy-kanak-api-port.sh || true
+fi
 sudo systemctl enable caddy
 sudo systemctl restart caddy
 
