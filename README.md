@@ -12,7 +12,7 @@
        └──────────────────┼────────────────────┘
                           ▼
               ┌───────────────────────┐
-              │   API Server :4000    │
+              │   API Server :4100   │
               │  Express + Prisma     │
               └───────┬───────────────┘
                       │
@@ -90,8 +90,8 @@ npm run dev:mobile
 Set mobile API base before starting Expo (device cannot use your laptop localhost):
 
 ```bash
-export EXPO_PUBLIC_API_BASE_URL=http://<your-lan-ip>:4000/api/v1
-# Example: http://192.168.1.20:4000/api/v1
+export EXPO_PUBLIC_API_BASE_URL=http://<your-lan-ip>:4100/api/v1
+# Example: http://192.168.1.20:4100/api/v1
 ```
 
 ### 9. Publish Mobile App (Live)

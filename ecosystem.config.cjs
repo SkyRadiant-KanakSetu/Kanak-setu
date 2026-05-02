@@ -40,8 +40,8 @@ function readProdFileEnv() {
 }
 
 const fileEnv = readProdFileEnv();
-/** Single source for API listen port: infra/prod/.env.production `PORT` (default 4000). Caddy must match (KANAK_API_PORT). */
-const apiListenPort = String(fileEnv.PORT ?? '').trim() || '4000';
+/** Single source for API listen port: infra/prod/.env.production `PORT` (default 4100). Caddy must match (KANAK_API_PORT). */
+const apiListenPort = String(fileEnv.PORT ?? '').trim() || '4100';
 
 function nextRuntimeEnv() {
   return {

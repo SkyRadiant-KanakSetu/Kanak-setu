@@ -78,7 +78,7 @@ else
 
   cat > "${ENV_FILE}" << EOF
 NODE_ENV=production
-PORT=4000
+PORT=4100
 DATABASE_URL=postgresql://kanak:${DB_PASSWORD}@localhost:5432/kanak_setu
 REDIS_URL=redis://localhost:6379
 API_BASE_URL=https://api.kanaksetu.com

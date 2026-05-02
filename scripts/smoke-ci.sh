@@ -7,7 +7,7 @@ ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 source "${ROOT}/scripts/prod/inc-prisma-cli.sh"
 export KANAK_REPO_ROOT="${ROOT}"
 
-API_BASE="${API_BASE:-http://localhost:4000/api/v1}"
+API_BASE="${API_BASE:-http://127.0.0.1:4100/api/v1}"
 DATABASE_URL="${DATABASE_URL:-postgresql://kanak:kanak_dev_pwd@localhost:5432/kanak_setu}"
 CI_API_LOG="${CI_API_LOG:-api-ci.log}"
 

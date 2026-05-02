@@ -13,7 +13,7 @@ if [[ "$(id -u)" -ne 0 ]]; then
   exit 1
 fi
 
-PORT="4000"
+PORT="4100"
 if [[ -f "${ENV_FILE}" ]]; then
   line="$(grep -E '^[[:space:]]*PORT=' "${ENV_FILE}" | head -1 || true)"
   if [[ -n "${line}" ]]; then
@@ -23,7 +23,7 @@ if [[ -f "${ENV_FILE}" ]]; then
     PORT="$(echo "${PORT}" | tr -d '[:space:]')"
   fi
 fi
-[[ -z "${PORT}" ]] && PORT="4000"
+[[ -z "${PORT}" ]] && PORT="4100"
 if ! [[ "${PORT}" =~ ^[0-9]+$ ]] || (( PORT < 1 || PORT > 65535 )); then
   echo "[sync] ERROR: invalid PORT from env file: ${PORT}"
   exit 1

@@ -108,7 +108,8 @@ Expect dirty or generated paths: `packages/*/tsconfig.tsbuildinfo`, `logs/`, `ba
 ## Reference links (repo)
 
 - Stage status: `docs/operations/stage-status.md`  
-- Stage 4 closure template: `docs/operations/stage4-closure-report-2026-05-02.md`  
+- Stage 4 closure report: `docs/operations/stage4-closure-report-2026-05-02.md`  
+- VPS PM2 registry: `docs/operations/vps-process-registry.md`  
 - Post-deploy verify: `scripts/prod/post-deploy-verify.sh`  
 - DB backup cron script: `scripts/prod/backup.sh`
 

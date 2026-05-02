@@ -111,4 +111,4 @@ APP_DIR=/opt/kanak-setu BRANCH=main bash scripts/prod/deploy-vps.sh
   - `pm2 logs kanak-institution-web`
   - `pm2 logs kanak-admin-web`
 - Keep firewall open for 80/443 only.
-- Keep app ports (`3000/3001/3002/4000`) private on localhost.
+- Keep app ports (`3000/3001/3002` for Next.js; Kanak API `PORT`, default `4100`) private on localhost.

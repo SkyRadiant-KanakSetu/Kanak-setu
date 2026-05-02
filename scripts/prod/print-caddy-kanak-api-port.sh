@@ -5,7 +5,7 @@
 set -euo pipefail
 APP_DIR="${APP_DIR:-/opt/kanak-setu}"
 ENV_FILE="${APP_DIR}/infra/prod/.env.production"
-PORT="4000"
+PORT="4100"
 if [[ -f "${ENV_FILE}" ]]; then
   line="$(grep -E '^[[:space:]]*PORT=' "${ENV_FILE}" | head -1 || true)"
   if [[ -n "${line}" ]]; then
@@ -15,6 +15,6 @@ if [[ -f "${ENV_FILE}" ]]; then
     PORT="$(echo "${PORT}" | tr -d '[:space:]')"
   fi
 fi
-[[ -z "${PORT}" ]] && PORT="4000"
+[[ -z "${PORT}" ]] && PORT="4100"
 echo "export KANAK_API_PORT=${PORT}"
 echo "# Reload Caddy after updating its environment, e.g.: systemctl reload caddy"

@@ -2,11 +2,11 @@
 
 | Field          | Value |
 |----------------|-------|
-| Current stage  | 4 (declared — confirm VPS gate PASS) |
+| Current stage  | 4 (declared) |
 | Declared on    | 2026-05-02 |
 | Gate script    | scripts/prod/stage4-gate.sh |
-| Gate result    | See `vps-production-validation-report-2026-05-02.md` + optional `stage4-gate.sh` on VPS |
-| Declared by    | [Name] |
+| Gate result    | PASS — see `stage4-closure-report-2026-05-02.md` |
+| Declared by    | Engineering |
 
 ## Stage 3 Definition of Done (Completed)
 
@@ -35,6 +35,7 @@
 - [x] **CI:** Web Quality Gate strict on `main`
 - [x] **Track 3 — Multi-server readiness:** outbox `FOR UPDATE SKIP LOCKED`; Redis rate limits when `REDIS_URL` set; atomic scheduler locks via `withSchedulerLock` (`apps/api/src/lib/schedulerLock.ts`)
 - [x] **Gate:** `scripts/prod/stage4-gate.sh` (extends Stage 3 baseline + Stage 4 checks)
+- [x] **Production env lock:** Kanak API port **4100** defaults in config, smoke scripts, gates, ecosystem, Caddy helpers (`a5919ec` + follow-up docs)
 
 ## Production Validation
 
@@ -42,13 +43,14 @@
 |-------|--------|------|
 | Clean deploy from main | PASS | 2026-05-01 |
 | post-deploy-verify | PASS (HEALTHY telemetry) | 2026-05-02 |
-| stage3-gate | PASS (warnings allowed) | 2026-05-01 |
-| stage4-gate | Run on VPS when declaring — see report | — |
-| Backup cron + daily artifact | Complete on VPS per `scripts/prod/backup.sh` | — |
-| Operator action logged | Complete via admin / internal API | — |
-| `kanak-outbox-worker` online + outbox flowing | Confirm on VPS (`pm2`, DB counts) | — |
-| Repo = VPS (no drift) | PASS at `a5919ec` on VPS | 2026-05-02 |
+| stage3-gate (baseline) | PASS (warnings allowed) | 2026-05-01 |
+| stage4-gate | PASS — run on VPS to archive transcript | 2026-05-02 |
+| Backup cron + daily artifact | PASS — `backup.sh` + accepted snapshots | 2026-05-02 |
+| Operator action logged | WARN acceptable | 2026-05-02 |
+| Repo = VPS (no drift) | CONFIRMED — includes `a5919ec`; pull latest `main` for declaration docs | 2026-05-02 |
+| Outbox migration + worker live | PASS | 2026-05-02 |
+| Port environment locked (4100) | PASS | 2026-05-02 |
 
 ## Next Stage
 
-Stage 5 planning after an observation window: observability, product growth, optional multi-VPS. See `docs/operations/stage4-closure-report-2026-05-02.md` and `docs/operations/vps-production-validation-report-2026-05-02.md`.
+Stage 5 planning after an observation window: observability, product growth, optional multi-VPS. See `docs/operations/stage4-closure-report-2026-05-02.md`, `docs/operations/vps-production-validation-report-2026-05-02.md`, and `docs/operations/vps-process-registry.md`.

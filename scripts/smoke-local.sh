@@ -2,7 +2,7 @@
 
 set -euo pipefail
 
-API_BASE="${API_BASE:-http://localhost:4000/api/v1}"
+API_BASE="${API_BASE:-http://127.0.0.1:4100/api/v1}"
 ADMIN_EMAIL="${ADMIN_EMAIL:-admin@kanaksetu.in}"
 ADMIN_PASSWORD="${ADMIN_PASSWORD:-password123}"
 

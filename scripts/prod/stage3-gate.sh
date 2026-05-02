@@ -4,6 +4,9 @@
 # Run after 7+ days of production operation with 3+ deploys.
 # Exit 0 = Stage 3 can be declared.
 # Exit 1 = Requirements not met. See output for details.
+#
+# On VPS (Kanak API on 4100):
+#   INTERNAL_API_BASE=http://127.0.0.1:4100/api/v1 bash scripts/prod/stage3-gate.sh
 # ============================================================
 
 set -euo pipefail
@@ -18,7 +21,7 @@ BACKUP_DIR="/opt/kanak-setu/backups"
 CI_WORKFLOW_DIR=".github/workflows"
 MIN_DEPLOYS=3
 MAX_RESTARTS="${MAX_RESTARTS:-15}"
-INTERNAL_API_BASE="${INTERNAL_API_BASE:-http://localhost:4000/api/v1}"
+INTERNAL_API_BASE="${INTERNAL_API_BASE:-http://127.0.0.1:4100/api/v1}"
 
 echo ""
 echo "=== Kanak Setu Stage 3 Readiness Gate ==="

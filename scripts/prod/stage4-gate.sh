@@ -8,11 +8,11 @@
 # Recommended on VPS (repo at APP_DIR, PM2, logs):
 #   cd /opt/kanak-setu
 #   set -a && source infra/prod/.env.production && set +a   # DATABASE_URL, INTERNAL_API_SECRET
-#   APP_DIR=/opt/kanak-setu bash scripts/prod/stage4-gate.sh
+#   APP_DIR=/opt/kanak-setu INTERNAL_API_BASE=http://127.0.0.1:4100/api/v1 bash scripts/prod/stage4-gate.sh
 #
 # Env overrides:
 #   MAX_RESTARTS        — default 15 (deploys increment PM2 restart counters)
-#   LOCAL_API_HEALTH_BASE — always used for S4-4 (default http://127.0.0.1:4000/api/v1)
+#   LOCAL_API_HEALTH_BASE — always used for S4-4 (default http://127.0.0.1:4100/api/v1)
 # ============================================================
 
 set -euo pipefail

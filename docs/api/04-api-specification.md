@@ -35,7 +35,7 @@ These routes remain for non-donor roles (e.g. admin, institution):
 
 Example (admin):
 ```bash
-curl -X POST http://localhost:4000/api/v1/auth/login \
+curl -X POST http://127.0.0.1:4100/api/v1/auth/login \
   -H "Content-Type: application/json" \
   -d '{"email":"admin@kanaksetu.in","password":"<your-password>"}'
 ```

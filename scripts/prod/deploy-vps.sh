@@ -87,9 +87,10 @@ pm2 startOrReload ecosystem.config.cjs
 pm2 save
 sleep 2
 
-echo "[deploy] waiting for API to bind..."
+API_PORT="${PORT:-4100}"
+echo "[deploy] waiting for API to bind (PORT=${API_PORT})..."
 for i in $(seq 1 30); do
-  if curl -fsS "http://localhost:4000/api/v1/health" >/dev/null 2>&1; then
+  if curl -fsS "http://127.0.0.1:${API_PORT}/api/v1/health" >/dev/null 2>&1; then
     echo "[deploy] API is up"
     break
   fi
@@ -100,10 +101,10 @@ for i in $(seq 1 30); do
 done
 
 if [[ "${SKIP_DEPLOY_SMOKE:-0}" == "1" ]]; then
-  echo "[deploy] SKIP_DEPLOY_SMOKE=1 — skipping smoke (run: API_BASE=http://localhost:4000/api/v1 npm run smoke:local)"
+  echo "[deploy] SKIP_DEPLOY_SMOKE=1 — skipping smoke (run: API_BASE=http://127.0.0.1:${API_PORT}/api/v1 npm run smoke:local)"
 else
   echo "[deploy] smoke check"
-  API_BASE="http://localhost:4000/api/v1" npm run smoke:local
+  API_BASE="http://127.0.0.1:${API_PORT}/api/v1" npm run smoke:local
 fi
 
 echo "[deploy] DONE"

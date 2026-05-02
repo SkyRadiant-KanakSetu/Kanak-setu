@@ -232,7 +232,7 @@ async function api<T = unknown>(
       error: {
         code: 'NETWORK_ERROR',
         message: isBrowserNetwork
-          ? 'The API is unreachable. If you are the host, check that kanak-api is running (pm2), Caddy proxies to port 4000, and the database is up.'
+          ? 'The API is unreachable. If you are the host, check that kanak-api is running (pm2), Caddy proxies api traffic to the same port as PORT in infra/prod/.env.production (typically 4100 on shared VPS hosts), and that the database is up.'
           : raw ||
             'Could not reach the API. Set NEXT_PUBLIC_API_BASE_URL to https://api.<your-domain>/api/v1 and rebuild.',
       },
