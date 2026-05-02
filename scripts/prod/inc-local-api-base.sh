@@ -31,7 +31,7 @@ _kanak_ss_node_listen_ports() {
 }
 
 # True if GET ${base}/health is Kanak API: 200 + { success: true, data: { status: "ok" } }.
-# Rejects other Node apps on the same host (e.g. 401 JSON with a non-Kanak error body).
+# Rejects other Node apps on the same host (e.g. 401 JSON with a non-Kanak error body, SPA HTML on 4000).
 _kanak_api_health_ok() {
   local base="$1"
   local tmp code body
@@ -40,6 +40,8 @@ _kanak_api_health_ok() {
   body="$(cat "${tmp}" 2>/dev/null || true)"
   rm -f "${tmp}"
   [[ "${code}" == "200" ]] || return 1
+  # Another stack (e.g. Vite SPA) on the same port returns HTML, not Kanak JSON.
+  echo "${body}" | grep -qiE '<!doctype[[:space:]]*html|<[[:space:]]*html[[:space:]]' && return 1
   if command -v jq >/dev/null 2>&1; then
     echo "${body}" | jq -e '.success == true and .data.status == "ok"' >/dev/null 2>&1
     return $?
@@ -47,6 +49,17 @@ _kanak_api_health_ok() {
   echo "${body}" | grep -qE '"success"[[:space:]]*:[[:space:]]*true' || return 1
   echo "${body}" | grep -qE '"status"[[:space:]]*:[[:space:]]*"ok"' || return 1
   return 0
+}
+
+# PORT= from APP_DIR/infra/prod/.env.production (deploy truth), or empty.
+_kanak_env_file_port() {
+  local f
+  [[ -n "${APP_DIR:-}" ]] || return 0
+  f="${APP_DIR}/infra/prod/.env.production"
+  [[ -f "${f}" ]] || return 0
+  grep -E '^[[:space:]]*PORT[[:space:]]*=' "${f}" 2>/dev/null | tail -1 \
+    | sed 's/^[[:space:]]*PORT[[:space:]]*=[[:space:]]*//' | tr -d '\r' \
+    | sed 's/^"\(.*\)"$/\1/' | sed "s/^'\(.*\)'$/\1/"
 }
 
 kanak_discover_local_api_base() {
@@ -58,6 +71,9 @@ kanak_discover_local_api_base() {
 
   local candidates=()
   local p=""
+  local file_port=""
+  local listen_port=""
+  file_port="$(_kanak_env_file_port)"
 
   if command -v pm2 >/dev/null 2>&1 && command -v jq >/dev/null 2>&1; then
     # jq/pm2 failures must not abort callers running under `set -e`
@@ -73,7 +89,7 @@ kanak_discover_local_api_base() {
   fi
 
   [[ -n "${PORT:-}" ]] && candidates+=("${PORT}")
-  # Common drift / alternate configs (API may listen here while PM2 env still says 4000)
+  # Common drift / alternate configs (probe after PM2; 4000 often collides with other stacks)
   candidates+=(4000 4100 8080 3000)
 
   # Extra listen ports from ss (append — do not prefer over PM2/PORT; avoids wrong app on 4100).
@@ -85,17 +101,20 @@ kanak_discover_local_api_base() {
     done < <(_kanak_ss_node_listen_ports | sort -u)
   fi
 
-  # Also try PM2-reported pid when it matches ss (fork mode / direct node).
+  # kanak-api PID → actual TCP port (authoritative when set).
   if command -v pm2 >/dev/null 2>&1 && command -v jq >/dev/null 2>&1 && command -v ss >/dev/null 2>&1; then
-    local apipid listen_port
+    local apipid
     apipid="$(
       pm2 jlist 2>/dev/null | jq -r '.[] | select(.name=="kanak-api") | .pid // empty' 2>/dev/null | head -1
     )" || true
     listen_port="$(_kanak_listen_port_for_pid "${apipid}")"
-    if [[ -n "${listen_port}" ]]; then
-      candidates=("${listen_port}" "${candidates[@]}")
-    fi
   fi
+
+  # Probe order: actual listen port, then infra PORT=, then PM2/shell/ss list.
+  local prio=()
+  [[ -n "${listen_port}" ]] && prio+=("${listen_port}")
+  [[ -n "${file_port}" ]] && prio+=("${file_port}")
+  candidates=("${prio[@]}" "${candidates[@]}")
 
   local seen='|'
   local port host url
@@ -132,7 +151,12 @@ kanak_discover_local_api_base() {
     fi
   fi
 
-  printf '%s' "http://127.0.0.1:${PORT:-4000}/api/v1"
+  # Do not default to 4000: another app often binds it; use .env PORT, PM2, shell PORT, then 4100.
+  local fb="${file_port}"
+  [[ -z "${fb}" ]] && fb="${p}"
+  [[ -z "${fb}" || "${fb}" == "null" ]] && fb="${PORT:-}"
+  [[ -z "${fb}" ]] && fb="4100"
+  printf '%s' "http://127.0.0.1:${fb}/api/v1"
   # Always return 0 so `LOCAL_API_BASE="$(kanak_discover …)"` does not abort `set -e` callers;
   # verification curls below decide success.
   return 0
