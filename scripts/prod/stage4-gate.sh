@@ -272,7 +272,9 @@ fi
 echo "[S4-6] Hardcoded path audit (API src)..."
 HARDCODED="$(
   grep -Rsn "localhost\|127\.0\.0\.1\|/opt/kanak" "${APP_DIR}/apps/api/src/" \
-    --include='*.ts' 2>/dev/null | grep -Ev 'test|spec|__tests__|\.d\.ts|loadEnv|example' | wc -l | tr -d ' '
+    --include='*.ts' 2>/dev/null \
+    | awk '!/test|spec|__tests__|\.d\.ts|loadEnv|example/' \
+    | wc -l | tr -d ' '
 )"
 if [[ "${HARDCODED:-0}" -gt 0 ]]; then
   WARNINGS+=("${HARDCODED} potential hardcoded host/path hits in apps/api/src — review")
