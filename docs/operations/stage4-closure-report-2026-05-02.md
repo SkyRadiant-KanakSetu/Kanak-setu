@@ -19,6 +19,15 @@ Stage 4 is declared for Kanak Setu. The platform has an automated release pipeli
 ```bash
 cd /opt/kanak-setu
 git pull
+bash scripts/prod/run-stage4-gate-production.sh 2>&1 | tee /tmp/stage4-gate-result.txt
+echo "Gate exit: $?"
+```
+
+Or set env explicitly:
+
+```bash
+cd /opt/kanak-setu
+git pull
 set -a && source infra/prod/.env.production && set +a
 APP_DIR=/opt/kanak-setu \
 INTERNAL_API_BASE=http://127.0.0.1:4100/api/v1 \

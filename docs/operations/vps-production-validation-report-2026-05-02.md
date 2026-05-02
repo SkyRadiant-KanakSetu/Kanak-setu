@@ -64,8 +64,14 @@ Optional full Stage 4 declaration gate (needs env + optional internal secret):
 
 ```bash
 cd /opt/kanak-setu
+bash scripts/prod/run-stage4-gate-production.sh 2>&1 | tee /tmp/stage4-gate-result.txt
+```
+
+Equivalent manual invocation:
+
+```bash
+cd /opt/kanak-setu
 set -a && source infra/prod/.env.production && set +a
-# Use the real Kanak API port in INTERNAL_API_BASE (4100 on this VPS):
 APP_DIR=/opt/kanak-setu INTERNAL_API_BASE=http://127.0.0.1:4100/api/v1 \
   bash scripts/prod/stage4-gate.sh
 ```
