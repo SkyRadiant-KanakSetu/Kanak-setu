@@ -5,7 +5,7 @@
 | Current stage  | 4 (declared — confirm VPS gate PASS) |
 | Declared on    | 2026-05-02 |
 | Gate script    | scripts/prod/stage4-gate.sh |
-| Gate result    | Run on VPS — see closure report |
+| Gate result    | See `vps-production-validation-report-2026-05-02.md` + optional `stage4-gate.sh` on VPS |
 | Declared by    | [Name] |
 
 ## Stage 3 Definition of Done (Completed)
@@ -41,14 +41,14 @@
 | Check | Result | Date |
 |-------|--------|------|
 | Clean deploy from main | PASS | 2026-05-01 |
-| post-deploy-verify | PASS | 2026-05-01 |
+| post-deploy-verify | PASS (HEALTHY telemetry) | 2026-05-02 |
 | stage3-gate | PASS (warnings allowed) | 2026-05-01 |
-| stage4-gate | Run on VPS — update after PASS | — |
+| stage4-gate | Run on VPS when declaring — see report | — |
 | Backup cron + daily artifact | Complete on VPS per `scripts/prod/backup.sh` | — |
 | Operator action logged | Complete via admin / internal API | — |
 | `kanak-outbox-worker` online + outbox flowing | Confirm on VPS (`pm2`, DB counts) | — |
-| Repo = VPS (no drift) | IN PROGRESS | 2026-05-01 |
+| Repo = VPS (no drift) | PASS at `a5919ec` on VPS | 2026-05-02 |
 
 ## Next Stage
 
-Stage 5 planning after an observation window: observability, product growth, optional multi-VPS. See `docs/operations/stage4-closure-report-2026-05-02.md`.
+Stage 5 planning after an observation window: observability, product growth, optional multi-VPS. See `docs/operations/stage4-closure-report-2026-05-02.md` and `docs/operations/vps-production-validation-report-2026-05-02.md`.
