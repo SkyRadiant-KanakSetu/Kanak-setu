@@ -107,14 +107,15 @@ else
 fi
 
 echo "[S5-5] Backup freshness (last 25h)..."
+BACKUP_DIR="${APP_DIR}/backups"
 LATEST="$(
-  find "${APP_DIR}/backups" \( -name "*.sql*" -o -name "kanak-setu-*.tgz" \) -mmin -1500 2>/dev/null | head -1 || true
+  find "${BACKUP_DIR}" \( -name "*.sql*" -o -name "kanak-setu-*.tgz" \) -mtime -1 2>/dev/null | sort -r | head -1 || true
 )"
 if [[ -n "${LATEST}" ]]; then
   echo "    PASS — ${LATEST}"
 else
   PASS=false
-  ISSUES+=("No backup found in last 25 hours")
+  ISSUES+=("No backup found in last 24 hours under ${BACKUP_DIR}")
 fi
 
 echo "[S5-6] Logging policy doc..."
