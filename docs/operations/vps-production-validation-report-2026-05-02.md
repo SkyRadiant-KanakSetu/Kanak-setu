@@ -10,7 +10,7 @@
 
 Production Kanak Setu on the VPS at `/opt/kanak-setu` was stabilized after port/env drift and reverse-proxy misrouting. The API now binds **before** a blocking DB connect, Caddy requires an explicit **`KANAK_API_PORT`**, Redis points at the host default port, post-deploy verification accepts both **SQL backups** and **`kanak-setu-*.tgz`** config snapshots, and **`logs/last-verify.json`** is written on every successful verify run.
 
-**Latest operator outcome (reference):** `bash scripts/prod/run-stage4-gate-production.sh` → **Stage 4 gate PASS (exit 0)** on 2026-05-02, with non-blocking WARNs for backup freshness and hardcoded-path audit; operator adoption passed with 1 action.
+**Latest operator outcome (reference):** `bash scripts/prod/run-stage4-gate-production.sh` → **Stage 4 gate PASS (exit 0)** on 2026-05-02 with backup freshness PASS (`2026-05-02-1435-kanak.sql.gz`) and operator adoption PASS (1 action).
 
 ---
 

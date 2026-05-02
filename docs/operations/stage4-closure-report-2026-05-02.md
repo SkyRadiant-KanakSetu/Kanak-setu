@@ -52,27 +52,27 @@ Archive `/tmp/stage4-gate-result.txt` with change-management records. Resolve an
 
 ## Gate results (final VPS run)
 
-Final declaration run captured on VPS at **2026-05-02T14:20:57Z** using `scripts/prod/run-stage4-gate-production.sh` with transcript at `/tmp/stage4-gate-result.txt`.
+Latest declaration run captured on VPS at **2026-05-02T14:36:13Z** using `scripts/prod/run-stage4-gate-production.sh` with transcript at `/tmp/stage4-gate-result.txt`.
 
 | Gate | Check | Result |
 |------|-------|--------|
 | S3-1 | Telemetry log | PASS — 3 deploy entries |
-| S3-2 | Last verify snapshot | PASS — `PASS` at `2026-05-02T14:18:22Z` |
+| S3-2 | Last verify snapshot | PASS — `PASS` at `2026-05-02T14:35:26Z` |
 | S3-3 | PM2 core services | PASS — all core apps online |
 | S3-4 | Dependency audit (high/critical) | PASS — 0 in all apps |
 | S3-5 | CI strict policy | PASS |
 | S3-6 | Operator adoption | PASS — 1 operator action |
-| S3-7 | Backup freshness | WARN — no recent backup in last 24h (non-blocking) |
+| S3-7 | Backup freshness | PASS — `/opt/kanak-setu/backups/2026-05-02-1435-kanak.sql.gz` |
 | S4-1 | Release pipeline | PASS |
 | S4-2 | Outbox worker | PASS |
 | S4-3 | Outbox DB health | PASS — no stuck backlog / no undismissed dead letters |
 | S4-4 | API health endpoint | PASS — `http://127.0.0.1:4100/api/v1/health` |
 | S4-5 | Release targets `main` | PASS |
-| S4-6 | Hardcoded path audit | WARN — 2 grep hits in API src (non-blocking in gate run) |
+| S4-6 | Hardcoded path audit | PASS — no warning emitted in final transcript |
 
 **Overall:** PASS (`exit code 0`).
 
-Follow-up after declaration: S4-6 warning cleanup was committed on `main` in `c9cb69a` (removed `/opt` and localhost defaults in API runtime paths).
+Follow-up hardening: S4-6 warning cleanup landed on `main` in `c9cb69a` (removed `/opt` and localhost defaults in API runtime paths).
 
 ---
 
