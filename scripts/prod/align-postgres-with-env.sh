@@ -80,4 +80,4 @@ echo "[align-pg]   username:  ${DB_USER}"
 echo "[align-pg]   database:  ${DB_NAME}"
 echo "[align-pg]   password:  use scripts/prod/show-prod-db-secret.sh to print, or read DATABASE_URL on this server"
 echo
-echo "  Next: cd ${APP_DIR} && set -a && source infra/prod/.env.production && set +a && npx prisma migrate deploy --schema=prisma/schema.prisma && pm2 startOrReload ecosystem.config.cjs"
+echo "  Next: cd ${APP_DIR} && set -a && source infra/prod/.env.production && set +a && ./node_modules/.bin/prisma migrate deploy --schema=prisma/schema.prisma && pm2 startOrReload ecosystem.config.cjs"

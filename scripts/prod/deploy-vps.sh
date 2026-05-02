@@ -15,6 +15,10 @@ fi
 
 cd "${APP_DIR}"
 
+DEPLOY_SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+# shellcheck disable=SC1091
+source "${DEPLOY_SCRIPT_DIR}/inc-prisma-cli.sh"
+
 echo "[deploy] updating source"
 if git remote get-url origin 2>/dev/null | grep -q '^https://'; then
   echo "[deploy] WARN: git remote uses HTTPS — each pull may prompt for credentials."
@@ -52,10 +56,10 @@ echo "[deploy] prisma generate + database schema"
 npm run db:generate
 if [[ -d "prisma/migrations" ]] && compgen -G "prisma/migrations/*/migration.sql" >/dev/null; then
   echo "[deploy] applying prisma migrations (migrate deploy)"
-  npx prisma migrate deploy --schema=prisma/schema.prisma
+  KANAK_REPO_ROOT="${APP_DIR}" kanak_prisma migrate deploy --schema=prisma/schema.prisma
 else
   echo "[deploy] no migration folders found, using prisma db push (bootstrap only)"
-  npx prisma db push --schema=prisma/schema.prisma --accept-data-loss
+  KANAK_REPO_ROOT="${APP_DIR}" kanak_prisma db push --schema=prisma/schema.prisma --accept-data-loss
 fi
 
 if [[ "${RUN_DB_SEED:-0}" == "1" ]]; then

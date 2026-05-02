@@ -20,11 +20,11 @@
     "format": "prettier --write .",
     "format:check": "prettier --check .",
     "typecheck": "npm run build -w @kanak-setu/validators && npm run build -w @kanak-setu/config && npm run build -w @kanak-setu/sdk && npm run build -w @kanak-setu/blockchain && npm run build -w @kanak-setu/ui",
-    "db:generate": "npx prisma generate --schema=prisma/schema.prisma",
-    "db:migrate": "npx prisma migrate dev --schema=prisma/schema.prisma",
-    "db:push": "npx prisma db push --schema=prisma/schema.prisma",
+    "db:generate": "prisma generate --schema=prisma/schema.prisma",
+    "db:migrate": "prisma migrate dev --schema=prisma/schema.prisma",
+    "db:push": "prisma db push --schema=prisma/schema.prisma",
     "db:seed": "tsx prisma/seed.ts",
-    "db:studio": "npx prisma studio --schema=prisma/schema.prisma",
+    "db:studio": "prisma studio --schema=prisma/schema.prisma",
     "docker:up": "docker compose -f infra/docker-compose.yml up -d",
     "docker:down": "docker compose -f infra/docker-compose.yml down",
     "dev:check": "bash scripts/dev-check.sh",
@@ -43,6 +43,7 @@
     "db:show-prod-db": "bash scripts/prod/show-prod-db-secret.sh"
   },
   "devDependencies": {
+    "prisma": "5.12.0",
     "@eslint/js": "^9.15.0",
     "@next/eslint-plugin-next": "^16.2.4",
     "@types/node": "^20.11.0",

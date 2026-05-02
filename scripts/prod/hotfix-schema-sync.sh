@@ -32,6 +32,10 @@ fi
 
 cd "${APP_DIR}"
 
+HOTFIX_SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+# shellcheck disable=SC1091
+source "${HOTFIX_SCRIPT_DIR}/inc-prisma-cli.sh"
+
 echo "[hotfix] loading production env"
 set -a
 # shellcheck disable=SC1090
@@ -47,7 +51,7 @@ export DATABASE_URL
 echo "[hotfix] DATABASE_URL loaded"
 
 echo "[hotfix] syncing DB schema with Prisma"
-npx prisma db push --schema=prisma/schema.prisma
+KANAK_REPO_ROOT="${APP_DIR}" kanak_prisma db push --schema=prisma/schema.prisma
 
 echo "[hotfix] regenerating Prisma client"
 npm run db:generate

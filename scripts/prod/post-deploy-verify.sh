@@ -16,6 +16,8 @@ set -euo pipefail
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 # shellcheck disable=SC1091
 source "${SCRIPT_DIR}/inc-local-api-base.sh"
+# shellcheck disable=SC1091
+source "${SCRIPT_DIR}/inc-prisma-cli.sh"
 
 APP_DIR="${APP_DIR:-/opt/kanak-setu}"
 PUBLIC_API_BASE="${PUBLIC_API_BASE:-https://api.kanaksetu.com/api/v1}"
@@ -79,7 +81,7 @@ if [[ -f "${ENV_FILE}" ]]; then
   source "${ENV_FILE}"
   set +a
   if [[ -n "${DATABASE_URL:-}" ]]; then
-    npx prisma migrate status --schema=prisma/schema.prisma || true
+    KANAK_REPO_ROOT="${APP_DIR}" kanak_prisma migrate status --schema=prisma/schema.prisma || true
   else
     echo "[verify] WARN: DATABASE_URL not set after sourcing env; skipping migrate status"
   fi

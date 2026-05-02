@@ -2,6 +2,11 @@
 
 set -euo pipefail
 
+ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
+# shellcheck disable=SC1091
+source "${ROOT}/scripts/prod/inc-prisma-cli.sh"
+export KANAK_REPO_ROOT="${ROOT}"
+
 API_BASE="${API_BASE:-http://localhost:4000/api/v1}"
 DATABASE_URL="${DATABASE_URL:-postgresql://kanak:kanak_dev_pwd@localhost:5432/kanak_setu}"
 CI_API_LOG="${CI_API_LOG:-api-ci.log}"
@@ -12,10 +17,10 @@ export DATABASE_URL
 
 npm run db:generate
 if [[ -d "prisma/migrations" ]] && compgen -G "prisma/migrations/*/migration.sql" >/dev/null; then
-  npx prisma migrate deploy --schema=prisma/schema.prisma
+  kanak_prisma migrate deploy --schema=prisma/schema.prisma
 else
   echo "[smoke-ci] no migration SQL found, using prisma db push"
-  npx prisma db push --schema=prisma/schema.prisma --accept-data-loss
+  kanak_prisma db push --schema=prisma/schema.prisma --accept-data-loss
 fi
 npm run db:seed
 
