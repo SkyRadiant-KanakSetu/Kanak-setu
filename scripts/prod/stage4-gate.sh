@@ -271,8 +271,8 @@ fi
 
 echo "[S4-6] Hardcoded path audit (API src)..."
 HARDCODED="$(
-  grep -Rsn "localhost\|127\.0\.0\.1\|/opt/kanak" "${APP_DIR}/apps/api/src/" \
-    --include='*.ts' 2>/dev/null \
+  (grep -Rsn "localhost\|127\.0\.0\.1\|/opt/kanak" "${APP_DIR}/apps/api/src/" \
+    --include='*.ts' 2>/dev/null || true) \
     | awk '!/test|spec|__tests__|\.d\.ts|loadEnv|example/' \
     | wc -l | tr -d ' '
 )"
