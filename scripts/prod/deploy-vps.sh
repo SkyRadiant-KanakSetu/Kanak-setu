@@ -47,6 +47,16 @@ if [[ ! -f "infra/prod/.env.production" ]]; then
   echo "[deploy] ERROR: infra/prod/.env.production missing"
   exit 1
 fi
+# Optional release stamp for observability (Sentry links events to commit SHA).
+if [[ -n "${SENTRY_RELEASE:-}" ]]; then
+  if grep -q '^SENTRY_RELEASE=' infra/prod/.env.production 2>/dev/null; then
+    sed -i.bak "s#^SENTRY_RELEASE=.*#SENTRY_RELEASE=${SENTRY_RELEASE}#g" infra/prod/.env.production
+  else
+    printf '\nSENTRY_RELEASE=%s\n' "${SENTRY_RELEASE}" >> infra/prod/.env.production
+  fi
+  rm -f infra/prod/.env.production.bak
+  echo "[deploy] SENTRY_RELEASE set to ${SENTRY_RELEASE}"
+fi
 set -a
 source infra/prod/.env.production
 set +a

@@ -7,6 +7,7 @@ import {
   HTTP_STATUS,
   legacyCodeToErrorCode,
 } from '../lib/errors';
+import { captureRequestException } from '../lib/sentry';
 
 export { AppError } from '../lib/errors';
 
@@ -51,6 +52,10 @@ export function errorHandler(
         timestamp: response.error.timestamp,
       })
     );
+    captureRequestException(err, req, {
+      correlationId: response.error.correlationId,
+      errorCode: code,
+    });
 
     return res.status(status).json(response);
   }
@@ -74,6 +79,10 @@ export function errorHandler(
         timestamp: response.error.timestamp,
       })
     );
+    captureRequestException(err, req, {
+      correlationId: response.error.correlationId,
+      errorCode: ErrorCode.VALIDATION_ERROR,
+    });
     return res.status(HTTP_STATUS[ErrorCode.VALIDATION_ERROR]).json(response);
   }
 
@@ -91,5 +100,9 @@ export function errorHandler(
       timestamp: response.error.timestamp,
     })
   );
+  captureRequestException(err, req, {
+    correlationId: response.error.correlationId,
+    errorCode: code,
+  });
   return res.status(500).json(response);
 }

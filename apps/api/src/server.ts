@@ -5,11 +5,13 @@ getEnv();
 
 import { buildApp } from './app';
 import { connectRedisRateLimitStore } from './lib/redisRateLimitStore';
+import { initSentry, captureProcessException } from './lib/sentry';
 import { prisma } from './config/prisma';
 import { startCronJobs } from './jobs/scheduler';
 import { assertAnchorRuntimeReady } from './modules/merkle/anchor.service';
 
 const PORT = getEnv().PORT;
+initSentry();
 
 function withTimeout<T>(p: Promise<T>, ms: number, label: string): Promise<T> {
   return Promise.race([
@@ -66,6 +68,15 @@ async function main() {
 }
 
 main().catch((err) => {
+  captureProcessException(err, 'startup');
   console.error('❌ Failed to start server:', err);
   process.exit(1);
+});
+
+process.on('unhandledRejection', (reason) => {
+  captureProcessException(reason, 'unhandledRejection');
+});
+
+process.on('uncaughtException', (err) => {
+  captureProcessException(err, 'uncaughtException');
 });
