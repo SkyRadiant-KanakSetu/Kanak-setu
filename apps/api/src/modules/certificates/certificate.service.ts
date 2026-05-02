@@ -30,7 +30,8 @@ export async function createCertificate(donationId: string, type: CertificateTyp
   // For MVP, we mark as GENERATED immediately
   try {
     const fileUrl = await generateCertificatePdf(cert.id);
-    const qrData = `${process.env.DONOR_WEB_URL || 'http://localhost:3000'}/verify?ref=${cert.verificationRef}`;
+    const donorOrigin = (process.env.DONOR_WEB_URL || 'https://kanaksetu.com').replace(/\/$/, '');
+    const qrData = `${donorOrigin}/verify?ref=${cert.verificationRef}`;
     return prisma.certificate.update({
       where: { id: cert.id },
       data: { status: 'ISSUED', fileUrl, qrData, issuedAt: new Date() },

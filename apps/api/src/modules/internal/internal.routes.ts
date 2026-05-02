@@ -14,7 +14,7 @@ type Pm2Row = {
   pm2_env?: { status?: string; pm_uptime?: number; restart_time?: number };
 };
 
-const LOG_DIR = process.env.KANAK_LOG_DIR || '/opt/kanak-setu/logs';
+const LOG_DIR = process.env.KANAK_LOG_DIR || path.join(process.cwd(), 'logs');
 const DEPLOY_TELEMETRY_FILE =
   process.env.TELEMETRY_LOG_PATH || path.join(LOG_DIR, 'deploy-telemetry.log');
 const LAST_VERIFY_FILE = path.join(LOG_DIR, 'last-verify.json');
