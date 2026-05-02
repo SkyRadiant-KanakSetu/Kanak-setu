@@ -53,4 +53,4 @@
 
 ## Next Stage
 
-Stage 5 planning after an observation window: observability, product growth, optional multi-VPS. See `docs/operations/stage4-closure-report-2026-05-02.md`, `docs/operations/vps-production-validation-report-2026-05-02.md`, and `docs/operations/vps-process-registry.md`.
+Stage 5 execution starts with observability-first rollout (Sentry, Logtail, uptime) before growth features. See `docs/operations/stage4-closure-report-2026-05-02.md`, `docs/operations/vps-production-validation-report-2026-05-02.md`, `docs/operations/vps-process-registry.md`, and `docs/operations/logging-policy.md`.
