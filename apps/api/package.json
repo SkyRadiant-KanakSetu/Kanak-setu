@@ -4,7 +4,7 @@
   "private": true,
   "scripts": {
     "dev": "ts-node-dev --respawn --transpile-only src/server.ts",
-    "build": "tsc",
+    "build": "prisma generate --schema=../../prisma/schema.prisma && tsc",
     "start": "node dist/server.js",
     "lint": "eslint src",
     "test:integration:setup": "tsx src/__tests__/setupPrisma.ts",
@@ -13,7 +13,7 @@
   "dependencies": {
     "@kanak-setu/blockchain": "*",
     "@kanak-setu/config": "*",
-    "@prisma/client": "^5.12.0",
+    "@prisma/client": "5.12.0",
     "bcryptjs": "^2.4.3",
     "cors": "^2.8.5",
     "dotenv": "^16.4.0",
@@ -40,7 +40,7 @@
     "@types/qrcode": "^1.5.5",
     "@types/supertest": "^6.0.3",
     "@types/uuid": "^9.0.8",
-    "prisma": "^5.12.0",
+    "prisma": "5.12.0",
     "supertest": "^7.1.4",
     "ts-node-dev": "^2.0.0",
     "typescript": "^5.4.0"

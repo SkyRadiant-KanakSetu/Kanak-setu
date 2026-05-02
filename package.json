@@ -13,7 +13,7 @@
     "dev:institution": "npm run dev -w apps/institution-web",
     "dev:admin": "npm run dev -w apps/admin-web",
     "dev:mobile": "npm run start -w @kanak-setu/mobile",
-    "build": "npm run build:packages && npm run build:apps",
+    "build": "npm run db:generate && npm run build:packages && npm run build:apps",
     "build:packages": "npm run build -w @kanak-setu/validators -w @kanak-setu/config -w @kanak-setu/blockchain -w @kanak-setu/sdk -w @kanak-setu/ui",
     "build:apps": "npm run build -w @kanak-setu/admin-web -w @kanak-setu/api -w @kanak-setu/donor-web -w @kanak-setu/institution-web",
     "lint": "eslint .",
@@ -43,18 +43,21 @@
     "db:show-prod-db": "bash scripts/prod/show-prod-db-secret.sh"
   },
   "devDependencies": {
-    "prisma": "5.12.0",
     "@eslint/js": "^9.15.0",
     "@next/eslint-plugin-next": "^16.2.4",
     "@types/node": "^20.11.0",
     "dotenv": "^16.4.0",
     "eslint": "^9.15.0",
     "prettier": "^3.2.0",
+    "prisma": "5.12.0",
     "tsx": "^4.19.0",
     "typescript": "^5.4.0",
     "typescript-eslint": "^8.15.0"
   },
   "prisma": {
     "seed": "tsx prisma/seed.ts"
+  },
+  "dependencies": {
+    "@prisma/client": "^5.12.0"
   }
 }
